@@ -31,13 +31,32 @@
 
 ### 1. DICOM Modality Simulator (Docker Container)
 
-**Base image:** `orthancteam/orthanc` or custom Python image with `pydicom` + `pynetdicom`
+**Architecture decision:** Orthanc (image store + C-STORE SCU) + Python sidecar (MWL C-FIND SCU)
 
-**Capabilities to emulate:**
-- Modality Worklist SCU (queries OpenMRS for scheduled exams)
-- C-STORE SCU (pushes completed studies to cloud PACS)
-- C-FIND SCP (responds to worklist queries)
-- DICOM TLS optional for realistic security testing
+Orthanc natively handles image storage and C-STORE transmission to the Cloud PACS via its REST API. A lightweight Python sidecar container (pynetdicom) handles the MWL C-FIND SCU role that Orthanc cannot perform natively — querying OpenMRS for scheduled exams, matching them to the TB image dataset, then triggering Orthanc to push the matched study.
+
+```
+┌──────────────────────────────────────────────────┐
+│  dicom-modality  (docker-compose service group)  │
+│                                                  │
+│  ┌──────────────┐     ┌────────────────────────┐ │
+│  │  orthanc     │     │  modality-sidecar      │ │
+│  │              │◀────│  (Python/pynetdicom)   │ │
+│  │  TB dataset  │     │                        │ │
+│  │  :4242 DICOM │     │  1. C-FIND SCU →       │ │
+│  │  :8042 REST  │     │     OpenMRS MWL        │ │
+│  │              │     │  2. Match patient ID   │ │
+│  │  POST /store │◀────│  3. POST orthanc/store │ │
+│  │  → Cloud PACS│     │     → Cloud PACS       │ │
+│  └──────────────┘     └────────────────────────┘ │
+└──────────────────────────────────────────────────┘
+```
+
+**Capabilities provided:**
+- MWL C-FIND SCU — sidecar queries OpenMRS Radiology Module worklist
+- C-STORE SCU — Orthanc REST API pushes matched studies to Cloud PACS
+- Image library — Orthanc stores and serves the pre-loaded TB DICOM dataset
+- Anonymization — Orthanc anonymization plugin re-tags studies with fictional patient demographics
 
 **Source DICOM data (public domain / open license):**
 
@@ -50,12 +69,10 @@
 | Montgomery County TB dataset | LHNCBC/NLM | 138 TB CXRs, annotated |
 
 **Patient anonymization + re-identification pipeline:**
-
 ```bash
 # Pipeline: source DICOM → strip PHI → inject fictional MDR-TB demographics
-#
-# Tools: dcm2niix (optional), pydicom scripts, dicomanon (MATLAB), or
-#        Orthanc anonymization plugin + Lua/Python script
+# Tool: Orthanc anonymization plugin via REST API
+# POST /studies/{id}/anonymize  with replacement tags for fictional patient
 ```
 
 **Fictional patient population design:**
@@ -64,18 +81,51 @@
 - Modality mix: CXR (PA + lateral), chest CT, optional sputum AFB smear scans
 - DICOM tags to populate: PatientName, PatientID, PatientBirthDate, PatientSex, AccessionNumber, StudyDate, ReferringPhysicianName, InstitutionName (all fictional)
 
-**Container compose snippet:**
+**Python sidecar — acquisition loop sketch:**
+```python
+# modality_sidecar.py
+from pynetdicom import AE
+from pynetdicom.sop_class import ModalityWorklistInformationFind
+import requests, schedule, time
+
+ORTHANC = "http://orthanc:8042"
+MWL_HOST, MWL_PORT = "openmrs", 4242
+
+def acquisition_cycle():
+    ae = AE()
+    ae.add_requested_context(ModalityWorklistInformationFind)
+    with ae.associate(MWL_HOST, MWL_PORT) as assoc:
+        for status, ds in assoc.send_c_find(worklist_query(), ModalityWorklistInformationFind):
+            if ds:
+                study_uid = match_tb_study(ds.PatientID)   # map to loaded dataset
+                requests.post(f"{ORTHANC}/modalities/CLOUD_PACS/store", json=[study_uid])
+
+schedule.every(5).minutes.do(acquisition_cycle)
+while True:
+    schedule.run_pending()
+    time.sleep(10)
+```
+
+**Container compose:**
 ```yaml
-dicom-modality:
+orthanc-modality:
   image: orthancteam/orthanc:latest
   ports:
-    - "4242:4242"   # DICOM port
-    - "8042:8042"   # Orthanc REST API / web UI
+    - "4242:4242"   # DICOM
+    - "8042:8042"   # REST API / web UI
   volumes:
     - ./dicom-data:/var/lib/orthanc/db
-    - ./orthanc.json:/etc/orthanc/orthanc.json
+    - ./orthanc-modality.json:/etc/orthanc/orthanc.json
+
+modality-sidecar:
+  build: ./sidecar
+  depends_on:
+    - orthanc-modality
   environment:
-    ORTHANC__WORKLISTS__DATABASE: /var/lib/orthanc/worklists
+    ORTHANC_URL: http://orthanc-modality:8042
+    MWL_HOST: openmrs
+    MWL_PORT: 4242
+    POLL_INTERVAL_MINUTES: 5
 ```
 
 ---

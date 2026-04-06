@@ -1,0 +1,23 @@
+// Orthanc configuration — Imladris Cloud PACS
+// AE title: CLOUD_PACS   HTTP: 8042 (exposed as 8043)   DICOM: 4242 (exposed as 4243)
+{
+  "Name"                  : "Imladris Cloud PACS",
+  "DicomAet"              : "CLOUD_PACS",
+  "DicomPort"             : 4242,
+  "HttpPort"              : 8042,
+
+  // Allow connections from any host (lab environment — not for production)
+  "RemoteAccessAllowed"   : true,
+  "AuthenticationEnabled" : false,
+
+  // Accept C-STORE for any SOP class
+  "UnknownSopClassAccepted" : true,
+
+  // Do not reject associations whose Called AET doesn't match ours
+  "DicomCheckCalledAet"   : false,
+
+  // Known remote modalities
+  "DicomModalities" : {
+    "MODALITY_SIM" : ["MODALITY_SIM", "orthanc-modality", 4242]
+  }
+}

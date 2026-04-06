@@ -1,0 +1,75 @@
+# Imladris — Virtual Integration Lab
+# Two-Orthanc smoke-test stack
+#
+# Default (no profile): modality simulator + cloud PACS only.
+# Add --profile full to also start the modality sidecar (requires OpenMRS MWL).
+#
+# Quick start:
+#   docker compose up -d
+#   open http://localhost:8042   # modality (AE: MODALITY_SIM)
+#   open http://localhost:8043   # cloud PACS (AE: CLOUD_PACS)
+#
+# Upload a study to the modality:
+#   curl -u admin:admin -X POST http://localhost:8042/instances \
+#        --data-binary @some_file.dcm
+#
+# Push it to the PACS:
+#   curl -u admin:admin -X POST http://localhost:8042/modalities/CLOUD_PACS/store \
+#        -d '["<study-uid>"]'
+
+services:
+
+  # ── Modality simulator ──────────────────────────────────────────────
+  orthanc-modality:
+    image: orthancteam/orthanc:latest
+    container_name: imladris-modality
+    restart: unless-stopped
+    ports:
+      - "4242:4242"   # DICOM C-STORE / C-FIND
+      - "8042:8042"   # REST API + web UI
+    volumes:
+      - ./orthanc/modality.json:/etc/orthanc/orthanc.json:ro
+      - modality-data:/var/lib/orthanc/db
+    networks:
+      - imladris
+
+  # ── Cloud PACS ──────────────────────────────────────────────────────
+  orthanc-pacs:
+    image: orthancteam/orthanc:latest
+    container_name: imladris-pacs
+    restart: unless-stopped
+    ports:
+      - "4243:4242"   # DICOM C-STORE
+      - "8043:8042"   # REST API + web UI
+    volumes:
+      - ./orthanc/pacs.json:/etc/orthanc/orthanc.json:ro
+      - pacs-data:/var/lib/orthanc/db
+    networks:
+      - imladris
+
+  # ── Modality sidecar (MWL poller) — requires OpenMRS ───────────────
+  modality-sidecar:
+    build: ./sidecar
+    container_name: imladris-sidecar
+    restart: unless-stopped
+    depends_on:
+      - orthanc-modality
+    environment:
+      ORTHANC_URL: http://orthanc-modality:8042
+      MWL_HOST: openmrs
+      MWL_PORT: 4242
+      MODALITY_AET: MODALITY_SIM
+      CLOUD_PACS_AE: CLOUD_PACS
+      POLL_INTERVAL_MINUTES: 5
+    networks:
+      - imladris
+    profiles:
+      - full   # only starts with: docker compose --profile full up
+
+volumes:
+  modality-data:
+  pacs-data:
+
+networks:
+  imladris:
+    driver: bridge

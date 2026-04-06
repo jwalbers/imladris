@@ -1,0 +1,133 @@
+<mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.6.1 Chrome/142.0.7444.265 Electron/39.8.0 Safari/537.36" version="29.6.1">
+  <diagram name="Imaging Workflow" id="vesotho-workflow-001">
+    <mxGraphModel dx="1106" dy="879" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;" value="End-to-End Imaging Workflow — MDR-TB Virtual Integration Lab" vertex="1">
+          <mxGeometry height="40" width="1480" x="40" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="bg1" parent="1" style="rounded=0;html=1;fillColor=#fff0f0;strokeColor=#b85450;strokeOpacity=40;fillOpacity=60;" value="" vertex="1">
+          <mxGeometry height="940" width="220" x="40" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="bg2" parent="1" style="rounded=0;html=1;fillColor=#f0fff0;strokeColor=#82b366;strokeOpacity=40;fillOpacity=60;" value="" vertex="1">
+          <mxGeometry height="940" width="220" x="260" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="bg3" parent="1" style="rounded=0;html=1;fillColor=#fffbf0;strokeColor=#d6b656;strokeOpacity=40;fillOpacity=60;" value="" vertex="1">
+          <mxGeometry height="940" width="220" x="480" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="bg4" parent="1" style="rounded=0;html=1;fillColor=#fffff0;strokeColor=#d6b656;strokeOpacity=40;fillOpacity=60;" value="" vertex="1">
+          <mxGeometry height="940" width="220" x="700" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="bg5" parent="1" style="rounded=0;html=1;fillColor=#f0f5ff;strokeColor=#6c8ebf;strokeOpacity=40;fillOpacity=60;" value="" vertex="1">
+          <mxGeometry height="940" width="220" x="920" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="bg6" parent="1" style="rounded=0;html=1;fillColor=#f8f0ff;strokeColor=#9673a6;strokeOpacity=40;fillOpacity=60;" value="" vertex="1">
+          <mxGeometry height="940" width="220" x="1140" y="120" as="geometry" />
+        </mxCell>
+        <mxCell id="h1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=13;fontStyle=1;" value="Clinician" vertex="1">
+          <mxGeometry height="50" width="220" x="40" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="h2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=13;fontStyle=1;" value="OpenMRS" vertex="1">
+          <mxGeometry height="50" width="220" x="260" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="h3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#d6b656;strokeWidth=2;fontSize=13;fontStyle=1;" value="Rad Tech" vertex="1">
+          <mxGeometry height="50" width="220" x="480" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="h4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=13;fontStyle=1;" value="DICOM Modality" vertex="1">
+          <mxGeometry height="50" width="220" x="700" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="h5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=13;fontStyle=1;" value="Cloud PACS" vertex="1">
+          <mxGeometry height="50" width="220" x="920" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="h6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=13;fontStyle=1;" value="Radiologist" vertex="1">
+          <mxGeometry height="50" width="220" x="1140" y="70" as="geometry" />
+        </mxCell>
+        <mxCell id="s1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=10;" value="&lt;b&gt;1. Order Imaging&lt;/b&gt;&lt;br&gt;Select patient, choose&lt;br&gt;study type in OpenMRS" vertex="1">
+          <mxGeometry height="70" width="180" x="60" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="s2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=10;" value="&lt;b&gt;2. Create MWL Entry&lt;/b&gt;&lt;br&gt;Radiology Module generates&lt;br&gt;DICOM Worklist record" vertex="1">
+          <mxGeometry height="70" width="180" x="280" y="150" as="geometry" />
+        </mxCell>
+        <mxCell id="s3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#d6b656;strokeWidth=2;fontSize=10;" value="&lt;b&gt;3. Query Worklist (C-FIND)&lt;/b&gt;&lt;br&gt;Pull pending exams from&lt;br&gt;OpenMRS MWL" vertex="1">
+          <mxGeometry height="70" width="180" x="500" y="270" as="geometry" />
+        </mxCell>
+        <mxCell id="s4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#d6b656;strokeWidth=2;fontSize=10;" value="&lt;b&gt;4. Trigger Acquisition&lt;/b&gt;&lt;br&gt;Select patient on modality,&lt;br&gt;initiate image capture" vertex="1">
+          <mxGeometry height="70" width="180" x="500" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="s5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=10;" value="&lt;b&gt;5. Acquire Images&lt;/b&gt;&lt;br&gt;Simulator generates DICOM&lt;br&gt;series from TB dataset" vertex="1">
+          <mxGeometry height="70" width="180" x="720" y="390" as="geometry" />
+        </mxCell>
+        <mxCell id="s6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=10;" value="&lt;b&gt;6. C-STORE SCU&lt;/b&gt;&lt;br&gt;Push study to Cloud PACS&lt;br&gt;via DIMSE" vertex="1">
+          <mxGeometry height="70" width="180" x="720" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="s7" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=10;" value="&lt;b&gt;7. Index Study + Notify&lt;/b&gt;&lt;br&gt;PACS stores study, sends&lt;br&gt;HL7 ORM to OpenMRS" vertex="1">
+          <mxGeometry height="70" width="180" x="940" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="s8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=10;" value="&lt;b&gt;8. Mark Study Received&lt;/b&gt;&lt;br&gt;Order status updated,&lt;br&gt;radiologist worklist flagged" vertex="1">
+          <mxGeometry height="70" width="180" x="280" y="510" as="geometry" />
+        </mxCell>
+        <mxCell id="s9" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=10;" value="&lt;b&gt;9. Fetch Study (WADO-RS)&lt;/b&gt;&lt;br&gt;OHIF retrieves DICOM images&lt;br&gt;from PACS via DICOMweb" vertex="1">
+          <mxGeometry height="70" width="180" x="1160" y="630" as="geometry" />
+        </mxCell>
+        <mxCell id="s10" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;fontSize=10;" value="&lt;b&gt;10. Read &amp; Measure&lt;/b&gt;&lt;br&gt;Cavity size, consolidation,&lt;br&gt;WHO CXR score, comparison" vertex="1">
+          <mxGeometry height="70" width="180" x="1160" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="s11" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=10;" value="&lt;b&gt;11. Submit Report&lt;/b&gt;&lt;br&gt;HL7 ORU / FHIR DiagnosticReport&lt;br&gt;signed &amp; stored in OpenMRS" vertex="1">
+          <mxGeometry height="70" width="180" x="280" y="750" as="geometry" />
+        </mxCell>
+        <mxCell id="s12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=10;" value="&lt;b&gt;12. View Images (read-only)&lt;/b&gt;&lt;br&gt;OHIF read-only DICOMweb&lt;br&gt;access to Cloud PACS" vertex="1">
+          <mxGeometry height="70" width="180" x="60" y="870" as="geometry" />
+        </mxCell>
+        <mxCell id="s13" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=10;" value="&lt;b&gt;13. Review Report&lt;/b&gt;&lt;br&gt;Access signed radiology report&lt;br&gt;and patient record in OpenMRS" vertex="1">
+          <mxGeometry height="70" width="180" x="280" y="870" as="geometry" />
+        </mxCell>
+        <mxCell id="s14" parent="1" style="shape=mxgraph.flowchart.terminate;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=10;fontStyle=1;" value="&lt;b&gt;14. Clinical Decision&lt;/b&gt;&lt;br&gt;Drug regimen adjustment,&lt;br&gt;referral, or follow-up order" vertex="1">
+          <mxGeometry height="60" width="180" x="60" y="990" as="geometry" />
+        </mxCell>
+        <mxCell id="w1" edge="1" parent="1" source="s1" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#b85450;strokeWidth=2;fontSize=9;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s2" value="creates order">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="w2" edge="1" parent="1" source="s2" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=2;fontSize=9;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s3" value="MWL available">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="w3" edge="1" parent="1" source="s3" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;strokeWidth=2;fontSize=9;" target="s4" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="w4" edge="1" parent="1" source="s4" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;strokeWidth=2;fontSize=9;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s5" value="initiate">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="w5" edge="1" parent="1" source="s5" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;strokeWidth=2;fontSize=9;" target="s6" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="w6" edge="1" parent="1" source="s6" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;fontSize=9;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s7" value="DIMSE C-STORE">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="w7" edge="1" parent="1" source="s7" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=2;fontSize=9;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="s8" value="HL7 ORM">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="w8" edge="1" parent="1" source="s7" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9673a6;strokeWidth=2;fontSize=9;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="s9" value="WADO-RS">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="w9" edge="1" parent="1" source="s9" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#9673a6;strokeWidth=2;fontSize=9;" target="s10" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="w10" edge="1" parent="1" source="s10" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=2;fontSize=9;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="s11" value="HL7 ORU / FHIR">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="w11" edge="1" parent="1" source="s7" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#b85450;strokeWidth=2;dashed=1;fontSize=9;exitX=0;exitY=0.8;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="s12" value="DICOMweb (read-only)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="w12" edge="1" parent="1" source="s11" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#b85450;strokeWidth=2;fontSize=9;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="s13" value="report access">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="w13" edge="1" parent="1" source="s12" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#b85450;strokeWidth=2;fontSize=9;" target="s14" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="w14" edge="1" parent="1" source="s13" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#b85450;strokeWidth=2;fontSize=9;exitX=0;exitY=0.8;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="s14" value="">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

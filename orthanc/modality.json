@@ -1,0 +1,24 @@
+// Orthanc configuration — Imladris Modality Simulator
+// AE title: MODALITY_SIM   HTTP: 8042   DICOM: 4242
+{
+  "Name"                  : "Imladris Modality Simulator",
+  "DicomAet"              : "MODALITY_SIM",
+  "DicomPort"             : 4242,
+  "HttpPort"              : 8042,
+
+  // Allow connections from any host (lab environment — not for production)
+  "RemoteAccessAllowed"   : true,
+  "AuthenticationEnabled" : false,
+
+  // Accept C-STORE for any SOP class (CT, CR, DX, etc.)
+  "UnknownSopClassAccepted" : true,
+
+  // Do not reject associations whose Called AET doesn't match ours
+  "DicomCheckCalledAet"   : false,
+
+  // Known remote modalities
+  // Format: "nickname": ["AET", "hostname", port]
+  "DicomModalities" : {
+    "CLOUD_PACS" : ["CLOUD_PACS", "orthanc-pacs", 4242]
+  }
+}
