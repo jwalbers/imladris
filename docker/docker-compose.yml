@@ -8,6 +8,8 @@
 #   docker compose up -d
 #   open http://localhost:8042   # modality (AE: MODALITY_SIM)
 #   open http://localhost:8043   # cloud PACS (AE: CLOUD_PACS)
+#   open http://localhost:8044   # PACS DICOMweb CORS proxy (used by OHIF)
+#   open http://localhost:3000   # OHIF viewer
 #
 # Upload a study to the modality:
 #   curl -u admin:admin -X POST http://localhost:8042/instances \
@@ -44,6 +46,34 @@ services:
     volumes:
       - ./orthanc/pacs.json:/etc/orthanc/orthanc.json:ro
       - pacs-data:/var/lib/orthanc/db
+    networks:
+      - imladris
+
+  # ── nginx CORS proxy for PACS (required by OHIF) ───────────────────
+  pacs-proxy:
+    image: nginx:alpine
+    container_name: imladris-pacs-proxy
+    restart: unless-stopped
+    ports:
+      - "8044:8044"   # PACS DICOMweb endpoint with CORS headers
+    volumes:
+      - ./nginx/pacs-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - orthanc-pacs
+    networks:
+      - imladris
+
+  # ── OHIF Viewer (radiologist workstation) ──────────────────────────
+  ohif:
+    image: ohif/app:latest
+    container_name: imladris-ohif
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    volumes:
+      - ./ohif/app-config.js:/usr/share/nginx/html/app-config.js:ro
+    depends_on:
+      - pacs-proxy
     networks:
       - imladris
 

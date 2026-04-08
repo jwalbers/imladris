@@ -1,0 +1,52 @@
+// Orthanc configuration — Imladris Cloud PACS
+// AE title: CLOUD_PACS   HTTP: 8042 (exposed as 8043)   DICOM: 4242 (exposed as 4243)
+{
+  "Name"                  : "Imladris Cloud PACS",
+  "DicomAet"              : "CLOUD_PACS",
+  "DicomPort"             : 4242,
+  "HttpPort"              : 8042,
+
+  // Allow connections from any host (lab environment — not for production)
+  "RemoteAccessAllowed"   : true,
+  "AuthenticationEnabled" : false,
+
+  // Accept C-STORE for any SOP class
+  "UnknownSopClassAccepted" : true,
+
+  // Do not reject associations whose Called AET doesn't match ours
+  "DicomCheckCalledAet"   : false,
+
+  // Known remote modalities
+  "DicomModalities" : {
+    "MODALITY_SIM" : ["MODALITY_SIM", "orthanc-modality", 4242]
+  },
+
+  // Enable bundled plugins (Stone Web Viewer + DICOMweb)
+  "Plugins" : ["/usr/share/orthanc/plugins/"],
+
+  // CORS — allow OHIF (localhost:3000) to query the DICOMweb API
+  "HttpAllowCors" : true,
+  "HttpAllowedOrigins" : ["*"],
+  "HttpAllowedHeaders" : ["Authorization", "Content-Type"],
+  "HttpAllowedMethods" : ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+
+  // DICOMweb plugin — required for OHIF (WADO-RS / QIDO-RS / STOW-RS)
+  "DicomWeb" : {
+    "Enable"     : true,
+    "Root"       : "/dicom-web/",
+    "EnableWado" : true,
+    "WadoRoot"   : "/wado",
+    // Transcode frames to uncompressed on retrieval so /frames/N works
+    "TranscodeDicomWebRequestsToUncompressed" : true
+  },
+
+  // GDCM — allow transcoding all transfer syntaxes for frame retrieval
+  "Gdcm" : {
+    "Enable" : true,
+    "RestrictTransferSyntaxes" : []
+  },
+  "OrthancExplorer2" : {
+    "Enable" : true,
+    "IsDefaultOrthancUI" : true
+  }
+}

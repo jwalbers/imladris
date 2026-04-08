@@ -20,5 +20,11 @@
   // Format: "nickname": ["AET", "hostname", port]
   "DicomModalities" : {
     "CLOUD_PACS" : ["CLOUD_PACS", "orthanc-pacs", 4242]
-  }
+  },
+  "OrthancExplorer2" : {
+    "Enable" : true,
+    "IsDefaultOrthancUI" : true
+  },
+  // Enable bundled plugins (Stone Web Viewer)
+  "Plugins" : ["/usr/share/orthanc/plugins/"]
 }

@@ -2,4 +2,19 @@
 ~*
 *~
 .$*
+\#*
+.\#*
+# Don't save credentials or local environment config
+.env
+keys/
+__pycache__/
+.imladris_venv/
+*.venv/
+venv/
+# Don't save GS Cloud files in git
+botsabelo-hospital-records/botsabelo_processed/
+botsabelo-hospital-records/botsabelo_raw/
+# Don't save tmp or work files in git
+tmp/
+work/
 

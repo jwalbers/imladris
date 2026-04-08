@@ -1,92 +1,101 @@
-# vesotho
+# imladris IMaging Lab for Digital Radiography Information Systems
 
-
-
-## Getting started
-
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+## Python config
 
 ```
-cd existing_repo
-git remote add origin http://gringotts-gitlab:30080/fastpilot/vesotho.git
-git branch -M main
-git push -uf origin main
+mkdir .imladris_venv
+python -m venv .imladris_venv
+source .imladris_venv/bin/activate
+python -m pip install <packages below>
 ```
 
-## Integrate with your tools
+| Package | Version | Purpose |
+|---|---|---|
+| `ffmpeg-python` | 0.2.0 | MP4 frame extraction |
+| `google-cloud-storage` | 3.10.1 | GCS upload/download |
+| `kaggle` | 2.0.0 | Kaggle dataset access |
+| `numpy` | 2.4.4 | Pixel array handling |
+| `pandas` | 3.0.2 | Census CSV handling |
+| `pillow` | 12.2.0 | Image processing |
+| `pydicom` | 3.0.2 | DICOM read/write (dep of pynetdicom) |
+| `pynetdicom` | 3.0.4 | needed by sidecar |
+| `python-dotenv` | 1.2.2 | `.env` config loading |
 
-- [ ] [Set up project integrations](http://gringotts-gitlab:30080/fastpilot/vesotho/-/settings/integrations)
+## Cloud config
 
-## Collaborate with your team
+### Google Cloud info
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+project: imladris
+bucket: botsabelo-hospital-records
+Service account: botsabelo-hospital-dev@imladris-492521.iam.gserviceaccount.com
 
-## Test and Deploy
+### Kaggle config / access to Kaggle resources / API
 
-Use the built-in continuous integration in GitLab.
+https://www.kaggle.com/docs/api#authentication
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+Kaggle API token: imladris: KGAT_6bbcc77123563707afe1f6f9723280d0
 
-***
+export KAGGLE_API_TOKEN=KGAT_6bbcc77123563707afe1f6f9723280d0
+kaggle competitions list
 
-# Editing this README
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!).  Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## Claud config
 
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+### Save memory to repo (before committing)
+rsync -av ~/.claude/projects/-Users-jalbers-git-Fastpilot-imladris/memory/ memory/
 
-## Name
-Choose a self-explaining name for your project.
+### Restore memory from repo (after clone/pull)
+rsync -av memory/ ~/.claude/projects/-Users-jalbers-git-Fastpilot-imladris/memory/
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+## Resources
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+Eventually, may create sites for our domains: https://imladrislabs.org
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+OpenMRS distro: https://github.com/PIH/openmrs-distro-pihemr
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+# Sourcing the Ultrasound (FASH) Component
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+You mentioned needing ultrasound images. For an MDR-TB population in Lesotho, you are specifically looking for FASH (Focused Assessment with Sonography for HIV-associated TB) findings.
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+Since these aren't in the X-ray sets, you can find representative public domain clips/stills for:
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+## Pericardial Effusion: Look for "POCUS Parasternal Long Axis Effusion."
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+## Pleural Effusion: Look for "POCUS Lung Sliding Fluid Line."
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+## Abdominal Lymphadenopathy: Look for "POCUS Para-aortic Lymph Nodes."
 
-## License
-For open source projects, say how it is licensed.
+## POCUS Atlas
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+The POCUS Atlas is the best public domain source for these specific clips. You can download a few "Fluid" or "Abscess" clips and upload them to your GCS bucket under a /ultrasound folder.
+
+Unlike the chest X-ray datasets, there isn't a single "Kaggle-style" bulk DICOM download for FASH. Instead, you need to pull from clinical "atlases" that provide the specific pathological findings (fluid and nodes).
+
+## The Primary Source: The POCUS Atlas
+This is the "gold standard" for open-access ultrasound clips. It is peer-reviewed and explicitly intended for educational use.
+
+Link: [(The POCUS Atlas - Image Library)(https://casebrowser.tbportals.niaid.nih.gov/)]
+
+How to search: Don't just search for "FASH." Search for the specific findings that make up a positive FASH exam:
+
+- Pericardial Effusion: (Fluid around the heart—highly suggestive of TB in Lesotho).
+- Pleural Effusion: (Fluid in the lung base).
+- Ascites: (Free fluid in the abdomen).
+- Splenic Microabscesses: (Look for "Splenic Lesions").
+- Lymphadenopathy: (Look for "Abdominal Lymph Nodes").
+
+## The "Pictorial Review" (Reference Data)
+For your synthetic medical records, you’ll need to know what the reports look like. This 2012 foundational paper contains a "pictorial review" of FASH findings in high-prevalence settings like South Africa and Lesotho.
+
+Link: FASH: A short protocol and a pictorial review (ResearchGate) https://www.researchgate.net/publication/233744858_Focused_assessment_with_sonography_for_HIV-associated_tuberculosis_FASH_A_short_protocol_and_a_pictorial_review 
+
+Utility: Use the images in the "Results" section to understand the "Starry Sky" appearance of a TB-infected spleen.
+
+## Sourcing the Metadata: NIH TB Portals (Ultrasound)
+While the "Case Explorer" is now the "Case Browser," the NIH TB Portals does contain ultrasound findings for some of its MDR-TB cases.
+
+Link: TB Portals Case Browser https://casebrowser.tbportals.niaid.nih.gov/
+
+Tip: Once you log in, filter cases by "Extrapulmonary TB" and look for records that have "Ultrasound" listed under the "Imaging" tab.
