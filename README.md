@@ -21,6 +21,26 @@ python -m pip install <packages below>
 | `pynetdicom` | 3.0.4 | needed by sidecar |
 | `python-dotenv` | 1.2.2 | `.env` config loading |
 
+## Emacs config
+
+(setenv "TERM" "dumb")
+(setenv "NO_COLOR" "1")
+
+## Startup
+
+```
+docker compose restart
+docker compose down && docker compose up -d
+docker ps
+```
+imladris-mysql
+imladris-ohif
+imladris-pacs-proxy
+imladris-pacs
+imladris-modality
+
+
+
 ## Cloud config
 
 ### Google Cloud info

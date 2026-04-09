@@ -1,0 +1,12 @@
+[mysqld]
+# Required by OpenMRS
+character-set-server=utf8
+collation-server=utf8_general_ci
+default-storage-engine=InnoDB
+
+# PIH EMR needs this — disables strict mode that breaks some OpenMRS queries
+sql_mode=STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO
+
+# Performance tuning for a lab environment
+innodb_buffer_pool_size=512M
+max_allowed_packet=64M

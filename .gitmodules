@@ -1,0 +1,15 @@
+[submodule "openmrs/openmrs-distro-pihemr"]
+	path = openmrs/openmrs-distro-pihemr
+	url = git@github.com:jwalbers/openmrs-distro-pihemr.git
+[submodule "openmrs/openmrs-frontend-pihemr"]
+	path = openmrs/openmrs-frontend-pihemr
+	url = git@github.com:jwalbers/openmrs-frontend-pihemr.git
+[submodule "openmrs/openmrs-config-zl"]
+	path = openmrs/openmrs-config-zl
+	url = git@github.com:jwalbers/openmrs-config-zl.git
+[submodule "openmrs/openmrs/openmrs-distro-zl"]
+	path = openmrs/openmrs/openmrs-distro-zl
+	url = git@github.com:jwalbers/openmrs-distro-zl.git
+[submodule "openmrs/openmrs-distro-zl"]
+	path = openmrs/openmrs-distro-zl
+	url = git@github.com:jwalbers/openmrs-distro-zl.git

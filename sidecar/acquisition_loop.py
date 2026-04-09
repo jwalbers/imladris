@@ -51,7 +51,7 @@ def run_cycle():
             log.error(f"Failed to process {entry.accession}: {e}")
 
 
-if __name__ == "__main__":
+def main():
     log.info(
         f"Imladris acquisition loop starting  "
         f"(poll every {POLL_MINUTES} min, "
@@ -63,3 +63,7 @@ if __name__ == "__main__":
         run_cycle()
         log.info(f"Sleeping {POLL_MINUTES} min until next cycle …")
         time.sleep(POLL_MINUTES * 60)
+
+
+if __name__ == "__main__":
+    main()

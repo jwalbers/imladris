@@ -25,6 +25,12 @@
     "Enable" : true,
     "IsDefaultOrthancUI" : true
   },
-  // Enable bundled plugins (Stone Web Viewer)
-  "Plugins" : ["/usr/share/orthanc/plugins/"]
+  // Enable bundled plugins (Stone Web Viewer, Worklist, etc.)
+  "Plugins" : ["/usr/share/orthanc/plugins/"],
+
+  // Modality Worklist plugin — reads .wl files from /worklist (shared volume)
+  "Worklists" : {
+    "Enable"   : true,
+    "Database" : "/worklist"
+  }
 }

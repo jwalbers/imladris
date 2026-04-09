@@ -9,11 +9,15 @@
 keys/
 __pycache__/
 .imladris_venv/
+openmrs_work/
 *.venv/
 venv/
 # Don't save GS Cloud files in git
 botsabelo-hospital-records/botsabelo_processed/
 botsabelo-hospital-records/botsabelo_raw/
+# IDE project files
+.idea/
+
 # Don't save tmp or work files in git
 tmp/
 work/
