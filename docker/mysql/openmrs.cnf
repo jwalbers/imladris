@@ -10,3 +10,7 @@ sql_mode=STRICT_TRANS_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_
 # Performance tuning for a lab environment
 innodb_buffer_pool_size=512M
 max_allowed_packet=64M
+
+# Disable TLS — dbevent opens a raw JDBC connection that fails TLS negotiation
+# with Java 11's strict SSL defaults (SSLHandshakeException: No appropriate protocol)
+skip-ssl

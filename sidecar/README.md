@@ -1,30 +1,31 @@
 # Imladris Modality Sidecar
 
 Bridges OpenMRS and the Orthanc-based DICOM stack. Replaces Mirth Connect for
-lab purposes with a lightweight Python service.
+radiology order routing with a lightweight Python service.
 
 ## Services (run in one container)
 
 | Component | File | Role |
 |-----------|------|------|
-| HL7 bridge | `hl7_bridge.py` | MLLP server + Orthanc PACS watcher |
+| Order poller | `order_poller.py` | Polls OpenMRS REST API for new radiology orders → creates MWL entries |
 | MWL manager | `mwl_manager.py` | Creates/removes DICOM worklist files |
 | Acquisition loop | `acquisition_loop.py` | Polls MWL, auto-forwards studies to PACS |
+| PACS watcher | `hl7_bridge.py` | Watches Orthanc PACS for completed studies → sends ORU^R01 to OpenMRS |
 | GUI console | `modality_console.py` | wxPython desktop app (runs natively, not in container) |
 
 ## Message flow
 
 ```
-OpenMRS (radiologyapp)
+OpenMRS (radiologyapp creates order in DB)
   │
-  │  ORM^O01 (new order) via MLLP :2575
+  │  REST GET /ws/rest/v1/order?orderType=...&activatedOnOrAfterDate=...
   ▼
-hl7_bridge.py  ──►  mwl_manager.py writes <accession>.wl to /worklist volume
-                                        │
-                          orthanc-modality serves it via DICOM C-FIND MWL
-                                        │
-                          Modality acquires images, C-STOREs to orthanc-pacs
-                                        │
+order_poller.py  ──►  mwl_manager.py writes <accession>.wl to /worklist volume
+                                       │
+                         orthanc-modality serves it via DICOM C-FIND MWL
+                                       │
+                         Modality acquires images, C-STOREs to orthanc-pacs
+                                       │
   hl7_bridge.py polls /changes on orthanc-pacs (every 15 s)
   StableStudy event detected
   │
@@ -33,7 +34,7 @@ hl7_bridge.py  ──►  mwl_manager.py writes <accession>.wl to /worklist volu
 OpenMRS (study result received)
 ```
 
-Cancel orders (`ORC-1 = CA/DC`) delete the worklist file before acquisition.
+Discontinue orders (`action = DISCONTINUE`) delete the worklist file before acquisition.
 
 ## Worklist sharing
 
@@ -42,21 +43,17 @@ mounted at `/worklist` in both containers.  The Orthanc Worklist plugin
 (`"Worklists": { "Enable": true, "Database": "/worklist" }` in `modality.json`)
 reads `.wl` files from this folder and serves them via DICOM C-FIND.
 
-## OpenMRS configuration
+## Order poller state
 
-In the OpenMRS admin panel, configure the HL7 sender to point at the sidecar:
+The order poller persists the last-seen `dateActivated` timestamp to
+`/data/order_poller_state.json` (Docker volume `sidecar-data`) so restarts
+do not replay old orders.
 
-- **Host:** `localhost` (SDK) or `imladris-sidecar` (Docker)
-- **Port:** `2575`
-
-The sidecar sends ORU results back to OpenMRS on port `8066` (OpenMRS HL7
-Listener module default).
+Set `RADIOLOGY_ORDER_TYPE_UUID` explicitly if auto-discovery picks the wrong
+order type.  Auto-discovery queries `/ws/rest/v1/ordertype` and selects the
+first entry with "radiology" in the name, falling back to "test" order type.
 
 ## Running
-
-The container entrypoint is `main.py`, which starts:
-- The HL7 bridge as an asyncio event loop (main thread)
-- The acquisition loop as a daemon thread
 
 ```bash
 # Start the full stack (requires OpenMRS):
@@ -67,31 +64,37 @@ docker logs -f imladris-sidecar
 ```
 
 The sidecar is gated behind the `full` Docker Compose profile because it
-requires a running OpenMRS instance for HL7 order intake.
+requires a running OpenMRS instance for order intake.
 
 ## Environment variables
 
+### Order poller
+
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `MLLP_PORT` | `2575` | Inbound MLLP listen port |
-| `OPENMRS_HL7_HOST` | `openmrs` | OpenMRS HL7 listener host |
-| `OPENMRS_HL7_PORT` | `8066` | OpenMRS HL7 listener port |
+| `OPENMRS_URL` | `http://openmrs:8080/openmrs` | OpenMRS base URL |
+| `OPENMRS_USER` | `admin` | OpenMRS REST username |
+| `OPENMRS_PASSWORD` | `Admin123` | OpenMRS REST password |
+| `RADIOLOGY_ORDER_TYPE_UUID` | _(auto)_ | UUID of radiology order type; auto-discovered if blank |
+| `ORDER_POLL_SEC` | `30` | Seconds between REST polls |
+| `ORDER_STATE_FILE` | `/data/order_poller_state.json` | Persisted last-polled timestamp |
+
+### PACS change watcher
+
+| Variable | Default | Description |
+|----------|---------|-------------|
 | `PACS_URL` | `http://orthanc-pacs:8042` | Orthanc PACS REST base URL |
 | `PACS_USER` / `PACS_PASSWORD` | `admin` / `admin` | Orthanc credentials |
-| `WL_FOLDER` | `/worklist` | Path to DICOM worklist folder |
 | `CHANGE_POLL_SEC` | `15` | Orthanc PACS change poll interval |
+| `OPENMRS_HL7_HOST` | `openmrs` | OpenMRS HL7 listener host |
+| `OPENMRS_HL7_PORT` | `8066` | OpenMRS HL7 listener port |
+
+### Acquisition loop
+
+| Variable | Default | Description |
+|----------|---------|-------------|
 | `ORTHANC_URL` | `http://orthanc-modality:8042` | Modality Orthanc REST URL |
 | `MODALITY_AET` | `MODALITY_SIM` | Modality AE title |
 | `CLOUD_PACS_AE` | `CLOUD_PACS` | PACS AE title for C-STORE |
 | `POLL_INTERVAL_MINUTES` | `5` | Acquisition loop poll interval |
-
-## HL7 message support
-
-| Message | Direction | Handled |
-|---------|-----------|---------|
-| ORM^O01 (NW — new order) | OpenMRS → sidecar | Creates MWL entry |
-| ORM^O01 (CA/DC — cancel) | OpenMRS → sidecar | Deletes MWL entry |
-| ORU^R01 (study available) | sidecar → OpenMRS | Sent on StableStudy event |
-
-ACK is returned for every inbound message.  Unrecognised message types
-receive AA (application accept) and are logged but otherwise ignored.
+| `WL_FOLDER` | `/worklist` | Path to DICOM worklist folder |

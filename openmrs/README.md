@@ -42,6 +42,13 @@ CREATE DATABASE IF NOT EXISTS openmrs_imladris01;
 GRANT ALL PRIVILEGES ON openmrs_imladris01.* TO 'openmrs'@'%';
 FLUSH PRIVILEGES;
 
+# Starting OpenMRS from the SDK
+
+```
+JAVA_HOME=/Library/Java/JavaVirtualMachines/temurin-11.jdk/Contents/Home \
+ mvn openmrs-sdk:run -DserverId=imladris01
+``` 
+
 
 
 # radiology module references

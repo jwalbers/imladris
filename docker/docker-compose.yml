@@ -107,6 +107,7 @@ services:
       - "2575:2575"   # MLLP HL7 listener (OpenMRS sends orders here)
     volumes:
       - worklist-data:/worklist   # shared with orthanc-modality for .wl files
+      - sidecar-data:/data        # order poller state (last-polled timestamp)
     environment:
       # Acquisition loop
       ORTHANC_URL: http://orthanc-modality:8042
@@ -115,8 +116,14 @@ services:
       MODALITY_AET: MODALITY_SIM
       CLOUD_PACS_AE: CLOUD_PACS
       POLL_INTERVAL_MINUTES: 5
-      # HL7 bridge
-      MLLP_PORT: 2575
+      # Order poller (OpenMRS REST → MWL)
+      OPENMRS_URL: http://openmrs:8080/openmrs
+      OPENMRS_USER: admin
+      OPENMRS_PASSWORD: Admin123
+      ORDER_POLL_SEC: 30
+      ORDER_STATE_FILE: /data/order_poller_state.json
+      # RADIOLOGY_ORDER_TYPE_UUID: ""   # leave blank to auto-discover
+      # PACS change watcher (ORU^R01 back to OpenMRS)
       OPENMRS_HL7_HOST: openmrs
       OPENMRS_HL7_PORT: 8066
       PACS_URL: http://orthanc-pacs:8042
@@ -134,6 +141,7 @@ volumes:
   modality-data:
   pacs-data:
   worklist-data:    # DICOM .wl files shared between sidecar and orthanc-modality
+  sidecar-data:     # order poller persistent state
 
 networks:
   imladris:
