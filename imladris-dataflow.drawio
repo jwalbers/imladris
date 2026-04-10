@@ -1,0 +1,241 @@
+<mxfile host="app.diagrams.net" version="21.0.0" type="device">
+  <diagram name="Imladris Data Flow" id="imladris-dataflow-001">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ══ PERSONAS ══════════════════════════════════════════════════ -->
+
+        <mxCell id="p1"
+          value="&lt;b&gt;Dr. Mokoena&lt;/b&gt;&lt;br/&gt;Clinician&lt;br/&gt;OpenMRS web UI"
+          style="ellipse;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;"
+          vertex="1" parent="1">
+          <mxGeometry x="30" y="20" width="160" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p2"
+          value="&lt;b&gt;Mpho&lt;/b&gt;&lt;br/&gt;Rad Tech&lt;br/&gt;Modality console"
+          style="ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;"
+          vertex="1" parent="1">
+          <mxGeometry x="530" y="20" width="150" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p3"
+          value="&lt;b&gt;Dr. Tau&lt;/b&gt;&lt;br/&gt;Radiologist&lt;br/&gt;OHIF Viewer"
+          style="ellipse;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;fontSize=11;"
+          vertex="1" parent="1">
+          <mxGeometry x="780" y="20" width="150" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ══ OPENMRS ═══════════════════════════════════════════════════ -->
+
+        <mxCell id="s1"
+          value="&lt;b&gt;OpenMRS&lt;/b&gt;&lt;br/&gt;localhost:8080&lt;br/&gt;PIH EMR distribution&lt;br/&gt;HL7 listener :8066"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=5;fontSize=11;"
+          vertex="1" parent="1">
+          <mxGeometry x="30" y="140" width="190" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- ══ SIDECAR CONTAINER (dashed outline) ═══════════════════════ -->
+
+        <mxCell id="sc"
+          value="&lt;b&gt;Imladris Sidecar&lt;/b&gt;  (Docker container — imladris-sidecar)"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#555555;fontColor=#333333;verticalAlign=top;dashed=1;strokeWidth=2;fontSize=11;"
+          vertex="1" parent="1">
+          <mxGeometry x="280" y="120" width="420" height="380" as="geometry" />
+        </mxCell>
+
+        <!-- order_poller.py -->
+        <mxCell id="s2"
+          value="&lt;b&gt;order_poller.py&lt;/b&gt;&lt;br/&gt;Polls OpenMRS REST API&lt;br/&gt;Creates / deletes .wl files"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;"
+          vertex="1" parent="1">
+          <mxGeometry x="300" y="155" width="175" height="85" as="geometry" />
+        </mxCell>
+
+        <!-- acquisition_loop.py -->
+        <mxCell id="s3"
+          value="&lt;b&gt;acquisition_loop.py&lt;/b&gt;&lt;br/&gt;C-FIND worklist&lt;br/&gt;Triggers C-STORE to PACS"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;"
+          vertex="1" parent="1">
+          <mxGeometry x="300" y="268" width="175" height="85" as="geometry" />
+        </mxCell>
+
+        <!-- hl7_bridge.py -->
+        <mxCell id="s4"
+          value="&lt;b&gt;hl7_bridge.py&lt;/b&gt;&lt;br/&gt;Polls PACS /changes&lt;br/&gt;Sends HL7 ORU^R01 (MLLP)"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;"
+          vertex="1" parent="1">
+          <mxGeometry x="300" y="381" width="175" height="85" as="geometry" />
+        </mxCell>
+
+        <!-- ══ WORKLIST VOLUME ═══════════════════════════════════════════ -->
+
+        <mxCell id="v1"
+          value="&lt;b&gt;worklist-data&lt;/b&gt;&lt;br/&gt;Docker named volume&lt;br/&gt;DICOM .wl files"
+          style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;boundedLbl=1;backgroundOutline=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="280" y="572" width="150" height="85" as="geometry" />
+        </mxCell>
+
+        <!-- ══ ORTHANC MODALITY ══════════════════════════════════════════ -->
+
+        <mxCell id="s5"
+          value="&lt;b&gt;orthanc-modality&lt;/b&gt;&lt;br/&gt;localhost:8042 / DICOM :4242&lt;br/&gt;AET: MODALITY_SIM&lt;br/&gt;Worklist plugin reads /worklist"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;arcSize=5;fontSize=11;"
+          vertex="1" parent="1">
+          <mxGeometry x="468" y="562" width="210" height="105" as="geometry" />
+        </mxCell>
+
+        <!-- ══ ORTHANC PACS ══════════════════════════════════════════════ -->
+
+        <mxCell id="s6"
+          value="&lt;b&gt;orthanc-pacs&lt;/b&gt;&lt;br/&gt;localhost:8043 / DICOM :4243&lt;br/&gt;AET: CLOUD_PACS&lt;br/&gt;DICOMweb (QIDO-RS / WADO-RS)"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;arcSize=5;fontSize=11;"
+          vertex="1" parent="1">
+          <mxGeometry x="750" y="130" width="210" height="115" as="geometry" />
+        </mxCell>
+
+        <!-- ══ PACS PROXY ════════════════════════════════════════════════ -->
+
+        <mxCell id="s7"
+          value="&lt;b&gt;pacs-proxy&lt;/b&gt;&lt;br/&gt;nginx :8044&lt;br/&gt;CORS proxy for OHIF"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;arcSize=5;fontSize=11;"
+          vertex="1" parent="1">
+          <mxGeometry x="750" y="380" width="210" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ══ OHIF ══════════════════════════════════════════════════════ -->
+
+        <mxCell id="s8"
+          value="&lt;b&gt;OHIF Viewer&lt;/b&gt;&lt;br/&gt;localhost:3000&lt;br/&gt;DICOMweb client"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d6b656;arcSize=5;fontSize=11;"
+          vertex="1" parent="1">
+          <mxGeometry x="750" y="545" width="210" height="85" as="geometry" />
+        </mxCell>
+
+        <!-- ══ EDGES ══════════════════════════════════════════════════════ -->
+
+        <!-- 1. Dr. Mokoena → OpenMRS: creates order -->
+        <mxCell id="e1"
+          value="1. Creates radiology order"
+          style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" source="p1" target="s1" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 2. OpenMRS → order_poller: REST poll -->
+        <mxCell id="e2"
+          value="2. REST poll every 30 s&lt;br/&gt;GET /ws/rest/v1/order"
+          style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.35;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"
+          edge="1" source="s1" target="s2" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 3. order_poller → worklist-data: writes .wl -->
+        <mxCell id="e3"
+          value="3. Writes accession.wl"
+          style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" source="s2" target="v1" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 4. worklist-data → orthanc-modality: shared volume -->
+        <mxCell id="e4"
+          value="4. Shared Docker volume mount"
+          style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;dashed=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"
+          edge="1" source="v1" target="s5" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 5. Mpho → orthanc-modality: reviews worklist / acquires -->
+        <mxCell id="e5"
+          value="5. Reviews worklist,&lt;br/&gt;acquires images"
+          style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" source="p2" target="s5" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 6. acq_loop → orthanc-modality: C-FIND MWL -->
+        <mxCell id="e6"
+          value="6. C-FIND MWL (DICOM :4242)"
+          style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.3;entryDx=0;entryDy=0;"
+          edge="1" source="s3" target="s5" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 7. orthanc-modality → orthanc-pacs: C-STORE -->
+        <mxCell id="e7"
+          value="7. C-STORE (DICOM :4242)"
+          style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=1;entryDx=0;entryDy=0;"
+          edge="1" source="s5" target="s6" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 8. hl7_bridge → orthanc-pacs: poll /changes (routed via waypoint above pacs-proxy) -->
+        <mxCell id="e8"
+          value="8. Poll /changes every 15 s (HTTP)"
+          style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;"
+          edge="1" source="s4" target="s6" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="720" y="424" />
+              <mxPoint x="720" y="188" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- 9. hl7_bridge → OpenMRS: ORU^R01 MLLP (red — result notification) -->
+        <mxCell id="e9"
+          value="9. HL7 ORU^R01 (MLLP :8066)"
+          style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;strokeColor=#FF0000;fontColor=#CC0000;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.8;entryDx=0;entryDy=0;"
+          edge="1" source="s4" target="s1" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 10. orthanc-pacs → pacs-proxy: DICOMweb -->
+        <mxCell id="e10"
+          value="10. DICOMweb QIDO / WADO-RS"
+          style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" source="s6" target="s7" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 11. pacs-proxy → OHIF: HTTP -->
+        <mxCell id="e11"
+          value="11. HTTP :8044"
+          style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" source="s7" target="s8" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- 12. Dr. Tau → OHIF: opens study -->
+        <mxCell id="e12"
+          value="12. Opens study in viewer"
+          style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.4;entryDx=0;entryDy=0;"
+          edge="1" source="p3" target="s8" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Study available notification: OpenMRS → Dr. Mokoena (dashed blue) -->
+        <mxCell id="e13"
+          value="Study available notification"
+          style="edgeStyle=orthogonalEdgeStyle;html=1;fontSize=10;dashed=1;strokeColor=#6c8ebf;fontColor=#6c8ebf;exitX=0;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=1;entryDx=0;entryDy=0;"
+          edge="1" source="s1" target="p1" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ══ LEGEND ══════════════════════════════════════════════════════ -->
+
+        <mxCell id="lg"
+          value="&lt;b&gt;Protocol key&lt;/b&gt;&lt;br/&gt;── Solid: data flow direction&lt;br/&gt;– – Dashed: shared resource / notification&lt;br/&gt;&lt;font color=&apos;#CC0000&apos;&gt;── Red: HL7 v2.3 ORU^R01 over MLLP&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#cccccc;fontSize=10;align=left;spacingLeft=6;verticalAlign=middle;"
+          vertex="1" parent="1">
+          <mxGeometry x="30" y="690" width="300" height="80" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
