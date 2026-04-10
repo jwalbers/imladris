@@ -49,14 +49,6 @@ imladris-pacs-proxy
 imladris-pacs
 imladris-modality
 
-## Cloud config
-
-### Google Cloud info
-
-project: imladris
-bucket: botsabelo-hospital-records
-Service account: botsabelo-hospital-dev@imladris-492521.iam.gserviceaccount.com
-
 # Resources
 
 Eventually, may create sites for our domains: https://imladrislabs.org

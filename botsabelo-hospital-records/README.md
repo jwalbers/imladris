@@ -25,7 +25,18 @@ GCP_BUCKET_NAME
 
 We don't save the working account credentials given by GCP_KEY_PATH in the git repo, so use your own as needed.
 
-# Testing the connection.
+
+# Cloud config
+
+Set up your config info in ../.env following the example of .env.example.  Set up your google authentication JSON file in a place referenced in your .env
+
+```
+project: imladris
+bucket: botsabelo-hospital-records
+Service account: botsabelo-hospital-dev@imladris-492521.iam.gserviceaccount.com
+```
+
+# Testing the connection
 
 ```
 cd $PROJECT_HOME
