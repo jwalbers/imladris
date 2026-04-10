@@ -12,7 +12,7 @@ Configuration via .env:
 
 CSV expected columns:
     Name, Patient_ID, MDR_Status, CXR_Finding (or falls back to MDR_Status),
-    PatientBirthDate (YYYYMMDD), PatientSex (M/F/O)
+    Birthdate (YYYY-MM-DD), Gender (M/F)
 
 Requirements:
     pip install pydicom Pillow numpy pandas python-dotenv google-cloud-storage
@@ -47,7 +47,12 @@ client = storage.Client.from_service_account_json(KEY_PATH, project=PROJECT_ID)
 bucket = client.bucket(BUCKET_NAME)
 
 
-# ── Name helper ───────────────────────────────────────────────────────
+# ── Date / name helpers ───────────────────────────────────────────────
+
+def to_dicom_date(iso_date: str) -> str:
+    """Convert YYYY-MM-DD → YYYYMMDD (DICOM DA format). Passes through if already 8 digits."""
+    return iso_date.replace("-", "") if iso_date else ""
+
 
 def to_dicom_name(name: str) -> str:
     """Convert 'First Last' → 'Last^First' DICOM PN format."""
@@ -155,8 +160,8 @@ def run_xray_deployment(count: int = 50):
     for index, row in df.head(count).iterrows():
         patient_id   = str(row["Patient_ID"])
         patient_name = to_dicom_name(str(row["Name"]))
-        patient_dob  = str(row.get("PatientBirthDate", ""))
-        patient_sex  = str(row.get("PatientSex", ""))
+        patient_dob  = to_dicom_date(str(row.get("Birthdate", "")))
+        patient_sex  = str(row.get("Gender", ""))
         mdr_status   = str(row.get("MDR_Status", ""))
         cxr_finding  = str(row.get("CXR_Finding", mdr_status))
         series_desc  = f"CXR: {cxr_finding}"[:64]

@@ -37,6 +37,16 @@ Scripts generally update / upload files directly to the GCP_BUCKET_NAME.  Grab f
 
 gcloud storage rsync -r gs://botsabelo-hospital-records/botsabelo_processed/ botsabelo-hospital-records/botsabelo_processed/
 
+## Push local file changes back to gcloud, with deletions.
+
+gcloud storage rsync -r botsabelo-hospital-records/botsabelo_processed/ gs://botsabelo-hospital-records/botsabelo_processed/
+
+To delete any gcloud objects no longer in local files:
+
+gcloud storage rsync botsabelo-hospital-records/botsabelo_processed/ gs://botsabelo-hospital-records/botsabelo_processed/ --delete-unmatched-destination-objects
+
+
+
 # GS Cloud info
 
 ## Storage

@@ -12,7 +12,7 @@ Configuration via .env:
 
 CSV expected columns:
     Name, Patient_ID, MDR_Status, FASH_Ultrasound_Finding,
-    PatientBirthDate (YYYYMMDD), PatientSex (M/F/O)
+    Birthdate (YYYY-MM-DD), Gender (M/F)
 
 Requirements:
     pip install pydicom Pillow numpy ffmpeg-python pandas python-dotenv google-cloud-storage
@@ -24,7 +24,7 @@ import tempfile
 import datetime
 import numpy as np
 import pydicom
-from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
+from pydicom.dataset import FileDataset, FileMetaDataset
 from pydicom.uid import generate_uid, ExplicitVRLittleEndian
 import ffmpeg
 import pandas as pd
@@ -181,7 +181,12 @@ def build_cine_dicom(
     return out_io.read()
 
 
-# ── Name helper ───────────────────────────────────────────────────────
+# ── Date / name helpers ───────────────────────────────────────────────
+
+def to_dicom_date(iso_date: str) -> str:
+    """Convert YYYY-MM-DD → YYYYMMDD (DICOM DA format). Passes through if already 8 digits."""
+    return iso_date.replace("-", "") if iso_date else ""
+
 
 def to_dicom_name(name: str) -> str:
     """
@@ -213,8 +218,8 @@ def run_cine_deployment(count: int = 50):
     for index, row in df.head(count).iterrows():
         patient_id   = str(row["Patient_ID"])
         patient_name = to_dicom_name(str(row["Name"]))
-        patient_dob  = str(row.get("PatientBirthDate", ""))
-        patient_sex  = str(row.get("PatientSex", ""))
+        patient_dob  = to_dicom_date(str(row.get("Birthdate", "")))
+        patient_sex  = str(row.get("Gender", ""))
         finding      = str(row.get("FASH_Ultrasound_Finding", "FASH Ultrasound"))
         mdr_status   = str(row.get("MDR_Status", ""))
         series_desc  = f"FASH Cine: {finding}"[:64]
