@@ -3,7 +3,7 @@ imladris IMaging Lab for Digital Radiography Information Systems
 
 # Overview
 
-Primary notes for this project live on the PIH EMR Confluence site: ](IMaging LAb for Digital Radiology Information Systems (IMLADRIS) Ideas)(https://pihemr.atlassian.net/wiki/x/CAA9_Q)]
+Primary notes for this project live on the PIH EMR Confluence site: [(IMaging LAb for Digital Radiology Information Systems (IMLADRIS) Ideas)(https://pihemr.atlassian.net/wiki/x/CAA9_Q)]
 
 See that page for latest overview and discussion of the project.
 
@@ -55,9 +55,9 @@ Eventually, may create sites for our domains: https://imladrislabs.org
 
 We own imladrislabs.[org,net,info,com]
 
-# Sourcing the Xray Component
+## Sourcing the Xray Component
 
-## Use the Kaggle TB_Chest_Radiography_Database dataset
+### Use the Kaggle TB_Chest_Radiography_Database dataset
 
 Create a free Kaggle account and get an API token from the site.
 
@@ -66,7 +66,7 @@ Maintain the Kaggle API token in the keys subdirectory, but do not commit it to 
 We have cloned the dataset in gcloud and use those images to randomly select Normal vs. Tuberculosis images for our fictional patients.
 
 
-## Sourcing the Ultrasound (FASH) Component
+### Sourcing the Ultrasound (FASH) Component
 
 We need fultrasound images. For an MDR-TB population in Lesotho, specifically FASH (Focused Assessment with Sonography for HIV-associated TB) findings.
 
@@ -75,7 +75,7 @@ Since these aren't in the X-ray sets, need to find representative public domain 
 - Pleural Effusion: Look for "POCUS Lung Sliding Fluid Line."
 - Abdominal Lymphadenopathy: Look for "POCUS Para-aortic Lymph Nodes."
 
-### POCUS Atlas: the Primary Source
+#### POCUS Atlas: the Primary Source
 
 This is the "gold standard" for open-access ultrasound clips. It is peer-reviewed and explicitly intended for educational use.
 
@@ -101,13 +101,26 @@ Link: FASH: A short protocol and a pictorial review (ResearchGate) https://www.r
 
 Utility: Use the images in the "Results" section to understand the "Starry Sky" appearance of a TB-infected spleen.
 
-## Sourcing the Metadata: NIH TB Portals (Ultrasound)
+### Sourcing the Metadata: NIH TB Portals (Ultrasound)
 
 While the "Case Explorer" is now the "Case Browser," the NIH TB Portals does contain ultrasound findings for some of its MDR-TB cases.
 
 Link: TB Portals Case Browser https://casebrowser.tbportals.niaid.nih.gov/
 
 Tip: Once you log in, filter cases by "Extrapulmonary TB" and look for records that have "Ultrasound" listed under the "Imaging" tab.
+
+# Workflow notes
+
+## OpenMRS documentation
+
+[(OpenMRS User and Admin Guide)(https://openmrs.atlassian.net/wiki/spaces/docs/pages/25475723/User+Admin+Guide)]
+[(OpenMRS Academy)(https://openmrs.org/academy/)]
+
+### New feature description
+
+#### Managing Orders
+
+[(Orders App Improvements 2026)(https://openmrs.atlassian.net/wiki/spaces/projects/pages/735772680/Orders+App+and+Lab+App+Improvements+2026)]
 
 # Claude config
 

@@ -1,6 +1,6 @@
 # Imladris modality sidecar
-# Runs the order poller, acquisition loop, and PACS change watcher.
-# The modality_console.py GUI runs natively on the rad-tech Windows 11 VM.
+# Runs the order poller, acquisition loop, PACS change watcher,
+# and modality console web UI (port 5001).
 
 FROM python:3.11-slim
 
@@ -14,13 +14,14 @@ RUN python -m venv .venv
 ENV PATH="/app/.venv/bin:$PATH"
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir pynetdicom pydicom requests
+RUN pip install --no-cache-dir pynetdicom pydicom requests flask
 
 COPY dicom_client.py .
 COPY acquisition_loop.py .
 COPY mwl_manager.py .
 COPY order_poller.py .
 COPY hl7_bridge.py .
+COPY modality_console_web.py .
 COPY main.py .
 
 # Acquisition loop
@@ -46,5 +47,10 @@ ENV PACS_USER=admin
 ENV PACS_PASSWORD=admin
 ENV WL_FOLDER=/worklist
 ENV CHANGE_POLL_SEC=15
+
+# Modality console web UI
+ENV CONSOLE_PORT=5001
+ENV XRAY_DIR=/hospital-records/xray
+ENV US_DIR=/hospital-records/ultrasound_cine
 
 CMD ["python", "main.py"]

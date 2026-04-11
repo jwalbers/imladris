@@ -94,14 +94,17 @@ def query_mwl() -> list[WorklistEntry]:
 
     entries: list[WorklistEntry] = []
 
-    with ae.associate(MWL_HOST, MWL_PORT) as assoc:
-        if not assoc.is_established:
-            raise ConnectionError(
-                f"Could not associate with MWL SCP at {MWL_HOST}:{MWL_PORT}"
-            )
+    assoc = ae.associate(MWL_HOST, MWL_PORT)
+    if not assoc.is_established:
+        raise ConnectionError(
+            f"Could not associate with MWL SCP at {MWL_HOST}:{MWL_PORT}"
+        )
+    try:
         for status, identifier in assoc.send_c_find(ds, ModalityWorklistInformationFind):
             if identifier is not None:
                 entries.append(WorklistEntry(identifier))
+    finally:
+        assoc.release()
 
     return entries
 

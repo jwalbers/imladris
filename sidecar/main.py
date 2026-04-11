@@ -1,12 +1,13 @@
 """
 main.py — Imladris sidecar entry point.
 
-Runs three concurrent services:
+Runs four concurrent services:
   1. Order poller — polls OpenMRS REST API for new radiology orders,
                     creates DICOM worklist entries (blocking thread)
   2. Acquisition loop — polls MWL, auto C-STOREs studies to PACS (blocking thread)
   3. PACS change watcher — watches Orthanc PACS for StableStudy events,
                            sends HL7 ORU^R01 back to OpenMRS (asyncio)
+  4. Modality console web — Flask UI for rad-tech worklist + image acquisition
 """
 
 import asyncio
@@ -15,6 +16,7 @@ import threading
 
 import acquisition_loop
 import hl7_bridge
+import modality_console_web
 import order_poller
 
 logging.basicConfig(
@@ -41,6 +43,7 @@ if __name__ == "__main__":
 
     _run_in_thread("order-poller",    order_poller.main)
     _run_in_thread("acq-loop",        acquisition_loop.main)
+    _run_in_thread("console-web",     modality_console_web.main)
 
     # PACS watcher runs on the main thread's asyncio loop
     asyncio.run(hl7_bridge.watch_pacs_forever())

@@ -19,7 +19,9 @@
   // Known remote modalities
   // Format: "nickname": ["AET", "hostname", port]
   "DicomModalities" : {
-    "CLOUD_PACS" : ["CLOUD_PACS", "orthanc-pacs", 4242]
+    "CLOUD_PACS"    : ["CLOUD_PACS",    "orthanc-pacs",           4242],
+    "MODALITY_SIM"  : ["MODALITY_SIM",  "imladris-sidecar",       4242],
+    "FULFILL_SCU"   : ["FULFILL_SCU",   "host.docker.internal",   4242]
   },
   "OrthancExplorer2" : {
     "Enable" : true,

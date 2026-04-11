@@ -38,6 +38,7 @@ STAFF = [
             "Application Role: clinical",        # clinical access
             "Application Role: physician",        # physician apps
             "Authenticated",
+            "Provider",                          # required for emr-api getProvidersByPerson()
         ],
         "provider_role": "Clinician",
     },
@@ -53,6 +54,7 @@ STAFF = [
         "roles": [
             "Application Role: radiologyTechnician",
             "Authenticated",
+            "Provider",
         ],
         "provider_role": "Radiology Technician",
     },
@@ -69,6 +71,7 @@ STAFF = [
             "Application Role: radiology",
             "Application Role: physician",
             "Authenticated",
+            "Provider",
         ],
         "provider_role": "Physician",   # closest match — no standalone Radiologist role
     },
@@ -85,6 +88,7 @@ STAFF = [
             "Application Role: archivistClerk",
             "Application Role: checkIn",
             "Authenticated",
+            "Provider",
         ],
         "provider_role": "Archivist/Clerk",
     },
@@ -143,6 +147,7 @@ class OpenMRSClient:
             "password": staff["password"],
             "person": person_uuid,
             "roles": [{"uuid": u} for u in role_uuids],
+            "userProperties": {"defaultLocale": "en"},
         }
         result = self.post("/ws/rest/v1/user", payload)
         return result["uuid"]

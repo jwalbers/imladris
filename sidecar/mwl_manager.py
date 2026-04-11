@@ -105,8 +105,7 @@ class MwlManager:
         meta.ImplementationVersionName = "IMLADRIS_1.0"
 
         ds = FileDataset(None, {}, file_meta=meta, preamble=b"\x00" * 128)
-        ds.is_implicit_VR = False
-        ds.is_little_endian = True
+        ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
 
         # SOP
         ds.SOPClassUID = _MWL_SOP_CLASS
@@ -120,15 +119,18 @@ class MwlManager:
         ds.PatientBirthDate = dob
         ds.PatientSex = sex
 
+        # AccessionNumber is SH (max 16 chars) — truncate UUID by stripping dashes
+        accession_sh = accession.replace("-", "")[:16]
+
         # Order-level
-        ds.AccessionNumber = accession
-        ds.RequestedProcedureID = procedure_id
+        ds.AccessionNumber = accession_sh
+        ds.RequestedProcedureID = accession_sh
         ds.RequestedProcedureDescription = procedure_desc
         ds.RequestedProcedurePriority = "ROUTINE"
         ds.StudyInstanceUID = generate_uid()
         ds.ReferencedStudySequence = Sequence([])
         ds.ReferencedPatientSequence = Sequence([])
-        ds.PlacerOrderNumberImagingServiceRequest = accession
+        ds.PlacerOrderNumberImagingServiceRequest = accession_sh
         ds.FillerOrderNumberImagingServiceRequest = ""
         ds.ReferringPhysicianName = ""
         ds.AdmissionID = ""
@@ -141,7 +143,7 @@ class MwlManager:
 
         # Scheduled Procedure Step
         sps = Dataset()
-        sps.ScheduledProcedureStepID = accession
+        sps.ScheduledProcedureStepID = accession_sh
         sps.ScheduledProcedureStepStartDate = scheduled_date
         sps.ScheduledProcedureStepStartTime = scheduled_time
         sps.Modality = modality.upper()

@@ -105,9 +105,11 @@ services:
       - orthanc-pacs
     ports:
       - "2575:2575"   # MLLP HL7 listener (OpenMRS sends orders here)
+      - "5001:5001"   # Modality console web UI
     volumes:
       - worklist-data:/worklist   # shared with orthanc-modality for .wl files
       - sidecar-data:/data        # order poller state (last-polled timestamp)
+      - ../botsabelo-hospital-records/botsabelo_processed:/hospital-records:ro
     environment:
       # Acquisition loop
       ORTHANC_URL: http://orthanc-modality:8042
@@ -115,16 +117,16 @@ services:
       MWL_PORT: 4242
       MODALITY_AET: MODALITY_SIM
       CLOUD_PACS_AE: CLOUD_PACS
-      POLL_INTERVAL_MINUTES: 5
+      POLL_INTERVAL_MINUTES: 0.25   # 15 sec — demo mode (restore to 5 for production)
       # Order poller (OpenMRS REST → MWL)
-      OPENMRS_URL: http://openmrs:8080/openmrs
+      OPENMRS_URL: http://host.docker.internal:8080/openmrs
       OPENMRS_USER: admin
       OPENMRS_PASSWORD: Admin123
-      ORDER_POLL_SEC: 30
+      ORDER_POLL_SEC: 10            # 10 sec — demo mode (restore to 30 for production)
       ORDER_STATE_FILE: /data/order_poller_state.json
       # RADIOLOGY_ORDER_TYPE_UUID: ""   # leave blank to auto-discover
       # PACS change watcher (ORU^R01 back to OpenMRS)
-      OPENMRS_HL7_HOST: openmrs
+      OPENMRS_HL7_HOST: host.docker.internal
       OPENMRS_HL7_PORT: 8066
       PACS_URL: http://orthanc-pacs:8042
       PACS_USER: admin

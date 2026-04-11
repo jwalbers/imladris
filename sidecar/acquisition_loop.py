@@ -20,7 +20,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("acquisition_loop")
 
-POLL_MINUTES = int(os.getenv("POLL_INTERVAL_MINUTES", "5"))
+POLL_MINUTES = float(os.getenv("POLL_INTERVAL_MINUTES", "5"))
 
 
 def run_cycle():

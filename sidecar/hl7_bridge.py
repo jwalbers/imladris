@@ -2,10 +2,15 @@
 hl7_bridge.py — Orthanc PACS change watcher + HL7 ORU^R01 sender.
 
 Polls the Orthanc PACS /changes feed for StableStudy events and sends
-an HL7 v2.3 ORU^R01 message to the OpenMRS HL7 listener via MLLP to
-indicate that images are available for a given accession number.
+an HL7 v2.3 ORU^R01 message to OpenMRS via the REST API
+(POST /ws/rest/v1/hl7) to indicate that images are available.
 
-Inbound radiology orders are now handled by order_poller.py (REST API
+Using REST rather than MLLP avoids the need for a separate MLLP listener
+port in OpenMRS.  The & in MSH-2 is sent as the JSON Unicode escape
+\u0026 to survive the OpenMRS XSS filter, which HTML-encodes bare & in
+request bodies.
+
+Inbound radiology orders are handled by order_poller.py (REST API
 polling), so there is no MLLP listener in this module.
 
 Usage
@@ -17,6 +22,7 @@ standalone for testing:
 """
 
 import asyncio
+import json
 import logging
 import os
 from datetime import datetime, timezone
@@ -27,8 +33,9 @@ log = logging.getLogger("hl7_bridge")
 
 # ── Configuration ─────────────────────────────────────────────────────
 
-OPENMRS_HL7_HOST = os.getenv("OPENMRS_HL7_HOST",  "openmrs")
-OPENMRS_HL7_PORT = int(os.getenv("OPENMRS_HL7_PORT", "8066"))
+OPENMRS_URL      = os.getenv("OPENMRS_URL",        "http://openmrs:8080/openmrs")
+OPENMRS_USER     = os.getenv("OPENMRS_USER",       "admin")
+OPENMRS_PASSWORD = os.getenv("OPENMRS_PASSWORD",   "Admin123")
 
 PACS_URL         = os.getenv("PACS_URL",           "http://orthanc-pacs:8042")
 PACS_USER        = os.getenv("PACS_USER",          "admin")
@@ -36,56 +43,32 @@ PACS_PASS        = os.getenv("PACS_PASSWORD",      "admin")
 
 CHANGE_POLL_SEC  = int(os.getenv("CHANGE_POLL_SEC", "15"))
 
-# MLLP framing bytes
-_SB = b"\x0b"
-_EB = b"\x1c"
-_CR = b"\x0d"
-
 # Track last Orthanc change sequence seen (in-process only; resets on restart)
 _last_change_seq: int = 0
 
 
-# ── MLLP send helper ──────────────────────────────────────────────────
+# ── OpenMRS REST HL7 send helper ──────────────────────────────────────
 
-async def _read_mllp_message(reader: asyncio.StreamReader) -> bytes:
-    while True:
-        byte = await reader.read(1)
-        if not byte:
-            raise asyncio.IncompleteReadError(byte, 1)
-        if byte == _SB:
-            break
-    buf = bytearray()
-    while True:
-        chunk = await reader.read(1)
-        if not chunk:
-            raise asyncio.IncompleteReadError(chunk, 1)
-        if chunk == _EB:
-            await reader.read(1)   # consume trailing CR
-            break
-        buf.extend(chunk)
-    return bytes(buf)
+def _send_hl7_rest(hl7_str: str):
+    """POST an HL7 message to OpenMRS via the REST API.
 
-
-def _wrap_mllp(hl7_str: str) -> bytes:
-    return _SB + hl7_str.encode("latin-1") + _EB + _CR
-
-
-async def _send_mllp(host: str, port: int, hl7_str: str, timeout: float = 10.0):
-    try:
-        reader, writer = await asyncio.wait_for(
-            asyncio.open_connection(host, port), timeout=timeout
-        )
-        writer.write(_wrap_mllp(hl7_str))
-        await writer.drain()
-        try:
-            raw = await asyncio.wait_for(_read_mllp_message(reader), timeout=timeout)
-            log.debug(f"ACK from {host}:{port}: {raw[:80]}")
-        except Exception:
-            pass
-        writer.close()
-        await writer.wait_closed()
-    except Exception as e:
-        log.error(f"MLLP send to {host}:{port} failed: {e}")
+    The & in MSH-2 (^~\\&) is sent as the JSON Unicode escape \\u0026
+    so the OpenMRS XSS filter (which HTML-encodes bare & in request
+    bodies) does not corrupt the HL7 encoding characters.
+    """
+    body = json.dumps({"hl7": hl7_str}).replace("&", "\\u0026").encode("ascii")
+    r = requests.post(
+        f"{OPENMRS_URL}/ws/rest/v1/hl7",
+        data=body,
+        headers={"Content-Type": "application/json"},
+        auth=(OPENMRS_USER, OPENMRS_PASSWORD),
+        timeout=10,
+    )
+    if r.status_code == 201:
+        log.info(f"HL7 REST accepted: {r.json().get('uuid')}  state={r.json().get('messageState')}")
+    else:
+        log.error(f"HL7 REST rejected ({r.status_code}): {r.text[:200]}")
+        r.raise_for_status()
 
 
 # ── Orthanc PACS change watcher ───────────────────────────────────────
@@ -171,10 +154,9 @@ async def _send_oru_for_study(study_id: str, auth: tuple):
     )
 
     log.info(
-        f"Sending ORU^R01 to {OPENMRS_HL7_HOST}:{OPENMRS_HL7_PORT}  "
-        f"accession={accession}  patient={patient_id}"
+        f"Sending ORU^R01 via REST  accession={accession}  patient={patient_id}"
     )
-    await _send_mllp(OPENMRS_HL7_HOST, OPENMRS_HL7_PORT, oru)
+    await asyncio.get_event_loop().run_in_executor(None, _send_hl7_rest, oru)
 
 
 # ── ORU^R01 builder ───────────────────────────────────────────────────
@@ -189,7 +171,7 @@ def _build_oru(
     obs_value = f"Images available in PACS. StudyInstanceUID={study_uid}"
 
     return (
-        f"MSH|^~\\&|IMLADRIS||OpenMRS||{now}||ORU^R01|{msg_id}|P|2.3\r"
+        f"MSH|^~\\&|IMLADRIS|IMLADRIS|OpenMRS||{now}||ORU^R01|{msg_id}|P|2.3\r"
         f"PID|1||{patient_id}^^^IMLADRIS^MR||{patient_name}||\r"
         f"OBR|1|{accession}|{accession}|RAD^{procedure_desc}^LOCAL"
         f"|||{obs_time}||||||||||||{modality}|||||||F\r"
