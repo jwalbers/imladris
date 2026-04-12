@@ -9,6 +9,9 @@ See that page for latest overview and discussion of the project.
 
 # Setup
 
+See [docs/environment-setup.md](docs/environment-setup.md) for full prerequisites
+and configuration for **macOS** and **Windows 11**.
+
 ## Python config
 
 ```
