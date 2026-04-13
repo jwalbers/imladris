@@ -127,8 +127,16 @@ Tip: Once you log in, filter cases by "Extrapulmonary TB" and look for records t
 
 # Claude config
 
-### Save memory to repo (before committing)
-rsync -av ~/.claude/projects/-Users-jalbers-git-Fastpilot-imladris/memory/ memory/
+Claude memory is kept in the private `imladris-personal` repo, not here.
 
-### Restore memory from repo (after clone/pull)
-rsync -av memory/ ~/.claude/projects/-Users-jalbers-git-Fastpilot-imladris/memory/
+### Save memory (before committing imladris-personal)
+```bash
+rsync -av ~/.claude/projects/-Users-jalbers-git-Fastpilot-imladris/memory/ \
+  ../imladris-personal/memory/
+```
+
+### Restore memory (after cloning imladris-personal)
+```bash
+rsync -av ../imladris-personal/memory/ \
+  ~/.claude/projects/-Users-jalbers-git-Fastpilot-imladris/memory/
+```
