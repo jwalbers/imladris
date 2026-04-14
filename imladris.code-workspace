@@ -1,7 +1,20 @@
 {
 	"folders": [
 		{
+			"name": "imladris",
 			"path": "."
+		},
+		{
+			"name": "imladris-personal",
+			"path": "../imladris-personal"
+		},
+		{
+			"name": "openmrs-module-radiologyapp (ref)",
+			"path": "../../PIH/openmrs-module-radiologyapp"
+		},
+		{
+			"name": "openmrs-module-pacsintegration (ref)",
+			"path": "../../PIH/openmrs-module-pacsintegration"
 		}
 	]
 }
