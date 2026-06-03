@@ -46,7 +46,8 @@
         "SslEnabled"     : true,
         "SslVerifyPeers" : true,
         "Username"       : "${ADVAPACS_KEY_ID}",
-        "Password"       : "${ADVAPACS_SECRET}"
+        "Password"       : "${ADVAPACS_SECRET}",
+        "Timeout"        : 300
       }
     }
   },
