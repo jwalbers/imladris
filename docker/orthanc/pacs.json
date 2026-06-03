@@ -1,8 +1,8 @@
 // Orthanc configuration — Imladris Cloud PACS
-// AE title: CLOUD_PACS   HTTP: 8042 (exposed as 8043)   DICOM: 4242 (exposed as 4243)
+// AE title: IML_PACS_01   HTTP: 8042 (exposed as 8043)   DICOM: 4242 (exposed as 4243)
 {
   "Name"                  : "Imladris Cloud PACS",
-  "DicomAet"              : "CLOUD_PACS",
+  "DicomAet"              : "IML_PACS_01",
   "DicomPort"             : 4242,
   "HttpPort"              : 8042,
 
@@ -37,8 +37,22 @@
     "EnableWado" : true,
     "WadoRoot"   : "/wado",
     // Transcode frames to uncompressed on retrieval so /frames/N works
-    "TranscodeDicomWebRequestsToUncompressed" : true
+    "TranscodeDicomWebRequestsToUncompressed" : true,
+
+    // Cloud PACS peers — Orthanc forwards stable studies to these via STOW-RS
+    "Servers" : {
+      "AdvaPACS" : {
+        "Url"            : "https://usa1.api.dicomweb.advapacs.com/rs",
+        "SslEnabled"     : true,
+        "SslVerifyPeers" : true,
+        "Username"       : "${ADVAPACS_KEY_ID}",
+        "Password"       : "${ADVAPACS_SECRET}"
+      }
+    }
   },
+
+  // Auto-forward stable studies to configured DICOMweb servers
+  "LuaScripts" : ["/etc/orthanc/forward-to-advapacs.lua"],
 
   // GDCM — allow transcoding all transfer syntaxes for frame retrieval
   "Gdcm" : {

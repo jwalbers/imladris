@@ -13,3 +13,9 @@
 [submodule "openmrs/openmrs-distro-zl"]
 	path = openmrs/openmrs-distro-zl
 	url = git@github.com:jwalbers/openmrs-distro-zl.git
+[submodule "openmrs/openmrs-module-pacsintegration"]
+	path = openmrs/openmrs-module-pacsintegration
+	url = git@github.com:jwalbers/openmrs-module-pacsintegration.git
+[submodule "openmrs/mirebalais-puppet"]
+	path = openmrs/mirebalais-puppet
+	url = git@github.com:PIH/mirebalais-puppet.git

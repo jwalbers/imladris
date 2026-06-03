@@ -14,7 +14,7 @@ window.config = {
       sourceName: 'dicomweb',
       configuration: {
         friendlyName: 'Imladris Cloud PACS',
-        name: 'CLOUD_PACS',
+        name: 'IML_PACS_01',
         wadoUriRoot:    'http://localhost:8044/wado',
         qidoRoot:       'http://localhost:8044/dicom-web',
         wadoRoot:       'http://localhost:8044/dicom-web',

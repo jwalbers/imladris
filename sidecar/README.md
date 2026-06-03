@@ -95,6 +95,6 @@ requires a running OpenMRS instance for order intake.
 |----------|---------|-------------|
 | `ORTHANC_URL` | `http://orthanc-modality:8042` | Modality Orthanc REST URL |
 | `MODALITY_AET` | `MODALITY_SIM` | Modality AE title |
-| `CLOUD_PACS_AE` | `CLOUD_PACS` | PACS AE title for C-STORE |
+| `CLOUD_PACS_AE` | `IML_PACS_01` | PACS AE title for C-STORE |
 | `POLL_INTERVAL_MINUTES` | `5` | Acquisition loop poll interval |
 | `WL_FOLDER` | `/worklist` | Path to DICOM worklist folder |

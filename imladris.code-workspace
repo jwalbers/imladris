@@ -13,8 +13,18 @@
 			"path": "../../PIH/openmrs-module-radiologyapp"
 		},
 		{
-			"name": "openmrs-module-pacsintegration (ref)",
+			"name": "openmrs-module-pacsintegration",
 			"path": "../../PIH/openmrs-module-pacsintegration"
+		},
+		{
+			"name": "mirebalais-puppet (ref)",
+			"path": "../../PIH/mirebalais-puppet"
+		},
+		{
+			"path": "../imladris-basotho"
+		},
+		{
+			"path": "../imladris-bophelong"
 		}
 	]
 }

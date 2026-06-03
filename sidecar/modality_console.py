@@ -17,7 +17,7 @@ Environment variables (all optional, sensible defaults for local dev):
   MWL_HOST        localhost
   MWL_PORT        4242
   MODALITY_AET    MODALITY_SIM
-  CLOUD_PACS_AE   CLOUD_PACS
+  CLOUD_PACS_AE   IML_PACS_01
 """
 
 import threading

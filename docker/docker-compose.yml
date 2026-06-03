@@ -7,7 +7,7 @@
 # Quick start:
 #   docker compose up -d
 #   open http://localhost:8042   # modality (AE: MODALITY_SIM)
-#   open http://localhost:8043   # cloud PACS (AE: CLOUD_PACS)
+#   open http://localhost:8043   # cloud PACS (AE: IML_PACS_01)
 #   open http://localhost:8044   # PACS DICOMweb CORS proxy (used by OHIF)
 #   open http://localhost:3000   # OHIF viewer
 #
@@ -16,7 +16,7 @@
 #        --data-binary @some_file.dcm
 #
 # Push it to the PACS:
-#   curl -u admin:admin -X POST http://localhost:8042/modalities/CLOUD_PACS/store \
+#   curl -u admin:admin -X POST http://localhost:8042/modalities/IML_PACS_01/store \
 #        -d '["<study-uid>"]'
 
 services:
@@ -63,7 +63,11 @@ services:
       - "8043:8042"   # REST API + web UI
     volumes:
       - ./orthanc/pacs.json:/etc/orthanc/orthanc.json:ro
+      - ./orthanc/forward-to-advapacs.lua:/etc/orthanc/forward-to-advapacs.lua:ro
       - pacs-data:/var/lib/orthanc/db
+    environment:
+      ADVAPACS_KEY_ID: ${ADVAPACS_KEY_ID:-}
+      ADVAPACS_SECRET:  ${ADVAPACS_SECRET:-}
     networks:
       - imladris
 
@@ -118,7 +122,7 @@ services:
       MWL_HOST: orthanc-modality        # now served by Orthanc modality itself
       MWL_PORT: 4242
       MODALITY_AET: MODALITY_SIM
-      CLOUD_PACS_AE: CLOUD_PACS
+      CLOUD_PACS_AE: IML_PACS_01
       POLL_INTERVAL_MINUTES: 0.25   # 15 sec — demo mode (restore to 5 for production)
       # Order poller (OpenMRS REST → MWL)
       OPENMRS_URL: http://host.docker.internal:8080/openmrs

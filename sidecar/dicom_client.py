@@ -20,7 +20,7 @@ ORTHANC_URL   = os.getenv("ORTHANC_URL",    "http://localhost:8042")
 MWL_HOST      = os.getenv("MWL_HOST",       "localhost")
 MWL_PORT      = int(os.getenv("MWL_PORT",   "4242"))
 MODALITY_AET  = os.getenv("MODALITY_AET",   "MODALITY_SIM")
-CLOUD_PACS_AE = os.getenv("CLOUD_PACS_AE",  "CLOUD_PACS")
+CLOUD_PACS_AE = os.getenv("CLOUD_PACS_AE",  "IML_PACS_01")
 
 
 # ── Data class ────────────────────────────────────────────────────────
