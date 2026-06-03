@@ -23,3 +23,12 @@ botsabelo-hospital-records/botsabelo_raw/
 tmp/
 work/
 
+# Personal notes and working files
+_imladris_notes.org
+drymarker_workbook.xlsx
+findings/
+openmrs/junk.txt
+
+# Videos (large files — store separately)
+videos/
+
