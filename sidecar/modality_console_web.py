@@ -268,7 +268,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Botsabelo {{ label }} Console</title>
+  <title>Bophelong {{ label }} Console</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -444,7 +444,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
 
 <header>
   <div>
-    <div class="title">Botsabelo Hospital — {{ label }} Console</div>
+    <div class="title">Bophelong Hospital — {{ label }} Console</div>
     <div class="subtitle">Imladris Virtual Integration Lab  ·  AE: {{ cr_aet }} / {{ us_aet }}</div>
   </div>
   <div class="clock" id="clock">{{ now }}</div>
