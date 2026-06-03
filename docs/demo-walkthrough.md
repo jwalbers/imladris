@@ -124,6 +124,21 @@ docker logs imladris-pacs 2>&1 | tail -20
 
 ---
 
+## Restarting individual containers
+
+When restarting `orthanc-pacs` mid-session, also restart `pacs-proxy` and do a
+hard-refresh in OHIF — otherwise OHIF's nginx proxy loses its upstream connection
+and the study list goes blank:
+
+```bash
+docker compose up -d orthanc-pacs pacs-proxy
+```
+
+Then in the browser at http://localhost:3000: **Cmd+Shift+R** (Mac) / **Ctrl+Shift+R** (Windows)
+to clear the OHIF service worker cache.
+
+---
+
 ## Teardown
 
 ```bash
