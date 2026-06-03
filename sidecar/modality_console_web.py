@@ -33,6 +33,7 @@ from pathlib import Path
 import pydicom
 import requests
 from flask import Flask, jsonify, render_template_string, request
+from mwl_manager import MwlManager
 from pydicom.dataset import FileDataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
@@ -49,6 +50,9 @@ CONSOLE_PORT     = int(os.getenv("CONSOLE_PORT", "5001"))
 INSTITUTION      = os.getenv("INSTITUTION",    "Bophelong MDR-TB Hospital")
 CR_AET           = os.getenv("CR_AET",         "IML_CR_01")
 US_AET           = os.getenv("US_AET",         "IML_US_01")
+WL_FOLDER        = os.getenv("WL_FOLDER",      "/worklist")
+
+mwl = MwlManager(WL_FOLDER)
 
 MODALITY_LABELS = {
     "CR": "X-Ray",
@@ -250,6 +254,12 @@ def acquire(accession: str):
     return jsonify(result)
 
 
+@app.route("/remove/<accession>", methods=["POST"])
+def remove(accession: str):
+    ok = mwl.delete(accession)
+    return jsonify({"ok": ok})
+
+
 @app.route("/status")
 def status():
     try:
@@ -397,6 +407,12 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
     .btn-acquire.working { background: #1a3a6a; color: #5aafff; border-color: #2a5a9a; }
     .btn-acquire.done    { background: #0d2a10; color: #2a8a3a; border-color: #1a5a25; }
     .btn-acquire.error   { background: #3a1010; color: #ff6666; border-color: #7a2020; }
+    .btn-remove {
+      font-size: 0.72rem; padding: 4px 10px; border-radius: 4px; cursor: pointer;
+      background: #2a1010; color: #cc6666; border: 1px solid #7a2020;
+      margin-left: 6px; display: none;
+    }
+    .btn-remove:hover { background: #3a1515; }
 
     .status-msg {
       font-size: 0.78rem;
@@ -500,6 +516,11 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
             id="btn-{{ e.accession }}"
             onclick="acquire('{{ e.accession }}', '{{ e.modality }}')"
           >Image the Patient</button>
+          <button
+            class="btn-remove"
+            id="rm-{{ e.accession }}"
+            onclick="removeEntry('{{ e.accession }}')"
+          >✕ Remove</button>
           <div class="status-msg" id="msg-{{ e.accession }}"></div>
         </td>
       </tr>
@@ -567,6 +588,12 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
     catch { return {}; }
   }
 
+  async function removeEntry(accession) {
+    const row = document.getElementById('row-' + accession);
+    await fetch('/remove/' + accession, { method: 'POST' });
+    if (row) row.style.display = 'none';
+  }
+
   function markAcquired(accession, label) {
     const acquired = getAcquired();
     acquired[accession] = label;
@@ -584,6 +611,8 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
         btn.textContent = '✓ Acquired';
         btn.disabled = true;
         if (msg) { msg.className = 'status-msg ok'; msg.textContent = label; }
+        const rm = document.getElementById('rm-' + accession);
+        if (rm) rm.style.display = 'inline-block';
       }
     }
   })();
@@ -632,6 +661,8 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
         msg.className = 'status-msg ok';
         msg.textContent = label;
         markAcquired(accession, label);
+        const rm = document.getElementById('rm-' + accession);
+        if (rm) rm.style.display = 'inline-block';
         log('✓ ' + accession + ' uploaded  instance=' + data.instance_id, 'ok');
       } else {
         btn.className = 'btn-acquire error';
