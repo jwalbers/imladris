@@ -46,7 +46,9 @@ ORTHANC_PASSWORD = os.getenv("ORTHANC_PASSWORD", "admin")
 XRAY_DIR         = Path(os.getenv("XRAY_DIR",    "/hospital-records/xray"))
 US_DIR           = Path(os.getenv("US_DIR",      "/hospital-records/ultrasound_cine"))
 CONSOLE_PORT     = int(os.getenv("CONSOLE_PORT", "5001"))
-INSTITUTION      = "Botsabelo MDR-TB Hospital"
+INSTITUTION      = os.getenv("INSTITUTION",    "Bophelong MDR-TB Hospital")
+CR_AET           = os.getenv("CR_AET",         "IML_CR_01")
+US_AET           = os.getenv("US_AET",         "IML_US_01")
 
 MODALITY_LABELS = {
     "CR": "X-Ray",
@@ -176,12 +178,14 @@ def _patch_and_upload(entry: dict) -> dict:
     ds.InstanceNumber       = "1"
     ds.ContentDate          = date_str
     ds.ContentTime          = time_str
-    ds.Modality             = entry.get("modality", "CR")
+    modality = entry.get("modality", "CR")
+    ds.Modality             = modality
     ds.InstitutionName      = INSTITUTION
 
     if hasattr(ds, "file_meta"):
         ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
         ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+        ds.file_meta.SourceApplicationEntityTitle = US_AET if modality == "US" else CR_AET
 
     buf = io.BytesIO()
     pydicom.dcmwrite(buf, ds)
@@ -218,6 +222,8 @@ def worklist_page():
         modality=modality or "",
         label=label,
         now=datetime.now().strftime("%Y-%m-%d %H:%M"),
+        cr_aet=CR_AET,
+        us_aet=US_AET,
     )
 
 
@@ -439,7 +445,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
 <header>
   <div>
     <div class="title">Botsabelo Hospital — {{ label }} Console</div>
-    <div class="subtitle">Imladris Virtual Integration Lab  ·  AE: MODALITY_SIM</div>
+    <div class="subtitle">Imladris Virtual Integration Lab  ·  AE: {{ cr_aet }} / {{ us_aet }}</div>
   </div>
   <div class="clock" id="clock">{{ now }}</div>
 </header>

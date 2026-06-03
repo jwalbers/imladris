@@ -1,8 +1,8 @@
 // Orthanc configuration — Imladris Modality Simulator
-// AE title: MODALITY_SIM   HTTP: 8042   DICOM: 4242
+// AE title: IML_CR_01 / IML_US_01   HTTP: 8042   DICOM: 4242
 {
   "Name"                  : "Imladris Modality Simulator",
-  "DicomAet"              : "MODALITY_SIM",
+  "DicomAet"              : "IML_CR_01",
   "DicomPort"             : 4242,
   "HttpPort"              : 8042,
 
@@ -20,7 +20,8 @@
   // Format: "nickname": ["AET", "hostname", port]
   "DicomModalities" : {
     "IML_PACS_01"   : ["IML_PACS_01",   "orthanc-pacs",           4242],
-    "MODALITY_SIM"  : ["MODALITY_SIM",  "imladris-sidecar",       4242],
+    "IML_CR_01"     : ["IML_CR_01",     "imladris-sidecar",       4242],
+    "IML_US_01"     : ["IML_US_01",     "imladris-sidecar",       4242],
     "FULFILL_SCU"   : ["FULFILL_SCU",   "host.docker.internal",   4242]
   },
   "OrthancExplorer2" : {
