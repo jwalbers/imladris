@@ -115,7 +115,7 @@ services:
     volumes:
       - worklist-data:/worklist   # shared with orthanc-modality for .wl files
       - sidecar-data:/data        # order poller state (last-polled timestamp)
-      - ../botsabelo-hospital-records/botsabelo_processed:/hospital-records:ro
+      - ../../imladris-bophelong/patients/dicom:/hospital-records:ro
     environment:
       # Acquisition loop
       ORTHANC_URL: http://orthanc-modality:8042
