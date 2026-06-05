@@ -41,6 +41,7 @@
 
     // Cloud PACS peers — Orthanc forwards stable studies to these via STOW-RS
     "Servers" : {
+      // Path 1: Direct to AdvaPACS cloud (Basic Auth)
       "AdvaPACS" : {
         "Url"            : "https://usa1.api.dicomweb.advapacs.com/rs",
         "SslEnabled"     : true,
@@ -48,6 +49,14 @@
         "Username"       : "${ADVAPACS_KEY_ID}",
         "Password"       : "${ADVAPACS_SECRET}",
         "Timeout"        : 300
+      },
+      // Path 2: Via AdvaPACS Gateway (local DICOMweb proxy → cloud via RabbitMQ)
+      // No auth — Gateway handles its own auth to AdvaPACS cloud internally.
+      // NOTE: host.docker.internal resolves to the host on Docker Desktop (Mac/Windows).
+      //       On Linux use 172.17.0.1 or the host's actual LAN IP.
+      "AdvaPACS_GW" : {
+        "Url"     : "http://host.docker.internal:8085",
+        "Timeout" : 300
       }
     }
   },
