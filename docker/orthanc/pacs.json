@@ -52,10 +52,11 @@
       },
       // Path 2: Via AdvaPACS Gateway (local DICOMweb proxy → cloud via RabbitMQ)
       // No auth — Gateway handles its own auth to AdvaPACS cloud internally.
-      // NOTE: host.docker.internal resolves to the host on Docker Desktop (Mac/Windows).
-      //       On Linux use 172.17.0.1 or the host's actual LAN IP.
+      // NOTE: host.docker.internal doesn't reach the Docker Desktop VM's host network.
+      //       172.17.0.1 is the Docker bridge gateway on the VM — reachable from bridge containers.
+      //       On Linux/WSL2 (production) use host.docker.internal or 172.17.0.1.
       "AdvaPACS_GW" : {
-        "Url"     : "http://host.docker.internal:8085",
+        "Url"     : "http://172.17.0.1:8085",
         "Timeout" : 300
       }
     }
