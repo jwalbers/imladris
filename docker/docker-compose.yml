@@ -1,12 +1,12 @@
 # Imladris — Virtual Integration Lab
-# Two-Orthanc smoke-test stack
 #
-# Default (no profile): modality simulator + cloud PACS only.
+# Default (no profile): landing page + modality simulator + cloud PACS.
 # Add --profile full to also start the modality sidecar (requires OpenMRS MWL).
 #
 # Quick start:
 #   docker compose up -d
-#   open http://localhost:8042   # modality (AE: MODALITY_SIM)
+#   open http://localhost:8090   # landing page
+#   open http://localhost:8042   # modality (AE: IML_CR_01 / IML_US_01)
 #   open http://localhost:8043   # cloud PACS (AE: IML_PACS_01)
 #   open http://localhost:8044   # PACS DICOMweb CORS proxy (used by OHIF)
 #   open http://localhost:3000   # OHIF viewer
@@ -20,6 +20,18 @@
 #        -d '["<study-uid>"]'
 
 services:
+  # ── Landing page ────────────────────────────────────────────────────
+  landing:
+    image: nginx:alpine
+    container_name: imladris-landing
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+    volumes:
+      - ./landing/index.html:/usr/share/nginx/html/index.html:ro
+    networks:
+      - imladris
+
   # -- MySQL -----------------------------------------------------------
   mysql:
     image: mysql:8.0
@@ -37,6 +49,32 @@ services:
       - ./mysql/openmrs.cnf:/etc/mysql/conf.d/openmrs.cnf:ro
     networks:
       - imladris
+
+  # ── AdvaPACS Gateway ────────────────────────────────────────────────
+  # Receives DICOM C-STORE from modalities and forwards to AdvaPACS cloud.
+  # Parallel path to orthanc-pacs for comparison / integration testing.
+  #
+  # IMPORTANT — network_mode: host
+  #   Works correctly on Linux (production / Windows WSL2 backend).
+  #   On macOS Docker Desktop, host networking is not supported — the
+  #   container starts but ports won't bind as expected. Use the server
+  #   for real gateway testing; local Mac is for config validation only.
+  #
+  # Ports (bound directly to host via host networking):
+  #   11112  DICOM C-STORE SCP  — register as AE "ADVAPACS_GW" in Orthanc
+  #   8085   DICOMweb proxy     — STOW-RS / WADO-RS / QIDO-RS
+  advapacs-gateway:
+    image: advahealthsolutions/advapacs-gateway:latest
+    container_name: imladris-advapacs-gw
+    restart: unless-stopped
+    environment:
+      ADVAPACS_ACCESS_KEY_ID:     ${ADVAPACS_GW_KEY_ID}
+      ADVAPACS_ACCESS_KEY_SECRET: ${ADVAPACS_GW_SECRET}
+      ADVAPACS_REGION:            "USA - West"
+      TZ:                         America/Los_Angeles
+    network_mode: "host"
+    # NOTE: no 'networks' key — host mode is incompatible with bridge networks.
+    # On Linux the gateway is reachable at the host IP on its native ports.
 
   # ── Modality simulator ──────────────────────────────────────────────
   orthanc-modality:
