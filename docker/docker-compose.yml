@@ -70,7 +70,7 @@ services:
     environment:
       ADVAPACS_ACCESS_KEY_ID:     ${ADVAPACS_GW_KEY_ID}
       ADVAPACS_ACCESS_KEY_SECRET: ${ADVAPACS_GW_SECRET}
-      ADVAPACS_REGION:            "USA - West"
+      ADVAPACS_REGION:            "usa1"
       TZ:                         America/Los_Angeles
     network_mode: "host"
     # NOTE: no 'networks' key — host mode is incompatible with bridge networks.
