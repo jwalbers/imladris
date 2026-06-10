@@ -29,6 +29,12 @@ drymarker_workbook.xlsx
 findings/
 openmrs/junk.txt
 
+# Docker runtime logs
+docker/*.log
+
+# OpenMRS working spreadsheets (canonical copy in imladris-bophelong/roles/)
+openmrs/*.xlsx
+
 # Videos (large files — store separately)
 videos/
 
