@@ -5,7 +5,8 @@
 #
 # Quick start:
 #   docker compose up -d
-#   open http://localhost:8090   # landing page
+#   open http://localhost:8090   # landing page (no auth — local dev only)
+#   open http://localhost:8091   # landing page via simplesamlphp SP (Entra SAML auth)
 #   open http://localhost:8042   # modality (AE: IML_CR_01 / IML_US_01)
 #   open http://localhost:8043   # cloud PACS (AE: IML_PACS_01)
 #   open http://localhost:8044   # PACS DICOMweb CORS proxy (used by OHIF)
@@ -20,7 +21,7 @@
 #        -d '["<study-uid>"]'
 
 services:
-  # ── Landing page ────────────────────────────────────────────────────
+  # ── Landing page (no auth — local dev / localhost only) ─────────────
   landing:
     image: nginx:alpine
     container_name: imladris-landing
@@ -29,6 +30,41 @@ services:
       - "8090:80"
     volumes:
       - ./landing/index.html:/usr/share/nginx/html/index.html:ro
+    networks:
+      - imladris
+
+  # ── SimpleSAMLphp SP — Entra SAML 2.0 auth gate for imladrislab.org ──
+  #
+  # HAProxy routes imladrislab.org here (port 8091, was 8090/landing).
+  # /simplesaml/ — SimpleSAMLphp SAML endpoints (ACS, metadata, login)
+  # /            — index.php: requires SAML auth, then serves landing.html
+  # /user-info.php — JSON endpoint for auth bar (called by landing.html JS)
+  #
+  # pfSense change: update Imladris_Landing backend server port 8090 → 8091
+  #                 remove htpasswd http-request auth block from frontend
+  #                 remove userlist imladris_users from global settings
+  #
+  simplesamlphp:
+    image: simplesamlphp/simplesamlphp:2-apache
+    container_name: imladris-saml-sp
+    restart: unless-stopped
+    ports:
+      - "8091:80"
+    volumes:
+      # SimpleSAMLphp config and metadata
+      - ./simplesamlphp/config/config.php:/var/simplesamlphp/config/config.php:ro
+      - ./simplesamlphp/config/authsources.php:/var/simplesamlphp/config/authsources.php:ro
+      - ./simplesamlphp/metadata/saml20-idp-remote.php:/var/simplesamlphp/metadata/saml20-idp-remote.php:ro
+      # SP signing keypair (optional for lab — see docs/entra-auth.md to generate)
+      - ./simplesamlphp/cert:/var/simplesamlphp/cert:ro
+      # Portal app (auth-gated; served from Apache DocumentRoot /var/www/html/)
+      - ./simplesamlphp/www/index.php:/var/www/html/index.php:ro
+      - ./simplesamlphp/www/user-info.php:/var/www/html/user-info.php:ro
+      # Landing page HTML (served by index.php after auth)
+      - ./landing/index.html:/var/www/html/landing.html:ro
+    environment:
+      SAML_SP_SECRETSALT:   ${SAML_SP_SECRETSALT}
+      SAML_ADMIN_PASSWORD:  ${SAML_ADMIN_PASSWORD}
     networks:
       - imladris
 

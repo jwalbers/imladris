@@ -52,7 +52,7 @@
 
     /* ── Auth status bar (shown when Entra is wired up) ─────────────── */
     #auth-bar {
-      display: none;   /* hidden until MSAL is enabled */
+      display: none;   /* shown after Entra SAML auth — JS sets display:flex */
       background: #0e2238;
       border-bottom: 1px solid #1e3a5f;
       padding: 0.5rem 2.5rem;
@@ -285,47 +285,25 @@
     &nbsp;·&nbsp; Partners in Health
   </footer>
 
-  <!--
-  ═══════════════════════════════════════════════════════════════════
-  MSAL.js / Microsoft Entra authentication — PLACEHOLDER
-  Uncomment and configure when PIH IT provides the Entra app registration.
-
-  Steps:
-    1. Replace ENTRA_CLIENT_ID and ENTRA_TENANT_ID below
-    2. Uncomment the <script> block
-    3. Remove the HAProxy Basic Auth rule for imladrislab.org in pfSense
-
-  <script src="https://alcdn.msauth.net/browser/2.38.2/js/msal-browser.min.js"></script>
   <script>
-    const msalConfig = {
-      auth: {
-        clientId:   "ENTRA_CLIENT_ID",
-        authority:  "https://login.microsoftonline.com/ENTRA_TENANT_ID",
-        redirectUri: window.location.origin,
-      },
-      cache: { cacheLocation: "sessionStorage" }
-    };
-    const msal = new msal.PublicClientApplication(msalConfig);
-
-    async function init() {
-      await msal.handleRedirectPromise();
-      const accounts = msal.getAllAccounts();
-      if (accounts.length === 0) {
-        msal.loginRedirect({ scopes: ["openid", "profile"] });
-      } else {
-        document.getElementById("auth-user").textContent = accounts[0].name;
-        document.getElementById("auth-bar").style.display = "block";
-      }
-    }
+    // Auth bar — populated from SimpleSAMLphp session via /user-info.php.
+    // Gracefully silent when running unauthenticated (local dev on port 8090).
+    fetch('/user-info.php', { credentials: 'same-origin' })
+      .then(r => r.ok ? r.json() : null)
+      .then(u => {
+        if (u && (u.name || u.email)) {
+          document.getElementById('auth-user').textContent = u.name || u.email;
+          document.getElementById('auth-bar').style.display = 'flex';
+        }
+      })
+      .catch(() => {});
 
     function signOut() {
-      msal.logoutRedirect();
+      window.location.href =
+        '/simplesaml/module.php/core/logout.php'
+        + '?ReturnTo=' + encodeURIComponent('https://imladrislab.org/');
     }
-
-    init();
   </script>
-  ═══════════════════════════════════════════════════════════════════
-  -->
 
 </body>
 </html>
