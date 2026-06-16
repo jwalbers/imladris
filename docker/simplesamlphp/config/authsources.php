@@ -8,6 +8,10 @@
  *   Entity ID : https://imladrislab.org/simplesaml/module.php/saml/sp/metadata.php/default-sp
  *   ACS URL   : https://imladrislab.org/simplesaml/module.php/saml/sp/saml2-acs.php/default-sp
  *
+ * NOTE: PIH IT registered the SP Entity ID as 'https://imladrislab.org' (simplified).
+ * entityID below is set to match — Entra's assertion Audience element must equal entityID
+ * exactly or SimpleSAMLphp will reject the assertion with an audience mismatch error.
+ *
  * ── Optional SP signing keypair ───────────────────────────────────────────
  * Not required for the lab but best practice.  To add it:
  *
@@ -25,8 +29,9 @@ $config = [
     'default-sp' => [
         'saml:SP',
 
-        // Must exactly match what we registered with PIH IT.
-        'entityID' => 'https://imladrislab.org/simplesaml/module.php/saml/sp/metadata.php/default-sp',
+        // Must match what PIH IT configured in the Entra enterprise app.
+        // They registered it as the simplified form (not the full metadata URL we gave them).
+        'entityID' => 'https://imladrislab.org',
 
         // PIH Entra IdP (from federation metadata).
         'idp' => 'https://sts.windows.net/5254789f-6860-4375-85bc-302509fad508/',

@@ -35,7 +35,8 @@ later if needed by repeating the Imladris_Landing backend pattern for each.
 
 | Field | Value |
 |---|---|
-| **SP Entity ID** | `https://imladrislab.org/simplesaml/module.php/saml/sp/metadata.php/default-sp` |
+| **SP Entity ID** | `https://imladrislab.org` *(PIH IT registered this simplified form)* |
+| **SP Entity ID (original)** | `https://imladrislab.org/simplesaml/module.php/saml/sp/metadata.php/default-sp` *(what we gave them; they simplified it)* |
 | **ACS URL** | `https://imladrislab.org/simplesaml/module.php/saml/sp/saml2-acs.php/default-sp` |
 | **NameID format** | `emailAddress` (`user.mail`) |
 | **IdP Entity ID** | `https://sts.windows.net/5254789f-6860-4375-85bc-302509fad508/` |
@@ -166,6 +167,12 @@ PIH IT will notify when this happens.  To update:
 **"Unapproved requester" or "AADSTS" error from Entra**
 → The SP Entity ID in `authsources.php` doesn't match what PIH IT
   registered in the enterprise app.  Verify exact string match.
+  PIH IT used `https://imladrislab.org` (not the full metadata URL).
+
+**SimpleSAMLphp "Audience mismatch" / assertion rejected**
+→ The `entityID` in `authsources.php` must exactly match what Entra has
+  as the "Identifier (Entity ID)" in its enterprise app registration.
+  Currently set to `https://imladrislab.org` to match what PIH IT entered.
 
 **Redirect loop (never gets past login)**
 → Check `SameSite=None` is set — SimpleSAMLphp can't receive the
