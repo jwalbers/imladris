@@ -167,8 +167,8 @@ services:
       POLL_INTERVAL_MINUTES: 0.25   # 15 sec — demo mode (restore to 5 for production)
       # Order poller (OpenMRS REST → MWL)
       OPENMRS_URL: http://host.docker.internal:8080/openmrs
-      OPENMRS_USER: admin
-      OPENMRS_PASSWORD: Admin123
+      OPENMRS_USER: ${OPENMRS_SERVICE_USER:-imladris-service}
+      OPENMRS_PASSWORD: ${OPENMRS_SERVICE_PASSWORD}
       ORDER_POLL_SEC: 10            # 10 sec — demo mode (restore to 30 for production)
       ORDER_STATE_FILE: /data/order_poller_state.json
       # RADIOLOGY_ORDER_TYPE_UUID: ""   # leave blank to auto-discover
