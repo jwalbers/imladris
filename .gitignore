@@ -7,6 +7,9 @@
 # Don't save credentials or local environment config
 .env
 keys/
+# SP signing private key (generated locally; public cert saml.crt IS committed)
+docker/simplesamlphp/cert/*.pem
+docker/simplesamlphp/cert/*.key
 __pycache__/
 .imladris_venv/
 openmrs_work/
