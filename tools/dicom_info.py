@@ -1,109 +1,123 @@
+#!/usr/bin/env python3
 """
-dicom_info.py — Quick DICOM file inspector.
-
-Prints the key tags that distinguish MP4-wrapped, Cine, and single-frame DICOM.
+dicom_info.py — IMLADRIS Lab
+Display DICOM metadata for one or more .dcm files.
+PHI-flagged tags are marked with ⚠️
 
 Usage:
-    python tools/dicom_info.py file.dcm [file2.dcm ...]
-    python tools/dicom_info.py /path/to/folder/
+    python3 tools/dicom_info.py path/to/file.dcm [another.dcm ...]
 """
 
 import sys
 from pathlib import Path
 import pydicom
+from pydicom.sequence import Sequence
 
-# Transfer syntax UIDs worth knowing
-TRANSFER_SYNTAX_NAMES = {
-    "1.2.840.10008.1.2"        : "Implicit VR Little Endian",
-    "1.2.840.10008.1.2.1"      : "Explicit VR Little Endian",
-    "1.2.840.10008.1.2.2"      : "Explicit VR Big Endian",
-    "1.2.840.10008.1.2.4.50"   : "JPEG Baseline (lossy)",
-    "1.2.840.10008.1.2.4.51"   : "JPEG Extended",
-    "1.2.840.10008.1.2.4.57"   : "JPEG Lossless",
-    "1.2.840.10008.1.2.4.70"   : "JPEG Lossless SV1",
-    "1.2.840.10008.1.2.4.90"   : "JPEG 2000 Lossless",
-    "1.2.840.10008.1.2.4.91"   : "JPEG 2000",
-    "1.2.840.10008.1.2.4.100"  : "MPEG2 Main Profile",
-    "1.2.840.10008.1.2.4.101"  : "MPEG2 Main Profile High Level",
-    "1.2.840.10008.1.2.4.102"  : "MPEG-4 AVC/H.264 High Profile",
-    "1.2.840.10008.1.2.4.103"  : "MPEG-4 AVC/H.264 BD-compatible",
-    "1.2.840.10008.1.2.4.104"  : "MPEG-4 AVC/H.264 High Profile 2D",
-    "1.2.840.10008.1.2.4.105"  : "MPEG-4 AVC/H.264 High Profile Stereo",
-    "1.2.840.10008.1.2.5"      : "RLE Lossless",
+PHI_TAGS = {
+    'PatientName', 'PatientID', 'PatientBirthDate', 'PatientSex',
+    'PatientAge', 'PatientWeight', 'PatientAddress', 'PatientTelephoneNumbers',
+    'PatientMotherBirthName', 'OtherPatientIDs', 'OtherPatientNames',
+    'AdditionalPatientHistory', 'PatientComments',
+    'ReferringPhysicianName', 'PhysiciansOfRecord', 'RequestingPhysician',
+    'OperatorsName', 'PerformingPhysicianName', 'NameOfPhysiciansReadingStudy',
+    'InstitutionName', 'InstitutionAddress', 'InstitutionalDepartmentName',
+    'StationName', 'DeviceSerialNumber',
+    'AccessionNumber', 'StudyID',
 }
 
-# SOP classes that are inherently video — Orthanc DICOMweb /frames/N returns
-# "Not implemented yet" for these regardless of transfer syntax.
-VIDEO_SOP_CLASSES = {
-    "1.2.840.10008.5.1.4.1.1.77.1.1.1" : "Video Endoscopic Image Storage",
-    "1.2.840.10008.5.1.4.1.1.77.1.2.1" : "Video Microscopic Image Storage",
-    "1.2.840.10008.5.1.4.1.1.77.1.4.1" : "Video Photographic Image Storage",
-}
+GROUPS = [
+    ('PATIENT', [
+        'PatientName', 'PatientID', 'PatientBirthDate', 'PatientSex',
+        'PatientAge', 'PatientWeight', 'PatientAddress',
+        'OtherPatientIDs', 'PatientComments',
+    ]),
+    ('STUDY', [
+        'StudyDate', 'StudyTime', 'StudyDescription', 'StudyID',
+        'AccessionNumber', 'InstitutionName', 'InstitutionAddress',
+        'ReferringPhysicianName', 'StudyInstanceUID',
+    ]),
+    ('SERIES', [
+        'SeriesDate', 'SeriesTime', 'SeriesNumber', 'SeriesDescription',
+        'Modality', 'BodyPartExamined', 'ProtocolName',
+        'Manufacturer', 'ManufacturerModelName', 'StationName',
+        'SoftwareVersions', 'SeriesInstanceUID',
+    ]),
+    ('INSTANCE', [
+        'SOPInstanceUID', 'SOPClassUID', 'InstanceNumber', 'ImageType',
+        'Rows', 'Columns', 'BitsAllocated', 'BitsStored',
+        'PixelSpacing', 'SliceThickness', 'SliceLocation',
+    ]),
+    ('ACQUISITION', [
+        'KVP', 'XRayTubeCurrent', 'ExposureTime', 'ConvolutionKernel',
+        'ReconstructionDiameter', 'CTDIvol',
+        'MagneticFieldStrength', 'RepetitionTime', 'EchoTime',
+        'FlipAngle', 'SequenceName', 'ScanningSequence',
+    ]),
+]
 
-def classify(ts_uid: str, n_frames: int, sop_uid: str) -> str:
-    if ts_uid in ("1.2.840.10008.1.2.4.100",
-                  "1.2.840.10008.1.2.4.101",
-                  "1.2.840.10008.1.2.4.102",
-                  "1.2.840.10008.1.2.4.103",
-                  "1.2.840.10008.1.2.4.104",
-                  "1.2.840.10008.1.2.4.105"):
-        return "VIDEO (MP4/MPEG transfer syntax) — not renderable by Cornerstone3D /frames/N"
-    if sop_uid in VIDEO_SOP_CLASSES:
-        return (f"VIDEO SOP CLASS ({VIDEO_SOP_CLASSES[sop_uid]}) — "
-                f"not renderable by Cornerstone3D /frames/N even if uncompressed")
-    if n_frames > 1:
-        return "CINE (multi-frame) — renderable by Cornerstone3D"
-    return "SINGLE FRAME"
 
-def inspect(path: Path):
+def fmt_value(elem) -> str:
+    if isinstance(elem.value, Sequence):
+        return f'[sequence, {len(elem.value)} item(s)]'
+    if elem.VR in ('OB', 'OW', 'UN'):
+        return f'<binary, {len(elem.value)} bytes>'
+    v = str(elem.value).strip()
+    return v if v else '(empty)'
+
+
+def print_dcm(path: Path) -> None:
+    print(f'\n{"═"*72}')
+    print(f'  {path}')
+    print(f'{"═"*72}')
+
     try:
-        ds = pydicom.dcmread(str(path), stop_before_pixels=True)
+        ds = pydicom.dcmread(str(path), stop_before_pixels=True, force=True)
     except Exception as e:
-        print(f"{path.name}: ERROR reading — {e}")
+        print(f'  ERROR: {e}')
         return
 
-    ts  = str(getattr(ds.file_meta, "TransferSyntaxUID", "unknown"))
-    ts_name = TRANSFER_SYNTAX_NAMES.get(ts, ts)
-    n_frames = int(getattr(ds, "NumberOfFrames", 1))
-    modality = str(getattr(ds, "Modality", "?"))
-    sop      = str(getattr(ds, "SOPClassUID", "?"))
-    patient  = str(getattr(ds, "PatientName", "?"))
-    study    = str(getattr(ds, "StudyDescription", "?"))
-    rows     = getattr(ds, "Rows", "?")
-    cols     = getattr(ds, "Columns", "?")
+    shown = set()
 
-    verdict = classify(ts, n_frames, sop)
+    for title, attr_names in GROUPS:
+        rows = []
+        for name in attr_names:
+            if not hasattr(ds, name):
+                continue
+            elem = ds[pydicom.datadict.tag_for_keyword(name)]
+            val = fmt_value(elem)
+            phi = '  ⚠️ ' if name in PHI_TAGS and val not in ('(empty)', '') else ''
+            rows.append((name, val, phi))
+            shown.add(elem.tag)
+        if rows:
+            print(f'\n  ── {title} {"─" * (64 - len(title))}')
+            for name, val, phi in rows:
+                print(f'  {name:<38} {val}{phi}')
 
-    print(f"\n{'─'*60}")
-    print(f"  File:     {path.name}")
-    print(f"  Patient:  {patient}")
-    print(f"  Study:    {study}  |  Modality: {modality}")
-    print(f"  Size:     {rows} x {cols}  |  Frames: {n_frames}")
-    print(f"  Transfer: {ts_name}")
-    print(f"  SOP:      {sop}")
-    print(f"  >>> {verdict}")
+    # Everything else (skip pixel data and pure binary)
+    others = [
+        e for e in ds
+        if e.tag not in shown
+        and e.keyword != 'PixelData'
+        and e.VR not in ('OB', 'OW')
+        and e.tag.group != 0xFFFC
+    ]
+    if others:
+        print(f'\n  ── OTHER TAGS {"─" * 58}')
+        for e in others:
+            tag_str = f'({e.tag.group:04X},{e.tag.element:04X})'
+            kw      = e.keyword or '?'
+            val     = fmt_value(e)
+            phi     = '  ⚠️ ' if kw in PHI_TAGS and val not in ('(empty)', '') else ''
+            print(f'  {tag_str} {kw:<30} {val}{phi}')
+    print()
+
 
 def main():
     if len(sys.argv) < 2:
-        print(__doc__)
+        print('Usage: python3 tools/dicom_info.py <file.dcm> [file.dcm ...]')
         sys.exit(1)
-
-    paths = []
     for arg in sys.argv[1:]:
-        p = Path(arg)
-        if p.is_dir():
-            paths.extend(sorted(p.rglob("*.dcm")))
-        else:
-            paths.append(p)
+        print_dcm(Path(arg))
 
-    if not paths:
-        print("No .dcm files found.")
-        sys.exit(1)
-
-    for p in paths:
-        inspect(p)
-    print(f"\n{'─'*60}")
-    print(f"  {len(paths)} file(s) inspected.")
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
