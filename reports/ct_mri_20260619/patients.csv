@@ -1,0 +1,8 @@
+patient_id,patient_name,patient_dob,patient_sex,patient_age,study_count,series_count,instance_count,modalities,date_earliest,date_latest
+0000001,Anonymous Patient,,F,,1,5,1202,CT,2026-06-17,2026-06-17
+0000005,Anonymous Patient,1961-07-22,M,,1,8,2138,CT,2026-06-17,2026-06-17
+0000007,Anonymous Patient,1994-11-19,F,,1,7,850,CT,2026-06-17,2026-06-17
+0000008,Anonymous Patient,1987-11-02,F,,1,5,2646,CT,2026-06-17,2026-06-17
+0000011,Anonymous Patient,1968-07-16,M,,1,11,2080,CT,2026-06-17,2026-06-17
+0000014,Anonymous Patient,,O,,1,3,30,CT,2026-06-17,2026-06-17
+12345678,Anonymous Patient,1994-07-14,M,,1,3,459,CT,2026-06-17,2026-06-17
