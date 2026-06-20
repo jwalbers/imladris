@@ -45,7 +45,8 @@ services:
   #                 remove userlist imladris_users from global settings
   #
   simplesamlphp:
-    image: simplesamlphp/simplesamlphp:2-apache
+    build: ./simplesamlphp          # php:8.3-apache + composer install of SSP 2.x
+    image: imladris-saml-sp:local   # local tag so docker compose doesn't try to pull
     container_name: imladris-saml-sp
     restart: unless-stopped
     ports:
