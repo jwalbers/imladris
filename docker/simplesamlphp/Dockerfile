@@ -6,8 +6,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libssl-dev \
         libxml2-dev \
         libicu-dev \
+        libonig-dev \
         zip unzip git curl \
     && docker-php-ext-install \
+        bcmath \
         dom \
         intl \
         mbstring \

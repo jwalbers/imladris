@@ -11,6 +11,12 @@ $config = [
 
     // ── Core ──────────────────────────────────────────────────────────────
     'baseurlpath'        => 'https://imladrislab.org/simplesaml/',
+
+    // Required in SSP 2.x — Symfony compiled container cache.
+    // /tmp is always writable; cache is rebuilt on container restart (fine for lab).
+    'cachedir'           => '/tmp/simplesamlphp/cache',
+    'loggingdir'         => '/tmp/simplesamlphp/log',
+    'datadir'            => '/tmp/simplesamlphp/data',
     'secretsalt'         => getenv('SAML_SP_SECRETSALT') ?: 'CHANGE_ME_run_openssl_rand_base64_32',
     'auth.adminpassword' => getenv('SAML_ADMIN_PASSWORD') ?: 'CHANGE_ME',
 
