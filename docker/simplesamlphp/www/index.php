@@ -12,7 +12,14 @@
  */
 declare(strict_types=1);
 
-require '/var/www/simplesamlphp/vendor/autoload.php';
+// SSP strips port from HTTP_HOST then re-appends SERVER_PORT when it's non-standard.
+// Apache reports SERVER_PORT=80 (its internal listen port) even though the external
+// port is 443, so SSP builds https://imladrislab.org:80/ without this fix.
+if (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https') {
+    $_SERVER['SERVER_PORT'] = '443';
+}
+
+require '/var/simplesamlphp/vendor/autoload.php';
 
 $as = new \SimpleSAML\Auth\Simple('default-sp');
 $as->requireAuth();

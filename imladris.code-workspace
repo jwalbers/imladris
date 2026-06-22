@@ -10,15 +10,15 @@
 		},
 		{
 			"name": "openmrs-module-radiologyapp (ref)",
-			"path": "../../PIH/openmrs-module-radiologyapp"
+			"path": "../openmrs-module-radiologyapp"
 		},
 		{
 			"name": "openmrs-module-pacsintegration",
-			"path": "../../PIH/openmrs-module-pacsintegration"
+			"path": "../openmrs-module-pacsintegration"
 		},
 		{
 			"name": "mirebalais-puppet (ref)",
-			"path": "../../PIH/mirebalais-puppet"
+			"path": "../mirebalais-puppet"
 		},
 		{
 			"path": "../imladris-basotho"

@@ -12,7 +12,7 @@
  */
 declare(strict_types=1);
 
-require '/var/www/simplesamlphp/vendor/autoload.php';
+require '/var/simplesamlphp/vendor/autoload.php';
 
 header('Content-Type: application/json');
 header('Cache-Control: no-store');

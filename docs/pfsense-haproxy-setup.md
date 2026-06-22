@@ -23,7 +23,7 @@ Internet → 68.116.51.146 (pfSense WAN)
 
 | Subdomain | Backend | Port |
 |---|---|---|
-| `imladrislab.org` | Landing page (nginx) | 8090 |
+| `imladrislab.org` | SimpleSAMLphp SP (Entra SAML auth) | 8091 |
 | `openmrs.imladrislab.org` | OpenMRS | 8080 |
 | `orthanc-m.imladrislab.org` | Orthanc modality | 8042 |
 | `orthanc-p.imladrislab.org` | Orthanc PACS | 8043 |
@@ -52,14 +52,16 @@ Create one backend per service. Clone the first and update Name / server name / 
 
 | Backend name | Server name | Address | Port | Server timeout |
 |---|---|---|---|---|
-| `Imladris_Landing` | `landing` | `192.168.1.11` | `8090` | `30s` |
+| `Imladris_Landing` | `landing` | `192.168.1.11` | `8091` | `30s` |
 | `Imladris_OpenMRS` | `openmrs` | `192.168.1.11` | `8080` | `120s` |
 | `Imladris_OrtMod` | `ortmod` | `192.168.1.11` | `8042` | `60s` |
 | `Imladris_OrtPACS` | `ortpacs` | `192.168.1.11` | `8043` | `300s` |
 | `Imladris_OHIF` | `ohif` | `192.168.1.11` | `3000` | `60s` |
 | `Imladris_Console` | `console` | `192.168.1.11` | `5001` | `60s` |
 
-Leave all other fields at defaults. Health check type: HTTP (default) is fine.
+**Health check: set to None for all Imladris backends.** HTTP health checks send
+an OPTIONS request with no Host header; Apache returns 400, HAProxy marks the
+server DOWN, and you get 503 even though the backend is reachable. See quirk #6.
 
 ### Frontend ACLs (Services → HAProxy → Frontend → Edit `HA_Frontend`)
 
@@ -92,27 +94,13 @@ Add one action per service. Condition = host ACL only (no cert ACL — pfSense a
 
 ### Frontend Advanced Pass Thru
 
-```
-acl is_imladris_openmrs_auth hdr(host) -m str -i openmrs.imladrislab.org
-acl is_imladris_domain hdr(host) -m reg -i ^(imladrislab\.org|.*\.imladrislab\.org)$
-http-request auth realm ImladrisLab if is_imladris_domain !{ http_auth(imladris_users) } !is_imladris_openmrs_auth
-```
-
-> **Important:** `is_imladris_domain` scopes the auth to imladrislab.org requests only.
-> Without it, ALL traffic through the frontend (including ha.bipeds.org) gets challenged,
-> which silently breaks the Home Assistant Companion App.
+Empty — auth is now handled by SimpleSAMLphp SP at the application layer.
+The htpasswd `http-request auth` block was removed when Entra SAML was enabled.
+See `docs/entra-auth.md`.
 
 ### Global Advanced Pass Thru (Settings page)
 
-```
-userlist imladris_users
-    user imladris password $apr1$REPLACE_WITH_HASH
-```
-
-Generate a password hash: `openssl passwd -apr1 'yourpassword'`
-
-When PIH Entra credentials are available, remove this block and the
-`http-request auth` line from the Frontend pass thru. See `docs/entra-auth.md`.
+Empty — the `userlist imladris_users` block was removed with the htpasswd auth.
 
 ---
 
@@ -168,32 +156,99 @@ HAProxy's section-based parser recognises `userlist` as a new section keyword an
 implicitly closes `global`. The subsequent `frontend` keyword then closes the
 `userlist` section. In practice this works despite the indentation.
 
+(Removed when htpasswd auth was replaced by SimpleSAMLphp — documented for reference.)
+
+### 6. HTTP health checks mark auth-gated backends DOWN
+
+pfSense defaults to HTTP health checks (`option httpchk`, `http-check send meth OPTIONS`).
+HAProxy sends an OPTIONS request with no `Host` header; Apache returns 400 Bad Request;
+HAProxy marks the server DOWN even though normal requests work fine. Result: persistent
+503 from imladrislab.org that a manual `curl` to the same IP:port does not reproduce.
+
+**Fix:** Set health check to **None** for all Imladris backends in the pfSense GUI.
+Verify with `echo "show stat" | nc -U /tmp/haproxy.socket | grep <backend>` — look
+for `UP` in the status column.
+
+### 7. Server state file caches DOWN status across reloads
+
+HAProxy persists backend UP/DOWN state in `/tmp/haproxy_server_state`
+(`load-server-state-from-file global` in the generated config). After fixing a
+backend (wrong port, bad health check), the server can remain DOWN because the
+state file was written during the failure period and is replayed on reload.
+
+**Fix:** After any config change that affected server state:
+```
+rm /tmp/haproxy_server_state
+```
+Then restart HAProxy from **Services > HAProxy** in the pfSense GUI.
+Verify with `echo "show stat" | nc -U /tmp/haproxy.socket | grep <backend>`.
+
+### 8. "Apply Changes" may not reload the running HAProxy process
+
+Clicking Apply Changes in the pfSense GUI rewrites `/var/etc/haproxy/haproxy.cfg`
+but the running HAProxy process may continue with the old config in memory. Symptom:
+`cat /var/etc/haproxy/haproxy.cfg` shows the correct config but
+`echo "show stat" | nc -U /tmp/haproxy.socket` shows the old server address/port.
+
+**Fix:** After significant changes (port, server address, health check), restart
+HAProxy explicitly via **Services > HAProxy** rather than relying on Apply Changes.
+Confirm the running process has picked up the new config by checking the `addr`
+field in the stats output matches what's in the cfg file.
+
+---
+
+## Debugging 503 Errors — Checklist
+
+Run these from **Diagnostics > Command Prompt** on pfSense:
+
+1. **Can pfSense reach the backend?**
+   ```
+   curl -s -o /dev/null -w "%{http_code}" http://192.168.1.11:<port>/
+   ```
+   `000` = network unreachable (check eileen is on wired Ethernet at 192.168.1.11).
+   `200`/`3xx` = backend is up, problem is in HAProxy config.
+
+2. **What does HAProxy think the server status is?**
+   ```
+   echo "show stat" | nc -U /tmp/haproxy.socket | grep -i landing
+   ```
+   Check the `status` field (DOWN = HAProxy won't route to it) and the `addr` field
+   (must match what's in `haproxy.cfg` — mismatch means process hasn't reloaded).
+
+3. **What is the running config?**
+   ```
+   cat /var/etc/haproxy/haproxy.cfg | grep -A10 <BackendName>
+   ```
+
+4. **Force-enable a server without restart:**
+   ```
+   echo "enable server <Backend>/<server>" | nc -U /tmp/haproxy.socket
+   ```
+   (Silent on success. If state file is the issue, also `rm /tmp/haproxy_server_state`
+   and restart the service.)
+
 ---
 
 ## Reference: Final Generated Config Structure
 
 ```
 global
-    ...
-    userlist imladris_users        ← Global pass thru (becomes its own section)
-        user imladris password...
+    ...                                              ← no userlist (removed with htpasswd)
 
-frontend HA_Frontend               ← closes userlist, opens frontend
+frontend HA_Frontend
     ...
-    acl is_imladris_openmrs_auth hdr(host) ...    ← Frontend pass thru
-    acl is_imladris_domain hdr(host) -m reg ...   ← Frontend pass thru
-    http-request auth ... if is_imladris_domain   ← Frontend pass thru (scoped!)
-    acl is_ha ...                                 ← GUI ACLs
-    acl aclcrt_HA_Frontend ... imladrislab.org    ← GUI (duplicate #1)
+    acl is_ha ...                                    ← GUI ACLs
+    acl aclcrt_HA_Frontend ... imladrislab.org       ← GUI (duplicate #1)
     acl is_imladris_landing ...
     acl is_imladris_openmrs ...
     ... (other is_imladris_* ACLs)
-    acl aclcrt_HA_Frontend ... ha.bipeds.org      ← auto-generated (duplicate #2)
-    http-request set-var(txn.txnhost) hdr(host)   ← GUI generated
+    acl aclcrt_HA_Frontend ... ha.bipeds.org         ← auto-generated (duplicate #2)
+    http-request set-var(txn.txnhost) hdr(host)      ← GUI generated
     use_backend HA_Server_ipvANY  if is_ha aclcrt_HA_Frontend
     use_backend Imladris_*        if is_imladris_* aclcrt_HA_Frontend
 
 backend Imladris_Landing_ipvANY
-    server landing 192.168.1.11:8090
+    http-request set-header X-Forwarded-Proto https
+    server landing 192.168.1.11:8091                 ← SimpleSAMLphp SP (no health check)
 ...
 ```
