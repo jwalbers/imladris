@@ -18,7 +18,9 @@
 
   // Known remote modalities
   "DicomModalities" : {
-    "MODALITY_SIM" : ["MODALITY_SIM", "orthanc-modality", 4242]
+    "MODALITY_SIM" : ["MODALITY_SIM", "orthanc-modality", 4242],
+    // Simulated Qure.ai qXR DCMIO gateway
+    "QUREAI"       : ["QUREAI",       "qure-sim",         5252]
   },
 
   // Enable bundled plugins (Stone Web Viewer + DICOMweb)
@@ -59,8 +61,11 @@
     }
   },
 
-  // Auto-forward stable studies to configured DICOMweb servers
-  "LuaScripts" : ["/etc/orthanc/forward-to-advapacs.lua"],
+  // Auto-forward: stable studies → AdvaPACS cloud; CXR instances → Qure.ai gateway
+  "LuaScripts" : [
+    "/etc/orthanc/forward-to-advapacs.lua",
+    "/etc/orthanc/forward-to-qure.lua"
+  ],
 
   // GDCM — allow transcoding all transfer syntaxes for frame retrieval
   "Gdcm" : {

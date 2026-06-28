@@ -1,0 +1,4 @@
+pynetdicom>=2.1
+pydicom>=2.4
+Pillow>=10.0
+numpy>=1.24

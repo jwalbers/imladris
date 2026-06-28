@@ -87,6 +87,35 @@ services:
     networks:
       - imladris
 
+  # ── Qure.ai gateway simulator ───────────────────────────────────────
+  # Listens as DICOM SCP AE "QUREAI" on port 5252.
+  # Orthanc PACS auto-forwards CR/DX instances here (forward-to-qure.lua).
+  # For each received CXR, sends back a Secondary Capture with a sample
+  # Qure.ai annotated output PNG as the "qXR AI Analysis" series.
+  #
+  # Requires the annotated PNG sample library to be available at SAMPLE_DIR.
+  # Mount the external drive or adjust the volume path as needed.
+  qure-sim:
+    build: ./qure-sim
+    container_name: imladris-qure-sim
+    restart: unless-stopped
+    ports:
+      - "5252:5252"   # DICOM SCP (QUREAI AE)
+    volumes:
+      - /Volumes/BURT_H/PIH/extracted/CXRs from qtrack:/sample_outputs:ro
+    environment:
+      SCP_AE:       QUREAI
+      SCP_PORT:     "5252"
+      ORTHANC_HOST: orthanc-pacs
+      ORTHANC_PORT: "4242"
+      ORTHANC_AE:   IML_PACS_01
+      SAMPLE_DIR:   /sample_outputs
+      DELAY_SEC:    "3"
+    depends_on:
+      - orthanc-pacs
+    networks:
+      - imladris
+
   # ── AdvaPACS Gateway ────────────────────────────────────────────────
   # Receives DICOM C-STORE from modalities and forwards to AdvaPACS cloud.
   # Parallel path to orthanc-pacs for comparison / integration testing.
@@ -139,6 +168,7 @@ services:
     volumes:
       - ./orthanc/pacs.json:/etc/orthanc/orthanc.json:ro
       - ./orthanc/forward-to-advapacs.lua:/etc/orthanc/forward-to-advapacs.lua:ro
+      - ./orthanc/forward-to-qure.lua:/etc/orthanc/forward-to-qure.lua:ro
       - pacs-data:/var/lib/orthanc/db
     environment:
       ADVAPACS_KEY_ID: ${ADVAPACS_KEY_ID:-}
