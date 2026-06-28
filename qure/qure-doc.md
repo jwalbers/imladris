@@ -1,0 +1,118 @@
+# Qure.ai Documentation
+
+## Qure.ai Documentation
+
+- [Qure.ai App User's Manual](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual.md): Qure.ai App is an on-cloud image viewing software.
+- [Getting Started](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/getting-started.md)
+- [Installation in Windows/Mac](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/getting-started/installation-in-windows-mac.md)
+- [Installation in Mobile](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/getting-started/installation-in-mobile.md)
+- [To Log In to Qure.ai App](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/getting-started/to-log-in-to-qure.ai-app.md)
+- [Qure.ai App Features](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features.md)
+- [Windows/Mac OS App UI](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui.md)
+- [Worklist Panel](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/worklist-panel.md)
+- [Worklist Search](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/worklist-panel/worklist-search.md)
+- [Saveable Filters](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/worklist-panel/saveable-filters.md)
+- [Navigation Toolbar](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/navigation-toolbar.md)
+- [Dark/Light Mode](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/navigation-toolbar/dark-light-mode.md)
+- [Add](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/navigation-toolbar/add.md)
+- [Add Patient](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/navigation-toolbar/add/add-patient.md)
+- [Import Scans](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/navigation-toolbar/add/import-scans.md)
+- [Settings](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/navigation-toolbar/settings.md)
+- [Notification Settings](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/navigation-toolbar/settings/notification-settings.md)
+- [Automated Sharing](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/navigation-toolbar/settings/automated-sharing.md)
+- [User Groups Management](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/navigation-toolbar/settings/user-groups-management.md)
+- [Worklist Tags](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/navigation-toolbar/settings/worklist-tags.md)
+- [Report Templates & Formatting](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/navigation-toolbar/settings/report-templates-and-formatting.md)
+- [Workspace Management](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/navigation-toolbar/settings/workspace-management.md)
+- [Connection to modality](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/navigation-toolbar/settings/connection-to-modality.md)
+- [Profile](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/navigation-toolbar/profile.md)
+- [Patient Channel](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/patient-channel.md)
+- [To Edit/Merge Patient Worklist Information](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/patient-channel/to-edit-merge-patient-worklist-information.md)
+- [To Sent Photos/Videos/Document](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/patient-channel/to-sent-photos-videos-document.md)
+- [To Add Clinical Forms](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/patient-channel/to-add-clinical-forms.md)
+- [Tuberculosis Diagnosis Forms](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/patient-channel/to-add-clinical-forms/tuberculosis-diagnosis-forms.md)
+- [Risk Groups](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/patient-channel/to-add-clinical-forms/tuberculosis-diagnosis-forms/risk-groups.md)
+- [Symptoms](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/patient-channel/to-add-clinical-forms/tuberculosis-diagnosis-forms/symptoms.md)
+- [TB Vouchers](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/patient-channel/to-add-clinical-forms/tuberculosis-diagnosis-forms/tb-vouchers.md)
+- [Confirmatory Lab Test - GeneXpert](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/patient-channel/to-add-clinical-forms/tuberculosis-diagnosis-forms/confirmatory-lab-test-genexpert.md)
+- [Confirmatory Lab Test - CBNAAT](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/patient-channel/to-add-clinical-forms/tuberculosis-diagnosis-forms/confirmatory-lab-test-cbnaat.md)
+- [Stoke Evaluation Forms](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/patient-channel/to-add-clinical-forms/stoke-evaluation-forms.md)
+- [NIHSS Evaluation](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/patient-channel/to-add-clinical-forms/stoke-evaluation-forms/nihss-evaluation.md)
+- [Clinical History of Stoke Suspects](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/patient-channel/to-add-clinical-forms/stoke-evaluation-forms/clinical-history-of-stoke-suspects.md)
+- [Preview Panel](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/preview-panel.md)
+- [Studies Filter](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/preview-panel/studies-filter.md)
+- [Share Function](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/share-function.md)
+- [To Share the Patient File](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/share-function/to-share-the-patient-file.md)
+- [Emergency Activation](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/emergency-activation.md)
+- [Support](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/support.md)
+- [Report an Issue](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/support/report-an-issue.md)
+- [Send an Idea](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/support/send-an-idea.md)
+- [Qure.ai App Viewer](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/qure.ai-app-viewer.md)
+- [Navigation Toolbar](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/qure.ai-app-viewer/navigation-toolbar.md)
+- [STUDIES Panel](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/qure.ai-app-viewer/studies-panel.md)
+- [DICOM Viewer](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/qure.ai-app-viewer/dicom-viewer.md)
+- [Tool](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/qure.ai-app-viewer/dicom-viewer/tool.md)
+- [Window/Level](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/qure.ai-app-viewer/dicom-viewer/tool/window-level.md)
+- [Measuring Tool Menu](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/qure.ai-app-viewer/dicom-viewer/tool/measuring-tool-menu.md)
+- [Viewer](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/qure.ai-app-viewer/dicom-viewer/viewer.md)
+- [REPORTING Panel](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/qure.ai-app-viewer/reporting-panel.md)
+- [Edit Report](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/qure.ai-app-viewer/reporting-panel/edit-report.md)
+- [Download Report](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/qure.ai-app-viewer/reporting-panel/download-report.md)
+- [Qure.ai App Widget](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/windows-mac-os-app-ui/qure.ai-app-widget.md)
+- [Mobile App UI](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/mobile-app-ui.md)
+- [Worklist](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/mobile-app-ui/worklist.md)
+- [Menu](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/mobile-app-ui/worklist/menu.md)
+- [Patient Channel](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/mobile-app-ui/patient-channel.md)
+- [Studies Panel](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/mobile-app-ui/studies-panel.md)
+- [Support](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/qure.ai-app-features/mobile-app-ui/support.md)
+- [Configuration](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/configuration.md)
+- [Troubleshooting](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/troubleshooting.md)
+- [FAQs](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/faqs.md)
+- [Security and Privacy](https://documentation.qure.ai/users-manual/qure.ai-app-users-manual/faqs/security-and-privacy.md)
+- [Gateway User Manual](https://documentation.qure.ai/users-manual/gateway-user-manual.md): Gateway is a DICOM study forwarder platform.
+- [Installation pre-requisite](https://documentation.qure.ai/users-manual/gateway-user-manual/installation-pre-requisite.md)
+- [Installation Process](https://documentation.qure.ai/users-manual/gateway-user-manual/installation-process.md)
+- [Configuration](https://documentation.qure.ai/users-manual/gateway-user-manual/configuration.md)
+- [Setting up the Medical System (modality) Configuration](https://documentation.qure.ai/users-manual/gateway-user-manual/configuration/setting-up-the-medical-system-modality-configuration.md)
+- [Configuring Medical System (modality)](https://documentation.qure.ai/users-manual/gateway-user-manual/configuration/setting-up-the-medical-system-modality-configuration/configuring-medical-system-modality.md)
+- [DCMIO features](https://documentation.qure.ai/users-manual/gateway-user-manual/dcmio-features.md)
+- [Troubleshooting](https://documentation.qure.ai/users-manual/gateway-user-manual/troubleshooting.md)
+- [FAQs](https://documentation.qure.ai/users-manual/gateway-user-manual/faqs.md)
+- [Qure.ai App](https://documentation.qure.ai/release-notes/qure.ai-app.md)
+- [Gateway](https://documentation.qure.ai/release-notes/gateway.md)
+- [Platform API](https://documentation.qure.ai/api/platform-api.md)
+- [Overview](https://documentation.qure.ai/api/platform-api/overview.md)
+- [Get Started](https://documentation.qure.ai/api/platform-api/get-started.md)
+- [qXR](https://documentation.qure.ai/api/platform-api/get-started/qxr.md)
+- [qER](https://documentation.qure.ai/api/platform-api/get-started/qer.md)
+- [qCT](https://documentation.qure.ai/api/platform-api/get-started/qct.md)
+- [qMSK](https://documentation.qure.ai/api/platform-api/get-started/qmsk.md)
+- [API Specifications](https://documentation.qure.ai/api/platform-api/api-specifications.md)
+- [Uploading the Dicoms](https://documentation.qure.ai/api/platform-api/api-specifications/uploading-the-dicoms.md)
+- [Initiating Computation](https://documentation.qure.ai/api/platform-api/api-specifications/initiating-computation.md)
+- [Fetching Results](https://documentation.qure.ai/api/platform-api/api-specifications/fetching-results.md)
+- [On-premises Deployment Specifications](https://documentation.qure.ai/api/platform-api/on-premises-deployment-specifications.md)
+- [Server Setup](https://documentation.qure.ai/api/platform-api/on-premises-deployment-specifications/server-setup.md)
+- [Deployment Files](https://documentation.qure.ai/api/platform-api/on-premises-deployment-specifications/deployment-files.md)
+- [Starting the Service](https://documentation.qure.ai/api/platform-api/on-premises-deployment-specifications/starting-the-service.md)
+- [Output Specifications](https://documentation.qure.ai/api/platform-api/output-specifications.md)
+- [qXR](https://documentation.qure.ai/api/platform-api/output-specifications/qxr.md)
+- [qER](https://documentation.qure.ai/api/platform-api/output-specifications/qer.md)
+- [qCT](https://documentation.qure.ai/api/platform-api/output-specifications/qct.md)
+- [qMSK](https://documentation.qure.ai/api/platform-api/output-specifications/qmsk.md)
+
+
+---
+
+# Agent Instructions
+This documentation is published with GitBook. GitBook is the documentation platform designed so that both humans and AI agents can read, navigate, and reason over technical content effectively. Learn more at gitbook.com.
+
+## Querying This Documentation
+If you need additional information, you can query the documentation dynamically by asking a question.
+Perform an HTTP GET request on a page URL with the `ask` query parameter:
+```
+GET https://documentation.qure.ai/users-manual/qure.ai-app-users-manual.md?ask=<question>
+```
+The question should be specific, self-contained, and written in natural language.
+The response will contain a direct answer to the question and relevant excerpts and sources from the documentation.
+Use this mechanism when the answer is not explicitly present in the current page, you need clarification or additional context, or you want to retrieve related documentation sections.
