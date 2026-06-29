@@ -16,9 +16,8 @@ openmrs_work/
 memory/
 *.venv/
 venv/
-# Don't save GS Cloud files in git
-botsabelo-hospital-records/botsabelo_processed/
-botsabelo-hospital-records/botsabelo_raw/
+# botsabelo-hospital-records/ — patient data moved to imladris-bophelong
+botsabelo-hospital-records/
 # IDE project files
 .idea/
 
