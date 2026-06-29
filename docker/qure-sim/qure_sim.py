@@ -31,6 +31,7 @@ import threading
 import time
 from datetime import datetime
 from pathlib import Path
+from collections import OrderedDict
 
 import numpy as np
 from PIL import Image
@@ -55,6 +56,26 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("qure_sim")
+
+# Studies processed recently — prevents duplicate SC responses when a study
+# arrives as multiple instances (one C-STORE per instance from Orthanc Lua).
+# Entries expire after STUDY_TTL_SEC so the set doesn't grow unbounded.
+STUDY_TTL_SEC = 300
+_processed_studies: OrderedDict[str, float] = OrderedDict()
+_studies_lock = threading.Lock()
+
+def _already_processed(study_uid: str) -> bool:
+    """Return True if this study was already handled; record it if not."""
+    now = time.monotonic()
+    with _studies_lock:
+        # Evict expired entries
+        cutoff = now - STUDY_TTL_SEC
+        while _processed_studies and next(iter(_processed_studies.values())) < cutoff:
+            _processed_studies.popitem(last=False)
+        if study_uid in _processed_studies:
+            return True
+        _processed_studies[study_uid] = now
+        return False
 
 # ── Sample library ─────────────────────────────────────────────────────────────
 
@@ -183,6 +204,11 @@ def handle_store(event, samples: list[Path]):
 
     if modality not in ("CR", "DX", "RG", ""):
         log.info("  Skipping non-CXR modality (%s)", modality)
+        return 0x0000
+
+    study_uid = str(getattr(ds, "StudyInstanceUID", ""))
+    if _already_processed(study_uid):
+        log.info("  Study %s already processed — skipping duplicate instance", study_uid)
         return 0x0000
 
     png_path = random.choice(samples)

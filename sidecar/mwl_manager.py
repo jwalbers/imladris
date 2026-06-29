@@ -11,8 +11,10 @@ and the /worklist folder must be the same volume mounted by this
 container at WL_FOLDER (default /worklist).
 """
 
+import json
 import logging
 import os
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -35,6 +37,8 @@ class MwlManager:
         self.folder = Path(folder)
         self.folder.mkdir(parents=True, exist_ok=True)
         self.station_aet = station_aet
+        self._dismissed_path = self.folder / ".dismissed.json"
+        self._lock = threading.Lock()
         log.info(f"MWL folder: {self.folder}  station AET: {self.station_aet}")
 
     # ── Public API ────────────────────────────────────────────────────
@@ -52,7 +56,16 @@ class MwlManager:
         scheduled_date: str | None = None,
         scheduled_time: str | None = None,
     ) -> str:
-        """Write a DICOM worklist file and return its path."""
+        """Write a DICOM worklist file and return its path.
+
+        If the accession was previously dismissed via dismiss(), this is a no-op
+        and returns an empty string — the order stays off the worklist even though
+        it remains active in OpenMRS.
+        """
+        if self._is_dismissed(accession):
+            log.debug(f"MWL create skipped — accession {accession} is dismissed")
+            return ""
+
         if not scheduled_date:
             scheduled_date = datetime.now().strftime("%Y%m%d")
         if not scheduled_time:
@@ -78,11 +91,43 @@ class MwlManager:
         log.warning(f"MWL delete: file not found for accession={accession}")
         return False
 
+    def dismiss(self, accession: str) -> bool:
+        """Remove the worklist file and permanently suppress future re-creation.
+
+        Use this for a deliberate operator "Remove" — unlike delete(), dismiss()
+        records the accession in .dismissed.json so order_poller will not
+        recreate the .wl file even if the underlying OpenMRS order stays active.
+        """
+        found = self.delete(accession)
+        self._mark_dismissed(accession)
+        return found
+
     def list_accessions(self) -> list[str]:
         """Return list of accession numbers currently in the worklist."""
         return [p.stem for p in self.folder.glob("*.wl")]
 
     # ── Internals ─────────────────────────────────────────────────────
+
+    def _is_dismissed(self, accession: str) -> bool:
+        with self._lock:
+            if not self._dismissed_path.exists():
+                return False
+            try:
+                data = json.loads(self._dismissed_path.read_text())
+                return accession in data.get("accessions", [])
+            except Exception:
+                return False
+
+    def _mark_dismissed(self, accession: str) -> None:
+        with self._lock:
+            try:
+                data = json.loads(self._dismissed_path.read_text()) if self._dismissed_path.exists() else {}
+            except Exception:
+                data = {}
+            dismissed = set(data.get("accessions", []))
+            dismissed.add(accession)
+            self._dismissed_path.write_text(json.dumps({"accessions": sorted(dismissed)}, indent=2))
+            log.info(f"MWL dismissed: {accession}")
 
     def _path(self, accession: str) -> Path:
         safe = accession.replace("/", "_").replace("\\", "_").replace(" ", "_")

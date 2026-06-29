@@ -256,7 +256,7 @@ def acquire(accession: str):
 
 @app.route("/remove/<accession>", methods=["POST"])
 def remove(accession: str):
-    ok = mwl.delete(accession)
+    ok = mwl.dismiss(accession)
     return jsonify({"ok": ok})
 
 

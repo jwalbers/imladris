@@ -10,5 +10,10 @@
 -- for direct uploads. The Validation Queue is not queryable via standard QIDO-RS.
 function OnStableStudy(studyId, tags, metadata)
     local body = '{"Resources":["' .. studyId .. '"]}'
-    RestApiPost('/dicom-web/servers/AdvaPACS/stow', body)
+    local ok, err = pcall(function()
+        RestApiPost('/dicom-web/servers/AdvaPACS/stow', body)
+    end)
+    if not ok then
+        print('AdvaPACS STOW failed for study ' .. studyId .. ': ' .. tostring(err))
+    end
 end
