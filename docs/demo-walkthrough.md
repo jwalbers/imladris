@@ -25,7 +25,7 @@ In a dedicated terminal (keep it running throughout the demo):
 
 ```bash
 export JAVA_HOME=$(/usr/libexec/java_home -v 11)
-cd ~/git/Fastpilot/imladris/openmrs/openmrs-distro-zl
+cd ~/git/PIH/imladris/openmrs/openmrs-distro-zl
 mvn openmrs-sdk:run -DserverId=imladris01
 ```
 
@@ -36,7 +36,7 @@ Wait for `Server startup in [N] milliseconds`, then verify http://localhost:8080
 ## Step 2 — Start the Docker stack
 
 ```bash
-cd ~/git/Fastpilot/imladris/docker
+cd ~/git/PIH/imladris/docker
 docker compose down && docker compose --profile full up -d
 docker ps --format "table {{.Names}}\t{{.Status}}"
 ```
@@ -143,7 +143,7 @@ to clear the OHIF service worker cache.
 
 ```bash
 # Clear OpenMRS radiology orders so next demo starts clean
-cd ~/git/Fastpilot/imladris
+cd ~/git/PIH/imladris
 source .imladris_venv/bin/activate
 python tools/clear_demo_orders.py
 
@@ -162,7 +162,7 @@ To verify the DICOM → Orthanc → AdvaPACS path without OpenMRS:
 ```bash
 # Upload a retagged study directly to the modality
 curl -u admin:admin -X POST http://localhost:8042/instances \
-     --data-binary @/Users/jalbers/git/Fastpilot/imladris-bophelong/patients/dicom/xray/0EGXAX/XRAY_0EGXAX.dcm
+     --data-binary @/Users/jalbers/git/PIH/imladris-bophelong/patients/dicom/xray/0EGXAX/XRAY_0EGXAX.dcm
 
 # Note ParentStudy ID from the response, C-STORE to IML_PACS_01
 curl -u admin:admin -X POST http://localhost:8042/modalities/IML_PACS_01/store \

@@ -110,12 +110,8 @@ class OpenMRSClient:
         return None
 
     def list_locations(self) -> list[dict]:
-        data = self.get("/ws/rest/v1/location", tag="Login Location")
-        results = data.get("results", [])
-        if not results:
-            data = self.get("/ws/rest/v1/location")
-            results = data.get("results", [])
-        return results
+        data = self.get("/ws/rest/v1/location")
+        return data.get("results", [])
 
     def find_location(self, name_hint: str) -> dict | None:
         hint = name_hint.lower()
@@ -175,7 +171,9 @@ def build_patient_payload(
 ) -> dict:
     given, family = parse_name(row["Name"])
     gender = gender_char(row["Gender"])
-    birthdate = estimate_birthdate(int(row["Age"]))
+    # Use exact Birthdate column if present, otherwise estimate from Age
+    birthdate = row["Birthdate"].strip() if row.get("Birthdate", "").strip() else estimate_birthdate(int(row["Age"]))
+    birthdate_estimated = not row.get("Birthdate", "").strip()
     district = row.get("District", "").strip()
 
     payload: dict = {
@@ -189,7 +187,7 @@ def build_patient_payload(
             ],
             "gender": gender,
             "birthdate": birthdate,
-            "birthdateEstimated": True,
+            "birthdateEstimated": birthdate_estimated,
         },
         "identifiers": [
             {
@@ -237,13 +235,13 @@ def main():
     parser = argparse.ArgumentParser(description="Seed OpenMRS patients from CSV")
     parser.add_argument("--url", default="http://localhost:8080/openmrs",
                         help="OpenMRS base URL")
-    parser.add_argument("--user", default="admin", help="OpenMRS username")
-    parser.add_argument("--password", default="Admin123", help="OpenMRS password")
+    parser.add_argument("--user", default="imladris-service", help="OpenMRS username")
+    parser.add_argument("--password", default="", help="OpenMRS password")
     parser.add_argument("--csv", default="botsabelo_census_v2.csv",
                         help="Path to census CSV file")
-    parser.add_argument("--id-type", default=None,
+    parser.add_argument("--id-type", default="EMR ID",
                         help="Identifier type name hint (auto-discovered if omitted)")
-    parser.add_argument("--location", default=None,
+    parser.add_argument("--location", default="Bophelong",
                         help="Location name hint (auto-discovered if omitted)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Print payloads without creating patients")
@@ -277,24 +275,13 @@ def main():
     location = pick_or_prompt(locations, "location", args.location)
     print(f"Using location:        {location['display']}  ({location['uuid']})")
 
-    # -- Generate identifiers (collision-safe within this run) --------------
-    used_ids: set[str] = set()
-
-    def fresh_zl_id() -> str:
-        for _ in range(1000):
-            candidate = generate_zl_id()
-            if candidate not in used_ids:
-                used_ids.add(candidate)
-                return candidate
-        raise RuntimeError("Could not generate a unique ZL EMR ID after 1000 tries")
-
     # -- Create patients ----------------------------------------------------
     created, failed = 0, 0
     dry_run_path = Path("seed_dry_run.json")
 
     with (open(dry_run_path, "w") if args.dry_run else open("/dev/null", "w")) as dry_run_outf:
         for i, row in enumerate(rows, start=1):
-            identifier = fresh_zl_id()
+            identifier = row["Patient_ID"].strip()
             payload = build_patient_payload(
                 row,
                 identifier=identifier,
@@ -310,26 +297,15 @@ def main():
                 dry_run_outf.write(f"         payload: {json.dumps(payload, indent=2)}\n")
                 continue
 
-            for attempt in range(5):
-                try:
-                    result = client.create_patient(payload)
-                    uuid = result.get("uuid", "?")
-                    print(f"  OK  {label}  (uuid={uuid})")
-                    created += 1
-                    break
-                except requests.HTTPError as e:
-                    body = e.response.text if e.response is not None else str(e)
-                    is_dupe = e.response is not None and e.response.status_code in (400, 409) \
-                              and "identifier" in body.lower()
-                    if is_dupe and attempt < 4:
-                        identifier = fresh_zl_id()
-                        payload["identifiers"][0]["identifier"] = identifier
-                        label = f"[{i:02d}/{len(rows)}] {row['Name']} → {identifier}"
-                        print(f"  DUP retry {attempt+1}: {label}", file=sys.stderr)
-                    else:
-                        print(f"  FAIL {label}: {e} — {body[:200]}", file=sys.stderr)
-                        failed += 1
-                        break
+            try:
+                result = client.create_patient(payload)
+                uuid = result.get("uuid", "?")
+                print(f"  OK  {label}  (uuid={uuid})")
+                created += 1
+            except requests.HTTPError as e:
+                body = e.response.text if e.response is not None else str(e)
+                print(f"  FAIL {label}: {e} — {body[:200]}", file=sys.stderr)
+                failed += 1
 
     if args.dry_run:
         print(f"Dry-run output written to {dry_run_path}")

@@ -1,0 +1,92 @@
+<mxfile host="1urcaik-1ne4gn4hlq-2xqnxor43--7hlydu-29x06d4kbf-ztlofaerf.cdn.prod.atlassian-dev.net" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36" version="29.6.6">
+  <diagram id="siFcnyF0qzyWKTcutykF" name="Virtual Integration Lab">
+    <mxGraphModel dx="1114" dy="744" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-1" parent="1" style="swimlane;startSize=30;fillColor=#f5f5f5;strokeColor=#0066CC;strokeWidth=2;dashed=1;dashPattern=8 8;fontSize=14;fontStyle=1;fontColor=#333333;swimlaneLine=1;" value="Virtual Lab Network — 192.168.100.0/24" vertex="1">
+          <mxGeometry height="820" width="1500" x="80" y="110" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-2" parent="N2DZuSE1Mh9MC6Y4SEfh-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;fontSize=11;align=center;verticalAlign=middle;arcSize=8;spacingTop=4;" value="&lt;b&gt;DICOM Modality Simulator&lt;/b&gt;&lt;br&gt;Docker Container · 192.168.100.10&lt;br&gt;&lt;hr/&gt;Port 4242 (DICOM DIMSE)&lt;br&gt;Port 8042 (Orthanc REST API)&lt;br&gt;&lt;br&gt;Orthanc + TB DICOM Dataset&lt;br&gt;MWL SCU · C-STORE SCU&lt;br&gt;C-FIND SCP&lt;br&gt;&lt;br&gt;&lt;i&gt;Sources: TCIA TB-CXR, NIH CXR14,&lt;br&gt;Montgomery County TB&lt;/i&gt;" vertex="1">
+          <mxGeometry height="220" width="260" x="60" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-3" parent="N2DZuSE1Mh9MC6Y4SEfh-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=11;align=center;verticalAlign=middle;arcSize=8;" value="&lt;b&gt;OpenMRS Server&lt;/b&gt;&lt;br&gt;Bahmni Distribution · 192.168.100.20&lt;br&gt;&lt;hr/&gt;Port 8080 (Web / REST)&lt;br&gt;&lt;br&gt;Radiology Module&lt;br&gt;Bahmni-PACS Integration&lt;br&gt;Reporting Module&lt;br&gt;HL7 / FHIR Interface&lt;br&gt;&lt;br&gt;&lt;i&gt;Patient Records · Scheduling&lt;br&gt;Treatment History · Lab Results&lt;/i&gt;" vertex="1">
+          <mxGeometry height="220" width="260" x="590" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-4" parent="N2DZuSE1Mh9MC6Y4SEfh-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=11;align=center;verticalAlign=middle;arcSize=8;" value="&lt;b&gt;Cloud PACS (Placeholder)&lt;/b&gt;&lt;br&gt;Orthanc + Plugins · 192.168.100.30&lt;br&gt;&lt;hr&gt;Port 4242 (DIMSE)&lt;br&gt;Port 8042 (DICOMweb)&lt;br&gt;&lt;br&gt;orthanc-dicomweb (WADO-RS / STOW-RS / QIDO-RS)&lt;br&gt;orthanc-authorization (RBAC)&lt;br&gt;orthanc-postgresql&lt;br&gt;stone-webviewer&lt;br&gt;&lt;br&gt;&lt;i&gt;GCP / AWS / Azure VM or PaaS&lt;/i&gt;" vertex="1">
+          <mxGeometry height="220" width="280" x="1130" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-5" parent="N2DZuSE1Mh9MC6Y4SEfh-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=11;align=center;verticalAlign=middle;arcSize=8;" value="&lt;b&gt;Rad Tech Workstation&lt;/b&gt;&lt;br&gt;Windows 11 VM · 192.168.100.40&lt;br&gt;&lt;hr/&gt;4 vCPU · 8 GB RAM · 60 GB&lt;br&gt;&lt;br&gt;Weasis (DICOM viewer / QC)&lt;br&gt;MicroDicom&lt;br&gt;OHIF Viewer (DICOMweb)&lt;br&gt;&lt;br&gt;MWL Client → C-STORE SCU&lt;br&gt;&lt;i&gt;Worklist pull · Image QC&lt;br&gt;Study send to PACS&lt;/i&gt;" vertex="1">
+          <mxGeometry height="220" width="260" x="60" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-6" parent="N2DZuSE1Mh9MC6Y4SEfh-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=11;align=center;verticalAlign=middle;arcSize=8;" value="&lt;b&gt;Radiologist Workstation&lt;/b&gt;&lt;br&gt;Windows 11 VM · 192.168.100.50&lt;br&gt;&lt;hr/&gt;8 vCPU · 16 GB RAM · 100 GB&lt;br&gt;&lt;br&gt;OHIF Viewer v3 (diagnostic)&lt;br&gt;Weasis · 3D Slicer&lt;br&gt;RadReport (structured reporting)&lt;br&gt;&lt;br&gt;&lt;i&gt;TB-specific templates:&lt;br&gt;WHO CXR scoring · CT MDR-TB&lt;br&gt;Treatment response comparison&lt;/i&gt;" vertex="1">
+          <mxGeometry height="220" width="260" x="590" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-7" parent="N2DZuSE1Mh9MC6Y4SEfh-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=11;align=center;verticalAlign=middle;arcSize=8;" value="&lt;b&gt;Clinician Workstation&lt;/b&gt;&lt;br&gt;Windows 11 VM · 192.168.100.60&lt;br&gt;&lt;hr/&gt;2 vCPU · 4 GB RAM · 40 GB&lt;br&gt;&lt;br&gt;OHIF Viewer (read-only)&lt;br&gt;OpenMRS Patient Portal&lt;br&gt;Radiology Report Viewer&lt;br&gt;&lt;br&gt;&lt;i&gt;Reviews imaging + reports&lt;br&gt;MDR-TB treatment decisions&lt;br&gt;No diagnostic reading role&lt;/i&gt;" vertex="1">
+          <mxGeometry height="220" width="260" x="1130" y="530" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-8" edge="1" parent="N2DZuSE1Mh9MC6Y4SEfh-1" source="N2DZuSE1Mh9MC6Y4SEfh-2" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#d6b656;strokeWidth=2;fontSize=10;fontStyle=1;exitX=1;exitY=0.4;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;" target="N2DZuSE1Mh9MC6Y4SEfh-3" value="MWL Query (C-FIND)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-9" edge="1" parent="N2DZuSE1Mh9MC6Y4SEfh-1" source="N2DZuSE1Mh9MC6Y4SEfh-2" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;fontSize=10;fontStyle=1;exitX=0.728;exitY=0.005;exitDx=0;exitDy=0;entryX=0.209;entryY=0.005;entryDx=0;entryDy=0;entryPerimeter=0;exitPerimeter=0;" target="N2DZuSE1Mh9MC6Y4SEfh-4" value="C-STORE SCU (DIMSE)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="249" y="50" />
+              <mxPoint x="1189" y="50" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-10" edge="1" parent="N2DZuSE1Mh9MC6Y4SEfh-1" source="N2DZuSE1Mh9MC6Y4SEfh-3" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=2;fontSize=10;fontStyle=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="N2DZuSE1Mh9MC6Y4SEfh-4" value="HL7 ORM / Webhook (study notification)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-11" edge="1" parent="N2DZuSE1Mh9MC6Y4SEfh-1" source="N2DZuSE1Mh9MC6Y4SEfh-5" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=2;fontSize=10;fontStyle=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="N2DZuSE1Mh9MC6Y4SEfh-3" value="MWL Pull + Scheduling">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-12" edge="1" parent="N2DZuSE1Mh9MC6Y4SEfh-1" source="N2DZuSE1Mh9MC6Y4SEfh-5" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;fontSize=10;fontStyle=1;exitX=0.608;exitY=0.992;exitDx=0;exitDy=0;entryX=0.182;entryY=1.002;entryDx=0;entryDy=0;entryPerimeter=0;exitPerimeter=0;" target="N2DZuSE1Mh9MC6Y4SEfh-4" value="DICOMweb (WADO-RS)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="218" y="764" />
+              <mxPoint x="1080" y="764" />
+              <mxPoint x="1080" y="360" />
+              <mxPoint x="1181" y="360" />
+            </Array>
+            <mxPoint x="330" y="764" as="sourcePoint" />
+            <mxPoint x="1120" y="230" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-13" edge="1" parent="N2DZuSE1Mh9MC6Y4SEfh-1" source="N2DZuSE1Mh9MC6Y4SEfh-6" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;fontSize=10;fontStyle=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="N2DZuSE1Mh9MC6Y4SEfh-4" value="DICOMweb (WADO-RS)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-14" edge="1" parent="N2DZuSE1Mh9MC6Y4SEfh-1" source="N2DZuSE1Mh9MC6Y4SEfh-6" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=2;fontSize=10;fontStyle=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" target="N2DZuSE1Mh9MC6Y4SEfh-3" value="HL7 ORU / FHIR DiagnosticReport">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-15" edge="1" parent="N2DZuSE1Mh9MC6Y4SEfh-1" source="N2DZuSE1Mh9MC6Y4SEfh-7" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;dashed=1;fontSize=10;fontStyle=2;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.772;entryY=0.997;entryDx=0;entryDy=0;entryPerimeter=0;" target="N2DZuSE1Mh9MC6Y4SEfh-4" value="DICOMweb (read-only)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1260" y="440" />
+              <mxPoint x="1346" y="440" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-16" edge="1" parent="N2DZuSE1Mh9MC6Y4SEfh-1" source="N2DZuSE1Mh9MC6Y4SEfh-7" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=2;fontSize=10;fontStyle=1;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.7;entryDx=0;entryDy=0;" target="N2DZuSE1Mh9MC6Y4SEfh-3" value="Patient Records + Reports">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-17" parent="N2DZuSE1Mh9MC6Y4SEfh-1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;" value="Legend" vertex="1">
+          <mxGeometry height="30" width="60" x="60" y="770" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-18" parent="N2DZuSE1Mh9MC6Y4SEfh-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=10;" value="Container" vertex="1">
+          <mxGeometry height="30" width="110" x="130" y="770" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-19" parent="N2DZuSE1Mh9MC6Y4SEfh-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" value="OpenMRS Server" vertex="1">
+          <mxGeometry height="30" width="130" x="250" y="770" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-20" parent="N2DZuSE1Mh9MC6Y4SEfh-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" value="Cloud PACS" vertex="1">
+          <mxGeometry height="30" width="110" x="390" y="770" as="geometry" />
+        </mxCell>
+        <mxCell id="N2DZuSE1Mh9MC6Y4SEfh-21" parent="N2DZuSE1Mh9MC6Y4SEfh-1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" value="Workstation VM (Win11)" vertex="1">
+          <mxGeometry height="30" width="160" x="510" y="770" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
