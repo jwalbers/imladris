@@ -102,7 +102,7 @@ services:
     ports:
       - "5252:5252"   # DICOM SCP (QUREAI AE)
     volumes:
-      - /Volumes/BURT_H/PIH/extracted/CXRs from qtrack:/sample_outputs:ro
+      - ${SAMPLE_DIR_HOST}:/sample_outputs:ro
     environment:
       SCP_AE:       QUREAI
       SCP_PORT:     "5252"
