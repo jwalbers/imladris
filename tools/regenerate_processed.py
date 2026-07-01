@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-regenerate_processed.py — Regenerate botsabelo_processed DICOM files locally.
+regenerate_processed.py — Regenerate Bophelong patient DICOM files locally.
 
-Reads botsabelo_census_v2.csv (Patient_ID column = current ZL EMR IDs) and
-rebuilds both xray and ultrasound_cine DICOM files from local raw sources.
+Reads imladris-bophelong/patients/bophelong_census.csv and rebuilds both
+xray and ultrasound_cine DICOM files from local raw sources in imladris-data.
 
 Usage:
     python tools/regenerate_processed.py [--xray] [--cine] [--patient PATIENT_ID]
@@ -18,7 +18,7 @@ Flags:
     --substitute  comma-separated "bad.mp4:good.mp4" substitutions
                   (default: pos_pleural_effusion_01.mp4:pos_pleural_spine_sign_02.mp4)
 
-Paths are resolved relative to this script's grandparent (the repo root).
+Paths are resolved relative to the PIH repos root (sibling dirs of imladris/).
 """
 
 import argparse
@@ -37,15 +37,18 @@ from PIL import Image
 from pydicom.dataset import FileDataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
-REPO_ROOT  = Path(__file__).resolve().parent.parent
-RECORDS    = REPO_ROOT / "botsabelo-hospital-records"
-RAW_XRAY   = RECORDS / "botsabelo_raw" / "TB_Chest_Radiography_Database"
-RAW_US     = RECORDS / "botsabelo_raw" / "ultrasound"
-OUT_XRAY   = RECORDS / "botsabelo_processed" / "xray"
-OUT_CINE   = RECORDS / "botsabelo_processed" / "ultrasound_cine"
-CENSUS_CSV = REPO_ROOT / "botsabelo_census_v2.csv"
+REPO_ROOT  = Path(__file__).resolve().parent.parent   # imladris/
+PIH_ROOT   = REPO_ROOT.parent                          # git-PIH/ (symlinked via ~/git/PIH)
+DATA_ROOT  = PIH_ROOT / "imladris-data"
+BOPH_ROOT  = PIH_ROOT / "imladris-bophelong"
 
-INSTITUTION    = "Botsabelo MDR-TB Hospital"
+RAW_XRAY   = DATA_ROOT / "raw" / "tb-cxr" / "set-1"
+RAW_US     = DATA_ROOT / "raw" / "ultrasound-fash"
+OUT_XRAY   = BOPH_ROOT / "patients" / "dicom" / "xray"
+OUT_CINE   = BOPH_ROOT / "patients" / "dicom" / "ultrasound_cine"
+CENSUS_CSV = BOPH_ROOT / "patients" / "bophelong_census.csv"
+
+INSTITUTION    = "Bophelong MDR-TB Hospital"
 CR_SOP_CLASS   = "1.2.840.10008.5.1.4.1.1.1"          # Computed Radiography
 US_MULTI_SOP   = "1.2.840.10008.5.1.4.1.1.3.1"        # US Multiframe
 

@@ -45,6 +45,27 @@ parser.add_argument("--orthanc-password", default="admin")
 parser.add_argument("--port", type=int, default=5010)
 args = parser.parse_args()
 
+# ── Path resolution ───────────────────────────────────────────────────────────
+
+def find_study_dir(uid: str) -> Path:
+    """
+    Locate the study directory for a given StudyInstanceUID under dicom_root.
+    Supports two layouts:
+      flat:   {dicom_root}/{uid}/          (original Bophelong CT layout)
+      nested: {dicom_root}/{ANON-ID}/{uid}/ (anonymize_dicom.py staging layout)
+    Returns the first match, or a non-existent Path if not found.
+    """
+    direct = Path(args.dicom_root) / uid
+    if direct.exists():
+        return direct
+    for parent in sorted(Path(args.dicom_root).iterdir()):
+        if parent.is_dir():
+            candidate = parent / uid
+            if candidate.exists():
+                return candidate
+    return direct  # caller checks .exists()
+
+
 # ── Load study list ───────────────────────────────────────────────────────────
 
 def load_studies():
@@ -56,7 +77,7 @@ def load_studies():
     with open(csv_path, newline="", encoding="utf-8") as f:
         for row in csv.DictReader(f):
             uid = row["study_instance_uid"]
-            study_dir = Path(args.dicom_root) / uid
+            study_dir = find_study_dir(uid)
             file_count = len(list(study_dir.glob("*.dcm"))) if study_dir.exists() else 0
             studies.append(
                 {
@@ -90,7 +111,7 @@ def log(msg: str):
 
 
 def upload_study(uid: str) -> tuple[int, int]:
-    study_dir = Path(args.dicom_root) / uid
+    study_dir = find_study_dir(uid)
     files = sorted(study_dir.glob("*.dcm"))
     ok = fail = 0
     for f in files:
