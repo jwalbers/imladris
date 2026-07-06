@@ -19,6 +19,7 @@
 # Push it to the PACS:
 #   curl -u admin:admin -X POST http://localhost:8042/modalities/IML_PACS_01/store \
 #        -d '["<study-uid>"]'
+name: ${SERVICE_NAME:-imladris}
 
 services:
   # ── Landing page (no auth — local dev / localhost only) ─────────────
@@ -75,7 +76,7 @@ services:
     container_name: imladris-mysql
     restart: unless-stopped
     ports:
-      - "3306:3306"
+      - "3307:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpw}
       MYSQL_DATABASE: openmrs
