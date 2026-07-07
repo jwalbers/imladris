@@ -25,7 +25,7 @@ $as = new \SimpleSAML\Auth\Simple('default-sp');
 $as->requireAuth();
 
 // Authenticated — hand off to the static landing page.
-// landing.html is mounted from docker/landing/index.html.
+// Mounted from docker/landing/ as a directory to avoid VirtioFS inode-swap issues.
 header('Content-Type: text/html; charset=utf-8');
 header('Cache-Control: no-store, no-cache, must-revalidate');
 readfile('/var/www/html/landing.html');

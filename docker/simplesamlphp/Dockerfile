@@ -26,7 +26,12 @@ RUN composer create-project simplesamlphp/simplesamlphp . \
 # ── Apache: enable mod_rewrite, add /simplesaml alias ─────────────────────────
 RUN a2enmod rewrite
 
-COPY apache-simplesamlphp.conf /etc/apache2/conf-enabled/simplesamlphp.conf
+COPY simplesamlphp/apache-simplesamlphp.conf /etc/apache2/conf-enabled/simplesamlphp.conf
+
+# ── Landing page + assets (baked in — avoids Docker Desktop VirtioFS stale-file issues) ─
+COPY landing/index.html      /var/www/html/landing.html
+COPY landing/favicon.ico     /var/www/html/favicon.ico
+COPY landing/earendil_star.png /var/www/html/earendil_star.png
 
 # ── Permissions ────────────────────────────────────────────────────────────────
 RUN chown -R www-data:www-data /var/simplesamlphp

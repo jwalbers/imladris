@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Imladris Virtual Integration Lab</title>
+  <link rel="icon" href="/favicon.ico">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -25,6 +26,17 @@
     .header-inner {
       max-width: 1100px;
       margin: 0 auto;
+      position: relative;
+    }
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+    }
+    .brand-logo {
+      height: 52px;
+      width: auto;
+      flex-shrink: 0;
     }
     .lab-title {
       font-size: 1.65rem;
@@ -48,6 +60,24 @@
       color: #8aacca;
       max-width: 640px;
       line-height: 1.55;
+    }
+    .sign-out-btn {
+      position: absolute;
+      top: 0;
+      right: 0;
+      font-size: 0.78rem;
+      color: #cc6666;
+      text-decoration: none;
+      padding: 0.3rem 0.75rem;
+      border: 1px solid #552222;
+      border-radius: 4px;
+      background: #1a0a0a;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .sign-out-btn:hover {
+      background: #2a1010;
+      border-color: #883333;
+      color: #ee8888;
     }
 
     /* ── Auth status bar (shown when Entra is wired up) ─────────────── */
@@ -88,9 +118,12 @@
 
     .card-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      grid-template-columns: repeat(3, 1fr);
       gap: 1.25rem;
       margin-bottom: 2.5rem;
+    }
+    .card-grid-4 {
+      grid-template-columns: repeat(4, 1fr);
     }
 
     /* ── Service cards ───────────────────────────────────────────────── */
@@ -179,8 +212,14 @@
 
   <header>
     <div class="header-inner">
-      <div class="lab-title"><span>Imladris</span> Virtual Integration Lab</div>
-      <div class="lab-subtitle">Partners in Health &nbsp;·&nbsp; Radiology Integration Lab</div>
+      <a class="sign-out-btn" href="/logout.php">Sign out</a>
+      <div class="header-brand">
+        <img src="/earendil_star.png" alt="Eärendil's Star" class="brand-logo">
+        <div>
+          <div class="lab-title"><span>Imladris</span> Virtual Integration Lab</div>
+          <div class="lab-subtitle">Partners in Health &nbsp;·&nbsp; Radiology Integration Lab</div>
+        </div>
+      </div>
       <div class="lab-desc">
         End-to-end DICOM and radiology workflow integration environment — OpenMRS
         electronic health records, modality simulation, local PACS, and cloud PACS evaluation.
@@ -196,7 +235,7 @@
 
   <main id="lab-links">
 
-    <div class="section-label">Clinical Systems</div>
+    <div class="section-label">Clinical &amp; Imaging</div>
     <div class="card-grid">
 
       <div class="card">
@@ -209,11 +248,6 @@
         </div>
         <a class="card-link" href="https://openmrs.imladrislab.org/openmrs" target="_blank">Open OpenMRS</a>
       </div>
-
-    </div>
-
-    <div class="section-label">Imaging</div>
-    <div class="card-grid">
 
       <div class="card">
         <div class="card-icon">🖥️</div>
@@ -240,7 +274,7 @@
     </div>
 
     <div class="section-label">Lab Infrastructure</div>
-    <div class="card-grid">
+    <div class="card-grid card-grid-4">
 
       <div class="card">
         <div class="card-icon">📡</div>
@@ -273,6 +307,17 @@
           worklist and receives acquired studies from the console.
         </div>
         <a class="card-link" href="https://orthanc-m.imladrislab.org" target="_blank">Open Orthanc Modality</a>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">🔧</div>
+        <div class="card-name">Lab Tool Cabinet</div>
+        <div class="card-tag tag-modality">Lab Tools</div>
+        <div class="card-desc">
+          Network connectivity simulator and lab utilities. Simulate WAN outages
+          to test offline resilience and gateway queue/retry behaviour.
+        </div>
+        <a class="card-link" href="https://tools.imladrislab.org" target="_blank">Open Tool Cabinet</a>
       </div>
 
     </div>
