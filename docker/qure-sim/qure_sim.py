@@ -38,7 +38,7 @@ from PIL import Image
 from pydicom.dataset import Dataset
 from pydicom.uid import generate_uid, ExplicitVRLittleEndian
 from pynetdicom import AE, evt, StoragePresentationContexts
-from pynetdicom.sop_class import SecondaryCaptureImageStorage
+from pynetdicom.sop_class import SecondaryCaptureImageStorage, Verification
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 
@@ -124,7 +124,7 @@ def build_secondary_capture(png_path: Path, src: Dataset) -> Dataset:
             setattr(ds, tag, getattr(src, tag))
 
     # ── Series (new — the qXR output series) ──────────────────────────
-    ds.Modality           = "OT"
+    ds.Modality           = "SC"
     ds.SeriesInstanceUID  = generate_uid()
     ds.SeriesNumber       = "999"
     ds.SeriesDate         = now.strftime("%Y%m%d")
@@ -234,8 +234,12 @@ def main():
 
     ae = AE(ae_title=SCP_AE)
     ae.supported_contexts = StoragePresentationContexts
+    ae.add_supported_context(Verification)
 
-    handlers = [(evt.EVT_C_STORE, lambda e: handle_store(e, samples))]
+    handlers = [
+        (evt.EVT_C_STORE, lambda e: handle_store(e, samples)),
+        (evt.EVT_C_ECHO,  lambda e: 0x0000),
+    ]
 
     log.info("Qure.ai gateway simulator ready")
     log.info("  AE title : %s", SCP_AE)
