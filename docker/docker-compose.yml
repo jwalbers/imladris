@@ -46,7 +46,9 @@ services:
   #                 remove userlist imladris_users from global settings
   #
   simplesamlphp:
-    build: ./simplesamlphp          # php:8.3-apache + composer install of SSP 2.x
+    build:
+      context: .                    # parent dir so Dockerfile can COPY landing/index.html
+      dockerfile: simplesamlphp/Dockerfile
     image: imladris-saml-sp:local   # local tag so docker compose doesn't try to pull
     container_name: imladris-saml-sp
     restart: unless-stopped
@@ -62,8 +64,9 @@ services:
       # Portal app (auth-gated; served from Apache DocumentRoot /var/www/html/)
       - ./simplesamlphp/www/index.php:/var/www/html/index.php:ro
       - ./simplesamlphp/www/user-info.php:/var/www/html/user-info.php:ro
-      # Landing page HTML (served by index.php after auth)
-      - ./landing/index.html:/var/www/html/landing.html:ro
+      - ./simplesamlphp/www/logout.php:/var/www/html/logout.php:ro
+      # landing/index.html is baked into the image (see Dockerfile COPY).
+      # To update: edit landing/index.html then: docker compose up -d --build simplesamlphp
     environment:
       SAML_SP_SECRETSALT:   ${SAML_SP_SECRETSALT}
       SAML_ADMIN_PASSWORD:  ${SAML_ADMIN_PASSWORD}
@@ -191,15 +194,40 @@ services:
     networks:
       - imladris
 
+  # ── Lab Tool Cabinet ────────────────────────────────────────────────
+  # Network connectivity simulator + future lab tooling.
+  # Runs with network_mode: host so it shares the WSL2 root netns with
+  # advapacs-gateway and can apply iptables rules that affect it.
+  #
+  # HAProxy: add backend for tools.imladrislab.org → localhost:5002
+  tool-cabinet:
+    build: ./tool-cabinet
+    image: imladris-tool-cabinet:local
+    container_name: imladris-tool-cabinet
+    restart: unless-stopped
+    network_mode: "host"   # shares WSL2 netns; no 'networks:' key
+    cap_add:
+      - NET_ADMIN           # required for iptables
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      PORT: "5002"
+      PACS_URL: http://localhost:8043
+      PACS_USER: admin
+      PACS_PASSWORD: admin
+      GATEWAY_CONTAINER: imladris-advapacs-gw
+      ADVAPACS_HOSTS: "usa1.api.dicomweb.advapacs.com"
+
   # ── OHIF Viewer (radiologist workstation) ──────────────────────────
   ohif:
-    image: ohif/app:latest
+    image: ohif/app:v3.10.0
     container_name: imladris-ohif
     restart: unless-stopped
     ports:
       - "3000:80"
     volumes:
       - ./ohif/app-config.js:/usr/share/nginx/html/app-config.js:ro
+      - ./ohif/app-config.js.gz:/usr/share/nginx/html/app-config.js.gz:ro
     depends_on:
       - pacs-proxy
     networks:

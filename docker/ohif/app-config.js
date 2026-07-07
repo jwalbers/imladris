@@ -1,6 +1,6 @@
 // OHIF Viewer — Imladris configuration
-// Points at the Cloud PACS (orthanc-pacs) DICOMweb endpoint.
-// The browser fetches from localhost:8044, so this must be the host-accessible URL.
+// Points at the Cloud PACS (orthanc-pacs) DICOMweb endpoint via pacs-proxy.
+// Uses the external hostname so the browser can reach it from WAN or LAN.
 
 window.config = {
   routerBasename: '/',
@@ -15,9 +15,9 @@ window.config = {
       configuration: {
         friendlyName: 'Imladris Cloud PACS',
         name: 'IML_PACS_01',
-        wadoUriRoot:    'http://localhost:8044/wado',
-        qidoRoot:       'http://localhost:8044/dicom-web',
-        wadoRoot:       'http://localhost:8044/dicom-web',
+        wadoUriRoot:    'https://orthanc-p.imladrislab.org/wado',
+        qidoRoot:       'https://orthanc-p.imladrislab.org/dicom-web',
+        wadoRoot:       'https://orthanc-p.imladrislab.org/dicom-web',
         qidoSupportsIncludeField: true,
         supportsReject: false,
         imageRendering: 'wadors',
