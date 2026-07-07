@@ -18,9 +18,11 @@
 
   // Known remote modalities
   "DicomModalities" : {
-    "MODALITY_SIM" : ["MODALITY_SIM", "orthanc-modality", 4242],
+    "MODALITY_SIM"   : ["MODALITY_SIM",   "orthanc-modality", 4242],
     // Simulated Qure.ai qXR DCMIO gateway
-    "QUREAI"       : ["QUREAI",       "qure-sim",         5252]
+    "QUREAI"         : ["QUREAI",         "qure-sim",         5252],
+    // AdvaPACS Gateway — C-STORE SCP on BESSIE (host-networked; Local AE configured in AdvaPACS cloud admin)
+    "ADVAPACS_GW_01" : ["ADVAPACS_GW_01", "192.168.1.10",     11112]
   },
 
   // Enable bundled plugins (Stone Web Viewer + DICOMweb)
