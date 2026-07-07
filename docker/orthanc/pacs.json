@@ -55,7 +55,7 @@
       // Path 2: Via AdvaPACS Gateway (Windows 192.168.1.10, DICOMweb proxy → cloud via RabbitMQ)
       // No auth — Gateway handles its own auth to AdvaPACS cloud internally.
       "AdvaPACS_GW" : {
-        "Url"     : "http://192.168.1.10:8085",
+        "Url"     : "http://192.168.1.10:8085/rs",
         "Timeout" : 300
       }
     }
@@ -74,6 +74,9 @@
   },
   "OrthancExplorer2" : {
     "Enable" : true,
-    "IsDefaultOrthancUI" : true
+    "IsDefaultOrthancUI" : true,
+    "UiOptions" : {
+      "ShowOrthancName" : true
+    }
   }
 }
