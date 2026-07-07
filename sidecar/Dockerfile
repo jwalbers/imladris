@@ -23,6 +23,7 @@ COPY order_poller.py .
 COPY hl7_bridge.py .
 COPY modality_console_web.py .
 COPY main.py .
+COPY favicon.ico .
 
 # Acquisition loop
 ENV ORTHANC_URL=http://orthanc-modality:8042

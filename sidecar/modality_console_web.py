@@ -32,7 +32,7 @@ from pathlib import Path
 
 import pydicom
 import requests
-from flask import Flask, jsonify, render_template_string, request
+from flask import Flask, jsonify, render_template_string, request, send_file
 from mwl_manager import MwlManager
 from pydicom.dataset import FileDataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
@@ -63,6 +63,11 @@ MODALITY_LABELS = {
 }
 
 app = Flask(__name__)
+
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_file('favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 
 # ── Worklist helpers ──────────────────────────────────────────────────────────
@@ -279,6 +284,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Bophelong {{ label }} Console</title>
+  <link rel="icon" href="/favicon.ico">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 

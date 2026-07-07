@@ -62,8 +62,14 @@ class MwlManager:
         and returns an empty string — the order stays off the worklist even though
         it remains active in OpenMRS.
         """
-        if self._is_dismissed(accession):
-            log.debug(f"MWL create skipped — accession {accession} is dismissed")
+        # Canonical form: matches what Orthanc returns in AccessionNumber tag
+        # (DICOM SH max 16 chars; UUIDs have dashes stripped to fit).
+        # File, dismissed list, and DICOM tag all use this same value so that
+        # dismiss() can locate and suppress the correct file.
+        accession_sh = accession.replace("-", "")[:16]
+
+        if self._is_dismissed(accession_sh):
+            log.debug(f"MWL create skipped — accession {accession_sh} is dismissed")
             return ""
 
         if not scheduled_date:
@@ -76,20 +82,27 @@ class MwlManager:
             accession, procedure_id, procedure_desc, modality,
             scheduled_date, scheduled_time,
         )
-        path = self._path(accession)
+        path = self._path(accession_sh)
         pydicom.dcmwrite(str(path), ds)
         log.info(f"MWL created: {path.name}  ({procedure_desc} / {modality} / {patient_id})")
         return str(path)
 
     def delete(self, accession: str) -> bool:
-        """Remove the worklist file for accession.  Returns True if found."""
-        path = self._path(accession)
-        if path.exists():
-            path.unlink()
-            log.info(f"MWL deleted: {path.name}")
-            return True
-        log.warning(f"MWL delete: file not found for accession={accession}")
-        return False
+        """Remove the worklist file for accession.  Returns True if found.
+
+        Matches by canonical accession_sh so files stored under either the
+        full UUID filename (legacy) or the truncated 16-char filename are found.
+        """
+        accession_sh = accession.replace("-", "")[:16]
+        deleted = False
+        for candidate in self.folder.glob("*.wl"):
+            if candidate.stem.replace("-", "")[:16] == accession_sh:
+                candidate.unlink()
+                log.info(f"MWL deleted: {candidate.name}")
+                deleted = True
+        if not deleted:
+            log.warning(f"MWL delete: no file found for accession={accession}")
+        return deleted
 
     def dismiss(self, accession: str) -> bool:
         """Remove the worklist file and permanently suppress future re-creation.
@@ -98,8 +111,9 @@ class MwlManager:
         records the accession in .dismissed.json so order_poller will not
         recreate the .wl file even if the underlying OpenMRS order stays active.
         """
-        found = self.delete(accession)
-        self._mark_dismissed(accession)
+        accession_sh = accession.replace("-", "")[:16]
+        found = self.delete(accession_sh)
+        self._mark_dismissed(accession_sh)
         return found
 
     def list_accessions(self) -> list[str]:
