@@ -195,6 +195,21 @@
     }
     .card-link.external::after { content: " ↗"; }
 
+    /* ── News / info links ───────────────────────────────────────────── */
+    .info-links {
+      margin-bottom: 2rem;
+      font-size: 0.85rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.5rem;
+    }
+    .info-links a {
+      color: #4a9edd;
+      text-decoration: none;
+    }
+    .info-links a:hover { text-decoration: underline; color: #7ab8dd; }
+    .info-links a::after { content: " ↗"; font-size: 0.75em; }
+
     /* ── Footer ──────────────────────────────────────────────────────── */
     footer {
       background: #0a1628;
@@ -234,6 +249,11 @@
   </div>
 
   <main id="lab-links">
+
+    <div class="info-links">
+      <a href="https://pihemr.atlassian.net/wiki/x/AQDLBgE" target="_blank">Imladris Lab and Bophelong Health Network (BHN) News</a>
+      <a href="https://pihemr.atlassian.net/wiki/x/AQBvBwE" target="_blank">Meet the staff at Bophelong Hospital</a>
+    </div>
 
     <div class="section-label">Clinical &amp; Imaging</div>
     <div class="card-grid">
