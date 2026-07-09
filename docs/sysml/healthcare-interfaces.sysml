@@ -15,6 +15,8 @@
 
 package HealthcareInterfaces {
 
+    import ScalarValues::*;   // String, Integer, Real, Boolean from SysML v2 standard library
+
     // =========================================================================
     // DICOM — Digital Imaging and Communications in Medicine (NEMA PS3)
     // =========================================================================
