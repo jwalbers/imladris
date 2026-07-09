@@ -4,6 +4,11 @@
 // Reusable port, item, and connection definitions for DICOM, HL7 v2, and FHIR R4.
 // Import this package to type ports in system models.
 //
+// NOTE: The SysML v2 spec allows `port def X conjugates Y;` at the header level,
+// but Cameo's parser expects `;` or `{` after the name and rejects the keyword
+// there. All conjugate pairs are therefore expressed as explicit reversed-direction
+// bodies, which is semantically equivalent.
+//
 // Standard:  SysML v2 (ISO/IEC 19514:2024)
 // Tooling:   SysML v2 API Server · Jupyter SysML v2 kernel · Cameo SysML Plugin
 // ============================================================================
@@ -54,36 +59,47 @@ package HealthcareInterfaces {
         port def DicomCStoreSCP {
             in item sopInstances[0..*] : DicomSOPInstance;
         }
-        port def DicomCStoreSCU conjugates DicomCStoreSCP;
+        port def DicomCStoreSCU {
+            out item sopInstances[0..*] : DicomSOPInstance;
+        }
 
         // C-ECHO: Connectivity verification (PS3.4 — Verification SOP Class)
         port def DicomCEchoSCP;
-        port def DicomCEchoSCU conjugates DicomCEchoSCP;
+        port def DicomCEchoSCU;
 
         // C-FIND: Query (PS3.4 — Query/Retrieve Service Class)
         port def DicomCFindSCP {
-            in  item query   : DicomQueryDataset;
+            in  item query         : DicomQueryDataset;
             out item matches[0..*] : DicomDataset;
         }
-        port def DicomCFindSCU conjugates DicomCFindSCP;
+        port def DicomCFindSCU {
+            out item query         : DicomQueryDataset;
+            in  item matches[0..*] : DicomDataset;
+        }
 
         // C-MOVE: Retrieve initiation (PS3.4 — Query/Retrieve Service Class)
         port def DicomCMoveSCP {
             in item moveRequest : DicomQueryDataset;
         }
-        port def DicomCMoveSCU conjugates DicomCMoveSCP;
+        port def DicomCMoveSCU {
+            out item moveRequest : DicomQueryDataset;
+        }
 
         // Modality Worklist (MWL) — specialization of C-FIND (PS3.4 — SOP 1.2.840.10008.5.1.4.31)
         port def DicomMWLSCP :> DicomCFindSCP {
             out item worklistEntries[0..*] : DicomMWLEntry;
         }
-        port def DicomMWLSCU conjugates DicomMWLSCP;
+        port def DicomMWLSCU :> DicomCFindSCU {
+            in item worklistEntries[0..*] : DicomMWLEntry;
+        }
 
         // Modality Performed Procedure Step (MPPS) — PS3.4 § N
         port def MppsSCP {
             in item ppStep : DicomDataset;   // N-CREATE / N-SET
         }
-        port def MppsSCU conjugates MppsSCP;
+        port def MppsSCU {
+            out item ppStep : DicomDataset;
+        }
     }
 
     // ─── DICOMweb Ports (PS3.18) ──────────────────────────────────────────────
@@ -95,19 +111,25 @@ package HealthcareInterfaces {
         port def StowRsServer {
             in item instances[0..*] : DicomSOPInstance;
         }
-        port def StowRsClient conjugates StowRsServer;
+        port def StowRsClient {
+            out item instances[0..*] : DicomSOPInstance;
+        }
 
         // WADO-RS: Retrieve (GET instances/frames/metadata)
         port def WadoRsServer {
             out item instances[0..*] : DicomSOPInstance;
         }
-        port def WadoRsClient conjugates WadoRsServer;
+        port def WadoRsClient {
+            in item instances[0..*] : DicomSOPInstance;
+        }
 
         // QIDO-RS: Query (GET studies/series/instances search)
         port def QidoRsServer {
             out item results[0..*] : DicomDataset;
         }
-        port def QidoRsClient conjugates QidoRsServer;
+        port def QidoRsClient {
+            in item results[0..*] : DicomDataset;
+        }
 
         // Composite DICOMweb endpoint (STOW + WADO + QIDO bundled)
         port def DicomWebServer {
@@ -115,7 +137,11 @@ package HealthcareInterfaces {
             port wado : WadoRsServer;
             port qido : QidoRsServer;
         }
-        port def DicomWebClient conjugates DicomWebServer;
+        port def DicomWebClient {
+            port stow : StowRsClient;
+            port wado : WadoRsClient;
+            port qido : QidoRsClient;
+        }
     }
 
     // ─── DICOM Connection Definitions ─────────────────────────────────────────
@@ -205,33 +231,46 @@ package HealthcareInterfaces {
             in  item messages[0..*] : HL7v2Message;
             out item acks[0..*]     : AckMessage;
         }
-        port def HL7v2MLLPClient conjugates HL7v2MLLPServer;
+        port def HL7v2MLLPClient {
+            out item messages[0..*] : HL7v2Message;
+            in  item acks[0..*]     : AckMessage;
+        }
 
         // Typed application-level ports
         port def AdtSender {
             out item adtMessages[0..*] : AdtMessage;
         }
-        port def AdtReceiver conjugates AdtSender;
+        port def AdtReceiver {
+            in item adtMessages[0..*] : AdtMessage;
+        }
 
         port def OrmSender {
             out item orders[0..*] : OrmMessage;
         }
-        port def OrmReceiver conjugates OrmSender;
+        port def OrmReceiver {
+            in item orders[0..*] : OrmMessage;
+        }
 
         port def OruSender {
             out item reports[0..*] : OruMessage;
         }
-        port def OruReceiver conjugates OruSender;
+        port def OruReceiver {
+            in item reports[0..*] : OruMessage;
+        }
 
         port def MdmSender {
             out item documents[0..*] : MdmMessage;
         }
-        port def MdmReceiver conjugates MdmSender;
+        port def MdmReceiver {
+            in item documents[0..*] : MdmMessage;
+        }
 
         port def SiuSender {
             out item scheduleNotices[0..*] : SiuMessage;
         }
-        port def SiuReceiver conjugates SiuSender;
+        port def SiuReceiver {
+            in item scheduleNotices[0..*] : SiuMessage;
+        }
     }
 
     // ─── HL7 v2 Connection Definitions ────────────────────────────────────────
@@ -294,19 +333,19 @@ package HealthcareInterfaces {
 
         item def FhirDiagnosticReport :> FhirResource {
             // Radiology report (final or preliminary)
-            attribute status       : String;  // registered | preliminary | final | amended
-            attribute category     : String;  // LP29684-5 (Radiology)
-            attribute code         : String;
-            attribute conclusion   : String;
-            attribute presentedForm : String; // PDF / narrative
+            attribute status        : String;  // registered | preliminary | final | amended
+            attribute category      : String;  // LP29684-5 (Radiology)
+            attribute code          : String;
+            attribute conclusion    : String;
+            attribute presentedForm : String;  // PDF / narrative
         }
 
         item def FhirImagingStudy :> FhirResource {
-            attribute studyInstanceUID : String;
-            attribute modality         : String;
-            attribute numberOfSeries   : Integer;
+            attribute studyInstanceUID  : String;
+            attribute modality          : String;
+            attribute numberOfSeries    : Integer;
             attribute numberOfInstances : Integer;
-            attribute endpoint         : String;  // ref to FhirEndpoint
+            attribute endpoint          : String;  // ref to FhirEndpoint
         }
 
         item def FhirEndpoint :> FhirResource {
@@ -316,7 +355,7 @@ package HealthcareInterfaces {
         }
 
         item def FhirBundle :> FhirResource {
-            attribute bundleType : String;    // transaction | searchset | document
+            attribute bundleType : String;   // transaction | searchset | document
             item entries[0..*]  : FhirResource;
         }
 
@@ -339,30 +378,45 @@ package HealthcareInterfaces {
             in  item update[0..*] : FhirResource;
             out item search[0..*] : FhirBundle;
         }
-        port def FhirRestClient conjugates FhirRestServer;
+        port def FhirRestClient {
+            out item create[0..*] : FhirResource;
+            in  item read[0..*]   : FhirResource;
+            out item update[0..*] : FhirResource;
+            in  item search[0..*] : FhirBundle;
+        }
 
         // Typed resource-specific endpoints
         port def FhirPatientServer {
             out item patients[0..*] : FhirPatient;
         }
-        port def FhirPatientClient conjugates FhirPatientServer;
+        port def FhirPatientClient {
+            in item patients[0..*] : FhirPatient;
+        }
 
         port def FhirOrderServer {
-            out item orders[0..*]   : FhirServiceRequest;
+            out item orders[0..*]    : FhirServiceRequest;
             in  item newOrders[0..*] : FhirServiceRequest;
         }
-        port def FhirOrderClient conjugates FhirOrderServer;
+        port def FhirOrderClient {
+            in  item orders[0..*]    : FhirServiceRequest;
+            out item newOrders[0..*] : FhirServiceRequest;
+        }
 
         port def FhirReportServer {
             in  item inboundReports[0..*]  : FhirDiagnosticReport;
             out item outboundReports[0..*] : FhirDiagnosticReport;
         }
-        port def FhirReportClient conjugates FhirReportServer;
+        port def FhirReportClient {
+            out item inboundReports[0..*]  : FhirDiagnosticReport;
+            in  item outboundReports[0..*] : FhirDiagnosticReport;
+        }
 
         port def FhirImagingServer {
             out item studies[0..*] : FhirImagingStudy;
         }
-        port def FhirImagingClient conjugates FhirImagingServer;
+        port def FhirImagingClient {
+            in item studies[0..*] : FhirImagingStudy;
+        }
     }
 
     // ─── FHIR Connection Definitions ──────────────────────────────────────────
