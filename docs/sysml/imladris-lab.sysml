@@ -12,6 +12,7 @@
 
 package ImladrisLab {
 
+    private import ScalarValues::*;   // String, Integer
     private import HealthcareInterfaces::DicomItems::*;
     private import HealthcareInterfaces::DicomPorts::*;
     private import HealthcareInterfaces::DicomWebPorts::*;
@@ -30,18 +31,18 @@ package ImladrisLab {
 
     item def WorklistFile {
         // .wl file dropped into Orthanc worklist directory
-        attribute accessionNumber : String;
-        attribute patientID       : String;
-        attribute aeTitle         : String;   // IML_CR_01 or IML_US_01
-        attribute modality        : String;
+        attribute accessionNumber   : String;
+        attribute patientID         : String;
+        attribute aeTitle           : String;   // IML_CR_01 or IML_US_01
+        attribute modality          : String;
         attribute scheduledDateTime : String;
     }
 
     item def RadiologyReport {
-        attribute accessionNumber   : String;
-        attribute studyInstanceUID  : String;
-        attribute reportText        : String;
-        attribute status            : String;   // preliminary | final
+        attribute accessionNumber  : String;
+        attribute studyInstanceUID : String;
+        attribute reportText       : String;
+        attribute status           : String;   // preliminary | final
     }
 
 
@@ -53,14 +54,14 @@ package ImladrisLab {
 
     part def OpenMRS {
         // FHIR R4 REST API (port 8080/openmrs/ws/fhir2/R4)
-        port fhirApi      : FhirRestServer;
+        port fhirApi : FhirRestServer;
 
         // HL7 v2 MLLP — ADT (patient events) and ORM (radiology orders)
-        port adtOut       : AdtSender;
-        port ormOut       : OrmSender;
+        port adtOut  : AdtSender;
+        port ormOut  : OrmSender;
 
         // Report receipt — ORU inbound from reporting systems
-        port oruIn        : OruReceiver;
+        port oruIn   : OruReceiver;
     }
 
     // ─── Worklist Bridge (Python service, port 5000) ──────────────────────────
@@ -75,7 +76,7 @@ package ImladrisLab {
         // Files land in /orthanc/worklists/ which Orthanc modality hot-folder monitors
 
         // Optionally polls HL7 ORM for fallback / dual-feed
-        port ormIn        : OrmReceiver;
+        port ormIn : OrmReceiver;
     }
 
     // ─── Orthanc Modality (IML_CR_01 / IML_US_01, container port 4242) ───────
@@ -83,21 +84,21 @@ package ImladrisLab {
     // Serves MWL to the modality console; receives acquired studies via C-STORE.
 
     part def OrthancModality {
-        attribute aeTitle : String = "IML_CR_01";
-        attribute host    : String = "192.168.1.10";
-        attribute port    : Integer = 4242;
+        attribute aeTitle   : String  = "IML_CR_01";
+        attribute host      : String  = "192.168.1.10";
+        attribute dicomPort : Integer = 4242;
 
         // Serves Modality Worklist to technologist consoles
-        port mwlScp       : DicomMWLSCP;
+        port mwlScp         : DicomMWLSCP;
 
         // Receives C-STORE from the technologist console
-        port cstoreScp    : DicomCStoreSCP;
+        port cstoreScp      : DicomCStoreSCP;
 
         // C-ECHO responder (DICOM verification)
-        port cechoScp     : DicomCEchoSCP;
+        port cechoScp       : DicomCEchoSCP;
 
         // Forwards acquired studies to Orthanc PACS via C-STORE
-        port cstoreScu    : DicomCStoreSCU;
+        port cstoreScu      : DicomCStoreSCU;
 
         // DICOMweb server (Orthanc built-in; /wado, /dicom-web)
         port dicomWebServer : DicomWebServer;
@@ -109,13 +110,13 @@ package ImladrisLab {
 
     part def ModalityConsole {
         // Fetches worklist from Orthanc Modality
-        port mwlScu       : DicomMWLSCU;
+        port mwlScu   : DicomMWLSCU;
 
         // Sends acquired DICOM studies
-        port cstoreScu    : DicomCStoreSCU;
+        port cstoreScu : DicomCStoreSCU;
 
         // Optional MPPS notification after procedure completes
-        port mppsScu      : MppsSCU;
+        port mppsScu   : MppsSCU;
     }
 
     // ─── Orthanc PACS (IML_PACS_01, container port 4243 → host) ─────────────
@@ -123,22 +124,22 @@ package ImladrisLab {
     // forwards to AdvaPACS gateway, and can route to QureAI simulator.
 
     part def OrthancPACS {
-        attribute aeTitle : String = "IML_PACS_01";
-        attribute host    : String = "192.168.1.10";
-        attribute port    : Integer = 4243;
+        attribute aeTitle   : String  = "IML_PACS_01";
+        attribute host      : String  = "192.168.1.10";
+        attribute dicomPort : Integer = 4243;
 
         // Receives studies from orthanc-modality or direct C-STORE from console
-        port cstoreScp    : DicomCStoreSCP;
+        port cstoreScp       : DicomCStoreSCP;
 
         // C-ECHO responder
-        port cechoScp     : DicomCEchoSCP;
+        port cechoScp        : DicomCEchoSCP;
 
         // C-FIND / C-MOVE Query/Retrieve (standard PACS retrieval)
-        port cfindScp     : DicomCFindSCP;
-        port cmoveScp     : DicomCMoveSCP;
+        port cfindScp        : DicomCFindSCP;
+        port cmoveScp        : DicomCMoveSCP;
 
         // DICOMweb server (Orthanc built-in, proxied via PacsProxy on port 8044)
-        port dicomWebServer : DicomWebServer;
+        port dicomWebServer  : DicomWebServer;
 
         // STOW-RS client — pushes to AdvaPACS gateway DICOMweb proxy (port 8085)
         port stowRsToGateway : StowRsClient;
@@ -176,22 +177,22 @@ package ImladrisLab {
     // Runs with network_mode: host on BESSIE.
 
     part def AdvaPACSGateway {
-        attribute aeTitle  : String = "ADVAPACS_GW_01";
-        attribute host     : String = "192.168.1.10";
-        attribute dicomPort  : Integer = 11112;
+        attribute aeTitle           : String  = "ADVAPACS_GW_01";
+        attribute host              : String  = "192.168.1.10";
+        attribute dicomPort         : Integer = 11112;
         attribute dicomWebProxyPort : Integer = 8085;
 
         // Receives C-STORE from local Orthanc instances
-        port cstoreScp     : DicomCStoreSCP;
+        port cstoreScp      : DicomCStoreSCP;
 
         // C-ECHO responder
-        port cechoScp      : DicomCEchoSCP;
+        port cechoScp       : DicomCEchoSCP;
 
         // DICOMweb STOW-RS proxy endpoint (local, port 8085)
-        port stowRsServer  : StowRsServer;
+        port stowRsServer   : StowRsServer;
 
         // Forwards to AdvaPACS cloud via STOW-RS (outbound)
-        port stowRsToCloud : StowRsClient;
+        port stowRsToCloud  : StowRsClient;
 
         // DICOMweb proxy (full) toward cloud
         port dicomWebToCloud : DicomWebClient;
@@ -205,16 +206,16 @@ package ImladrisLab {
         attribute endpoint : String = "https://pih.advapacs.com";
 
         // Receives forwarded studies from gateway via STOW-RS
-        port stowRsServer    : StowRsServer;
+        port stowRsServer   : StowRsServer;
 
         // Full DICOMweb endpoint (WADO-RS / QIDO-RS for AdvaView and API clients)
-        port dicomWebServer  : DicomWebServer;
+        port dicomWebServer : DicomWebServer;
 
         // FHIR R4 REST API (ImagingStudy, ServiceRequest, DiagnosticReport)
-        port fhirApi         : FhirRestServer;
+        port fhirApi        : FhirRestServer;
 
         // RADPAIR AI reporting engine port (embedded; receives study refs)
-        port reportOut       : FhirReportServer;
+        port reportOut      : FhirReportServer;
     }
 
     // ─── QureAI Simulator (QUREAI, port 5252) ─────────────────────────────────
@@ -222,18 +223,18 @@ package ImladrisLab {
     // processes them, and returns AI-annotated DICOMweb results (or SR objects).
 
     part def QureSimulator {
-        attribute aeTitle : String = "QUREAI";
-        attribute host    : String = "192.168.1.10";
-        attribute port    : Integer = 5252;
+        attribute aeTitle   : String  = "QUREAI";
+        attribute host      : String  = "192.168.1.10";
+        attribute dicomPort : Integer = 5252;
 
         // Receives chest X-ray studies from Orthanc PACS
-        port cstoreScp    : DicomCStoreSCP;
+        port cstoreScp      : DicomCStoreSCP;
 
         // C-ECHO responder
-        port cechoScp     : DicomCEchoSCP;
+        port cechoScp       : DicomCEchoSCP;
 
         // Returns annotated results (C-STORE SCU to PACS / structured report)
-        port cstoreScu    : DicomCStoreSCU;
+        port cstoreScu      : DicomCStoreSCU;
 
         // DICOMweb result endpoint (if enabled)
         port dicomWebServer : DicomWebServer;
@@ -244,12 +245,12 @@ package ImladrisLab {
     // enforces IP whitelist, and routes to backend services on BESSIE.
 
     part def PfSenseFrontend {
-        attribute wanIp  : String = "68.116.51.146";
-        attribute lanIp  : String = "192.168.1.1";
+        attribute wanIp    : String = "68.116.51.146";
+        attribute lanIp    : String = "192.168.1.1";
         attribute fqdnBase : String = "imladrislab.org";
 
         // TLS termination + reverse proxy — web apps
-        port httpsProxy  : FhirRestServer;  // placeholder; no typed port for HTTP proxy
+        port httpsProxy : FhirRestServer;  // placeholder; no typed port for HTTP proxy
 
         // SAML IdP via SimpleSAMLphp — protects imladrislab.org (landing + SP)
         // Subdomains rely on IP whitelist only (no SimpleSAMLphp on subdomains)
@@ -264,83 +265,69 @@ package ImladrisLab {
 
         // ── Part instances ─────────────────────────────────────────────────────
 
-        part emr          : OpenMRS;
-        part wlBridge     : WorklistBridge;
-        part modality     : OrthancModality;
-        part console      : ModalityConsole;
-        part pacs         : OrthancPACS;
-        part pacsProxy    : PacsProxy;
-        part ohif         : OHIFViewer;
-        part advagw       : AdvaPACSGateway;
-        part advacloud    : AdvaPACSCloud;
-        part quresim      : QureSimulator;
+        part emr       : OpenMRS;
+        part wlBridge  : WorklistBridge;
+        part modality  : OrthancModality;
+        part console   : ModalityConsole;
+        part pacs      : OrthancPACS;
+        part pacsProxy : PacsProxy;
+        part ohif      : OHIFViewer;
+        part advagw    : AdvaPACSGateway;
+        part advacloud : AdvaPACSCloud;
+        part quresim   : QureSimulator;
 
         // ── Workflow 1: Order → Worklist ───────────────────────────────────────
 
         // WorklistBridge polls FHIR ServiceRequest from OpenMRS
-        connect wlBridge.fhirOrdersIn to emr.fhirApi
-            via FhirOrderLink {};
+        connection : FhirOrderLink connect wlBridge.fhirOrdersIn to emr.fhirApi;
 
         // Technologist console pulls MWL from Orthanc Modality
-        connect console.mwlScu to modality.mwlScp
-            via DicomMWLLink {};
+        connection : DicomMWLLink connect console.mwlScu to modality.mwlScp;
 
         // ── Workflow 2: Acquisition → Local PACS ──────────────────────────────
 
         // Console sends acquired study to Orthanc Modality (step 1 of two-hop)
-        connect console.cstoreScu to modality.cstoreScp
-            via DicomCStoreLink {};
+        connection : DicomCStoreLink connect console.cstoreScu to modality.cstoreScp;
 
         // Orthanc Modality auto-routes received study to Orthanc PACS
-        connect modality.cstoreScu to pacs.cstoreScp
-            via DicomCStoreLink {};
+        connection : DicomCStoreLink connect modality.cstoreScu to pacs.cstoreScp;
 
         // ── Workflow 3: OHIF Viewer ────────────────────────────────────────────
 
         // PacsProxy provides CORS-safe DICOMweb to OHIF
-        connect pacsProxy.dicomWebClient to pacs.dicomWebServer
-            via DicomWebLink {};
-
-        connect ohif.dicomWebClient to pacsProxy.dicomWebServer
-            via DicomWebLink {};
+        connection : DicomWebLink connect pacsProxy.dicomWebClient to pacs.dicomWebServer;
+        connection : DicomWebLink connect ohif.dicomWebClient to pacsProxy.dicomWebServer;
 
         // ── Workflow 4: Forward to AdvaPACS Cloud (STOW-RS path) ──────────────
 
         // Orthanc PACS pushes via STOW-RS to gateway DICOMweb proxy (port 8085)
-        connect pacs.stowRsToGateway to advagw.stowRsServer
-            via StowRsLink {};
+        connection : StowRsLink connect pacs.stowRsToGateway to advagw.stowRsServer;
 
         // Gateway forwards to AdvaPACS cloud via STOW-RS
-        connect advagw.stowRsToCloud to advacloud.stowRsServer
-            via StowRsLink {};
+        connection : StowRsLink connect advagw.stowRsToCloud to advacloud.stowRsServer;
 
         // ── Workflow 5: Forward to AdvaPACS Cloud (C-STORE path — alternate) ──
 
         // Orthanc PACS pushes via traditional C-STORE to gateway DICOM port 11112
-        connect pacs.cstoreToGateway to advagw.cstoreScp
-            via DicomCStoreLink {};
+        connection : DicomCStoreLink connect pacs.cstoreToGateway to advagw.cstoreScp;
 
         // ── Workflow 6: AdvaPACS Cloud DICOMweb ───────────────────────────────
 
         // Gateway proxies DICOMweb from cloud (WADO-RS / QIDO-RS for AdvaView)
-        connect advagw.dicomWebToCloud to advacloud.dicomWebServer
-            via DicomWebLink {};
+        connection : DicomWebLink connect advagw.dicomWebToCloud to advacloud.dicomWebServer;
 
         // ── Workflow 7: QureAI Routing ─────────────────────────────────────────
 
         // Orthanc PACS routes CXR studies to QureAI simulator (C-STORE)
-        connect pacs.cstoreToQure to quresim.cstoreScp
-            via DicomCStoreLink {};
+        connection : DicomCStoreLink connect pacs.cstoreToQure to quresim.cstoreScp;
 
         // QureAI returns annotated SR / secondary capture back to PACS
-        connect quresim.cstoreScu to pacs.cstoreScp
-            via DicomCStoreLink {};
+        connection : DicomCStoreLink connect quresim.cstoreScu to pacs.cstoreScp;
 
         // ── Workflow 8: HL7 v2 Order Feed (supplemental / fallback) ───────────
 
         // OpenMRS sends HL7 ORM to WorklistBridge MLLP listener
-        connect emr.ormOut to wlBridge.ormIn
-            via HL7v2OrmLink {};
+        connection : HL7v2OrmLink connect emr.ormOut to wlBridge.ormIn;
     }
 
 

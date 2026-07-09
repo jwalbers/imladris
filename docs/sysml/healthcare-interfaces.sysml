@@ -15,13 +15,12 @@
 
 package HealthcareInterfaces {
 
-    import ScalarValues::*;   // String, Integer, Real, Boolean from SysML v2 standard library
-
     // =========================================================================
     // DICOM — Digital Imaging and Communications in Medicine (NEMA PS3)
     // =========================================================================
 
     package DicomItems {
+        private import ScalarValues::*;
 
         item def DicomDataset;
 
@@ -194,6 +193,7 @@ package HealthcareInterfaces {
     // =========================================================================
 
     package HL7v2Items {
+        private import ScalarValues::*;
 
         item def HL7v2Message {
             attribute messageType    : String;   // e.g. "ADT", "ORM", "ORU", "MDM"
@@ -312,6 +312,7 @@ package HealthcareInterfaces {
     // =========================================================================
 
     package FHIRItems {
+        private import ScalarValues::*;
 
         item def FhirResource {
             attribute resourceType : String;
