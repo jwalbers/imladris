@@ -1,0 +1,293 @@
+# Imladris — Virtual Integration Lab
+#
+# Default (no profile): landing page + modality simulator + cloud PACS.
+# Add --profile full to also start the modality sidecar (requires OpenMRS MWL).
+#
+# Quick start:
+#   docker compose up -d
+#   open http://localhost:8090   # landing page (no auth — local dev only)
+#   open http://localhost:8091   # landing page via simplesamlphp SP (Entra SAML auth)
+#   open http://localhost:8042   # modality (AE: IML_CR_01 / IML_US_01)
+#   open http://localhost:8043   # cloud PACS (AE: IML_PACS_01)
+#   open http://localhost:8044   # PACS DICOMweb CORS proxy (used by OHIF)
+#   open http://localhost:3000   # OHIF viewer
+#
+# Upload a study to the modality:
+#   curl -u admin:admin -X POST http://localhost:8042/instances \
+#        --data-binary @some_file.dcm
+#
+# Push it to the PACS:
+#   curl -u admin:admin -X POST http://localhost:8042/modalities/IML_PACS_01/store \
+#        -d '["<study-uid>"]'
+name: ${SERVICE_NAME:-imladris}
+
+services:
+  # ── Landing page (no auth — local dev / localhost only) ─────────────
+  landing:
+    image: nginx:alpine
+    container_name: imladris-landing
+    restart: unless-stopped
+    ports:
+      - "8090:80"
+    volumes:
+      - ./landing/index.html:/usr/share/nginx/html/index.html:ro
+    networks:
+      - imladris
+
+  # ── SimpleSAMLphp SP — Entra SAML 2.0 auth gate for imladrislab.org ──
+  #
+  # HAProxy routes imladrislab.org here (port 8091, was 8090/landing).
+  # /simplesaml/ — SimpleSAMLphp SAML endpoints (ACS, metadata, login)
+  # /            — index.php: requires SAML auth, then serves landing.html
+  # /user-info.php — JSON endpoint for auth bar (called by landing.html JS)
+  #
+  # pfSense change: update Imladris_Landing backend server port 8090 → 8091
+  #                 remove htpasswd http-request auth block from frontend
+  #                 remove userlist imladris_users from global settings
+  #
+  simplesamlphp:
+    build:
+      context: .                    # parent dir so Dockerfile can COPY landing/index.html
+      dockerfile: simplesamlphp/Dockerfile
+    image: imladris-saml-sp:local   # local tag so docker compose doesn't try to pull
+    container_name: imladris-saml-sp
+    restart: unless-stopped
+    ports:
+      - "8091:80"
+    volumes:
+      # SimpleSAMLphp config and metadata
+      - ./simplesamlphp/config/config.php:/var/simplesamlphp/config/config.php:ro
+      - ./simplesamlphp/config/authsources.php:/var/simplesamlphp/config/authsources.php:ro
+      - ./simplesamlphp/metadata/saml20-idp-remote.php:/var/simplesamlphp/metadata/saml20-idp-remote.php:ro
+      # SP signing keypair (optional for lab — see docs/entra-auth.md to generate)
+      - ./simplesamlphp/cert:/var/simplesamlphp/cert:ro
+      # Portal app (auth-gated; served from Apache DocumentRoot /var/www/html/)
+      - ./simplesamlphp/www/index.php:/var/www/html/index.php:ro
+      - ./simplesamlphp/www/user-info.php:/var/www/html/user-info.php:ro
+      - ./simplesamlphp/www/logout.php:/var/www/html/logout.php:ro
+      # landing/index.html is baked into the image (see Dockerfile COPY).
+      # To update: edit landing/index.html then: docker compose up -d --build simplesamlphp
+    environment:
+      SAML_SP_SECRETSALT:   ${SAML_SP_SECRETSALT}
+      SAML_ADMIN_PASSWORD:  ${SAML_ADMIN_PASSWORD}
+    networks:
+      - imladris
+
+  # -- MySQL -----------------------------------------------------------
+  mysql:
+    image: mysql:8.0
+    container_name: imladris-mysql
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpw}
+      MYSQL_DATABASE: openmrs
+      MYSQL_USER: openmrs
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-openmrs}
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/openmrs.cnf:/etc/mysql/conf.d/openmrs.cnf:ro
+    networks:
+      - imladris
+
+  # ── Qure.ai gateway simulator ───────────────────────────────────────
+  # Listens as DICOM SCP AE "QUREAI" on port 5252.
+  # Orthanc PACS auto-forwards CR/DX instances here (forward-to-qure.lua).
+  # For each received CXR, sends back a Secondary Capture with a sample
+  # Qure.ai annotated output PNG as the "qXR AI Analysis" series.
+  #
+  # Requires the annotated PNG sample library to be available at SAMPLE_DIR.
+  # Mount the external drive or adjust the volume path as needed.
+  qure-sim:
+    build: ./qure-sim
+    container_name: imladris-qure-sim
+    restart: unless-stopped
+    ports:
+      - "5252:5252"   # DICOM SCP (QUREAI AE)
+    volumes:
+      - ${SAMPLE_DIR_HOST}:/sample_outputs:ro
+    environment:
+      SCP_AE:       QUREAI
+      SCP_PORT:     "5252"
+      ORTHANC_HOST: orthanc-pacs
+      ORTHANC_PORT: "4242"
+      ORTHANC_AE:   IML_PACS_01
+      SAMPLE_DIR:   /sample_outputs
+      DELAY_SEC:    "3"
+    depends_on:
+      - orthanc-pacs
+    networks:
+      - imladris
+
+  # ── AdvaPACS Gateway ────────────────────────────────────────────────
+  # Receives DICOM C-STORE from modalities and forwards to AdvaPACS cloud.
+  # Parallel path to orthanc-pacs for comparison / integration testing.
+  #
+  # IMPORTANT — network_mode: host
+  #   Works correctly on Linux (production / Windows WSL2 backend).
+  #   On macOS Docker Desktop, host networking is not supported — the
+  #   container starts but ports won't bind as expected. Use the server
+  #   for real gateway testing; local Mac is for config validation only.
+  #
+  # Ports (bound directly to host via host networking):
+  #   11112  DICOM C-STORE SCP  — register as AE "ADVAPACS_GW" in Orthanc
+  #   8085   DICOMweb proxy     — STOW-RS / WADO-RS / QIDO-RS
+  advapacs-gateway:
+    image: advahealthsolutions/advapacs-gateway:latest
+    container_name: imladris-advapacs-gw
+    restart: unless-stopped
+    environment:
+      ADVAPACS_ACCESS_KEY_ID:     ${ADVAPACS_GW_KEY_ID}
+      ADVAPACS_ACCESS_KEY_SECRET: ${ADVAPACS_GW_SECRET}
+      ADVAPACS_REGION:            "usa1"
+      TZ:                         America/Los_Angeles
+    network_mode: "host"
+    # NOTE: no 'networks' key — host mode is incompatible with bridge networks.
+    # On Linux the gateway is reachable at the host IP on its native ports.
+
+  # ── Modality simulator ──────────────────────────────────────────────
+  orthanc-modality:
+    image: orthancteam/orthanc:latest
+    container_name: imladris-modality
+    restart: unless-stopped
+    ports:
+      - "4242:4242"   # DICOM C-STORE / C-FIND / MWL C-FIND
+      - "8042:8042"   # REST API + web UI
+    volumes:
+      - ./orthanc/modality.json:/etc/orthanc/orthanc.json:ro
+      - modality-data:/var/lib/orthanc/db
+      - worklist-data:/worklist   # shared with sidecar for MWL .wl files
+    networks:
+      - imladris
+
+  # ── Cloud PACS ──────────────────────────────────────────────────────
+  orthanc-pacs:
+    image: orthancteam/orthanc:latest
+    container_name: imladris-pacs
+    restart: unless-stopped
+    ports:
+      - "4243:4242"   # DICOM C-STORE
+      - "8043:8042"   # REST API + web UI
+    volumes:
+      - ./orthanc/pacs.json:/etc/orthanc/orthanc.json:ro
+      - ./orthanc/forward-to-advapacs.lua:/etc/orthanc/forward-to-advapacs.lua:ro
+      - ./orthanc/forward-to-qure.lua:/etc/orthanc/forward-to-qure.lua:ro
+      - pacs-data:/var/lib/orthanc/db
+    environment:
+      ADVAPACS_KEY_ID: ${ADVAPACS_KEY_ID:-}
+      ADVAPACS_SECRET:  ${ADVAPACS_SECRET:-}
+    networks:
+      - imladris
+
+  # ── nginx CORS proxy for PACS (required by OHIF) ───────────────────
+  pacs-proxy:
+    image: nginx:alpine
+    container_name: imladris-pacs-proxy
+    restart: unless-stopped
+    ports:
+      - "8044:8044"   # PACS DICOMweb endpoint with CORS headers
+    volumes:
+      - ./nginx/pacs-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - orthanc-pacs
+    networks:
+      - imladris
+
+  # ── Lab Tool Cabinet ────────────────────────────────────────────────
+  # Network connectivity simulator + future lab tooling.
+  # Runs with network_mode: host so it shares the WSL2 root netns with
+  # advapacs-gateway and can apply iptables rules that affect it.
+  #
+  # HAProxy: add backend for tools.imladrislab.org → localhost:5002
+  tool-cabinet:
+    build: ./tool-cabinet
+    image: imladris-tool-cabinet:local
+    container_name: imladris-tool-cabinet
+    restart: unless-stopped
+    network_mode: "host"   # shares WSL2 netns; no 'networks:' key
+    cap_add:
+      - NET_ADMIN           # required for iptables
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      PORT: "5002"
+      PACS_URL: http://localhost:8043
+      PACS_USER: admin
+      PACS_PASSWORD: admin
+      GATEWAY_CONTAINER: imladris-advapacs-gw
+      ADVAPACS_HOSTS: "usa1.api.dicomweb.advapacs.com"
+
+  # ── OHIF Viewer (radiologist workstation) ──────────────────────────
+  ohif:
+    image: ohif/app:v3.10.0
+    container_name: imladris-ohif
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    volumes:
+      - ./ohif/app-config.js:/usr/share/nginx/html/app-config.js:ro
+      - ./ohif/app-config.js.gz:/usr/share/nginx/html/app-config.js.gz:ro
+    depends_on:
+      - pacs-proxy
+    networks:
+      - imladris
+
+  # ── Modality sidecar (HL7 bridge + MWL poller) — requires OpenMRS ──
+  modality-sidecar:
+    build: ../../sidecar
+    container_name: imladris-sidecar
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # Linux (GCE/WSL2) — resolves to VM host IP
+    depends_on:
+      - orthanc-modality
+      - orthanc-pacs
+    ports:
+      - "2575:2575"   # MLLP HL7 listener (OpenMRS sends orders here)
+      - "5001:5001"   # Modality console web UI
+    volumes:
+      - worklist-data:/worklist   # shared with orthanc-modality for .wl files
+      - sidecar-data:/data        # order poller state (last-polled timestamp)
+      - ../../../imladris-bophelong/patients/dicom:/hospital-records:ro
+    environment:
+      # Acquisition loop
+      ORTHANC_URL: http://orthanc-modality:8042
+      MWL_HOST: orthanc-modality        # now served by Orthanc modality itself
+      MWL_PORT: 4242
+      MODALITY_AET: IML_CR_01
+      CR_AET: IML_CR_01
+      US_AET: IML_US_01
+      INSTITUTION: Bophelong MDR-TB Hospital
+      CLOUD_PACS_AE: IML_PACS_01
+      POLL_INTERVAL_MINUTES: 0.25   # 15 sec — demo mode (restore to 5 for production)
+      # Order poller (OpenMRS REST → MWL)
+      OPENMRS_URL: http://host.docker.internal:8080/openmrs
+      OPENMRS_USER: ${OPENMRS_SERVICE_USER:-imladris-service}
+      OPENMRS_PASSWORD: ${OPENMRS_SERVICE_PASSWORD}
+      ORDER_POLL_SEC: 10            # 10 sec — demo mode (restore to 30 for production)
+      ORDER_STATE_FILE: /data/order_poller_state.json
+      # RADIOLOGY_ORDER_TYPE_UUID: ""   # leave blank to auto-discover
+      # PACS change watcher (ORU^R01 back to OpenMRS)
+      OPENMRS_HL7_HOST: host.docker.internal
+      OPENMRS_HL7_PORT: 8066
+      PACS_URL: http://orthanc-pacs:8042
+      PACS_USER: admin
+      PACS_PASSWORD: admin
+      WL_FOLDER: /worklist
+      CHANGE_POLL_SEC: 15
+    networks:
+      - imladris
+    profiles:
+      - full   # only starts with: docker compose --profile full up
+
+volumes:
+  mysql-data:
+  modality-data:
+  pacs-data:
+  worklist-data:    # DICOM .wl files shared between sidecar and orthanc-modality
+  sidecar-data:     # order poller persistent state
+
+networks:
+  imladris:
+    driver: bridge

@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Imladris Virtual Integration Lab</title>
+  <link rel="icon" href="/favicon.ico">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0d1b2a;
+      color: #c8d8e8;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #0a1628 0%, #112240 100%);
+      border-bottom: 1px solid #1e3a5f;
+      padding: 2rem 2.5rem 1.5rem;
+    }
+    .header-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      position: relative;
+    }
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.9rem;
+    }
+    .brand-logo {
+      height: 52px;
+      width: auto;
+      flex-shrink: 0;
+    }
+    .lab-title {
+      font-size: 1.65rem;
+      font-weight: 700;
+      color: #e8f0fa;
+      letter-spacing: 0.02em;
+    }
+    .lab-title span {
+      color: #4a9edd;
+    }
+    .lab-subtitle {
+      margin-top: 0.35rem;
+      font-size: 0.85rem;
+      color: #7a9ab8;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .lab-desc {
+      margin-top: 0.75rem;
+      font-size: 0.9rem;
+      color: #8aacca;
+      max-width: 640px;
+      line-height: 1.55;
+    }
+    .sign-out-btn {
+      position: absolute;
+      top: 0;
+      right: 0;
+      font-size: 0.78rem;
+      color: #cc6666;
+      text-decoration: none;
+      padding: 0.3rem 0.75rem;
+      border: 1px solid #552222;
+      border-radius: 4px;
+      background: #1a0a0a;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .sign-out-btn:hover {
+      background: #2a1010;
+      border-color: #883333;
+      color: #ee8888;
+    }
+
+    /* ── Auth status bar (shown when Entra is wired up) ─────────────── */
+    #auth-bar {
+      display: none;   /* shown after Entra SAML auth — JS sets display:flex */
+      background: #0e2238;
+      border-bottom: 1px solid #1e3a5f;
+      padding: 0.5rem 2.5rem;
+      font-size: 0.8rem;
+      color: #7a9ab8;
+    }
+    #auth-bar .user { color: #4a9edd; font-weight: 600; }
+    #auth-bar .sign-out {
+      margin-left: 1rem;
+      color: #cc6666;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
+    /* ── Main grid ───────────────────────────────────────────────────── */
+    main {
+      flex: 1;
+      padding: 2.5rem 2.5rem 3rem;
+      max-width: 1100px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .section-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #4a6a8a;
+      margin-bottom: 1rem;
+      padding-bottom: 0.4rem;
+      border-bottom: 1px solid #1e3a5f;
+    }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1.25rem;
+      margin-bottom: 2.5rem;
+    }
+    .card-grid-4 {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    /* ── Service cards ───────────────────────────────────────────────── */
+    .card {
+      background: #112240;
+      border: 1px solid #1e3a5f;
+      border-radius: 8px;
+      padding: 1.35rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .card:hover {
+      border-color: #2a6496;
+      box-shadow: 0 4px 20px rgba(74, 158, 221, 0.12);
+    }
+    .card-icon {
+      font-size: 1.6rem;
+      margin-bottom: 0.75rem;
+      line-height: 1;
+    }
+    .card-name {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #d8eaf8;
+      margin-bottom: 0.3rem;
+    }
+    .card-tag {
+      display: inline-block;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 0.15rem 0.5rem;
+      border-radius: 3px;
+      margin-bottom: 0.75rem;
+      font-weight: 600;
+    }
+    .tag-emr      { background: #1a3a20; color: #4caf6a; }
+    .tag-pacs     { background: #1a2a3a; color: #4a9edd; }
+    .tag-viewer   { background: #1a2a3a; color: #7ab8dd; }
+    .tag-modality { background: #2a2a1a; color: #ccb84a; }
+    .tag-cloud    { background: #2a1a3a; color: #aa7add; }
+
+    .card-desc {
+      font-size: 0.82rem;
+      color: #7a9ab8;
+      line-height: 1.5;
+      flex: 1;
+      margin-bottom: 1.1rem;
+    }
+    .card-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #4a9edd;
+      text-decoration: none;
+      padding: 0.5rem 1rem;
+      background: #0d2a42;
+      border: 1px solid #1e4a6a;
+      border-radius: 5px;
+      transition: background 0.15s, border-color 0.15s;
+      align-self: flex-start;
+    }
+    .card-link:hover {
+      background: #1a3a5a;
+      border-color: #2a6496;
+    }
+    .card-link.external::after { content: " ↗"; }
+
+    /* ── News / info links ───────────────────────────────────────────── */
+    .info-links {
+      margin-bottom: 2rem;
+      font-size: 0.85rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.5rem;
+    }
+    .info-links a {
+      color: #4a9edd;
+      text-decoration: none;
+    }
+    .info-links a:hover { text-decoration: underline; color: #7ab8dd; }
+    .info-links a::after { content: " ↗"; font-size: 0.75em; }
+
+    /* ── Footer ──────────────────────────────────────────────────────── */
+    footer {
+      background: #0a1628;
+      border-top: 1px solid #1e3a5f;
+      padding: 1rem 2.5rem;
+      font-size: 0.75rem;
+      color: #4a6a8a;
+      text-align: center;
+    }
+    footer a { color: #3a7aaa; text-decoration: none; }
+    footer a:hover { color: #4a9edd; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <a class="sign-out-btn" href="/logout.php">Sign out</a>
+      <div class="header-brand">
+        <img src="/earendil_star.png" alt="Eärendil's Star" class="brand-logo">
+        <div>
+          <div class="lab-title"><span>Imladris</span> Virtual Integration Lab</div>
+          <div class="lab-subtitle">Partners in Health &nbsp;·&nbsp; Radiology Integration Lab</div>
+        </div>
+      </div>
+      <div class="lab-desc">
+        End-to-end DICOM and radiology workflow integration environment — OpenMRS
+        electronic health records, modality simulation, local PACS, and cloud PACS evaluation.
+      </div>
+    </div>
+  </header>
+
+  <!-- Auth bar — hidden until MSAL.js is wired up -->
+  <div id="auth-bar">
+    Signed in as <span class="user" id="auth-user"></span>
+    <span class="sign-out" onclick="signOut()">Sign out</span>
+  </div>
+
+  <main id="lab-links">
+
+    <div class="info-links">
+      <a href="https://pihemr.atlassian.net/wiki/x/AQDLBgE" target="_blank">Imladris Lab and Bophelong Health Network (BHN) News</a>
+      <a href="https://pihemr.atlassian.net/wiki/x/AQBvBwE" target="_blank">Meet the staff at Bophelong Hospital</a>
+    </div>
+
+    <div class="section-label">Clinical &amp; Imaging</div>
+    <div class="card-grid">
+
+      <div class="card">
+        <div class="card-icon">🏥</div>
+        <div class="card-name">OpenMRS</div>
+        <div class="card-tag tag-emr">EMR</div>
+        <div class="card-desc">
+          Electronic health records — patient registration, radiology order entry,
+          clinical notes, and modality worklist.
+        </div>
+        <a class="card-link" href="https://openmrs.imladrislab.org/openmrs" target="_blank">Open OpenMRS</a>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">🖥️</div>
+        <div class="card-name">OHIF Viewer</div>
+        <div class="card-tag tag-viewer">Viewer</div>
+        <div class="card-desc">
+          Web-based DICOM viewer. Displays studies from the local PACS
+          via DICOMweb (WADO-RS / QIDO-RS).
+        </div>
+        <a class="card-link" href="https://ohif.imladrislab.org" target="_blank">Open OHIF</a>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">☁️</div>
+        <div class="card-name">AdvaPACS</div>
+        <div class="card-tag tag-cloud">Cloud PACS</div>
+        <div class="card-desc">
+          AdvaHealth cloud PACS — evaluation target for production PACS replacement.
+          Studies forwarded here automatically via Orthanc STOW-RS.
+        </div>
+        <a class="card-link external" href="https://pih.advapacs.com" target="_blank">Open AdvaPACS</a>
+      </div>
+
+    </div>
+
+    <div class="section-label">Lab Infrastructure</div>
+    <div class="card-grid card-grid-4">
+
+      <div class="card">
+        <div class="card-icon">📡</div>
+        <div class="card-name">Modality Console</div>
+        <div class="card-tag tag-modality">Simulator</div>
+        <div class="card-desc">
+          Simulated radiology technologist console. Acquire studies for patients
+          on the worklist as IML_CR_01 (X-ray) or IML_US_01 (ultrasound).
+        </div>
+        <a class="card-link" href="https://console.imladrislab.org" target="_blank">Open Console</a>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">🗄️</div>
+        <div class="card-name">Orthanc PACS</div>
+        <div class="card-tag tag-pacs">PACS</div>
+        <div class="card-desc">
+          Local DICOM archive (IML_PACS_01). Receives studies from the modality,
+          serves OHIF via DICOMweb, and forwards to AdvaPACS via STOW-RS.
+        </div>
+        <a class="card-link" href="https://orthanc-p.imladrislab.org" target="_blank">Open Orthanc PACS</a>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">🔬</div>
+        <div class="card-name">Orthanc Modality</div>
+        <div class="card-tag tag-modality">Simulator</div>
+        <div class="card-desc">
+          Simulated DICOM modality (IML_CR_01 / IML_US_01). Hosts the modality
+          worklist and receives acquired studies from the console.
+        </div>
+        <a class="card-link" href="https://orthanc-m.imladrislab.org" target="_blank">Open Orthanc Modality</a>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">🔧</div>
+        <div class="card-name">Lab Tool Cabinet</div>
+        <div class="card-tag tag-modality">Lab Tools</div>
+        <div class="card-desc">
+          Network connectivity simulator and lab utilities. Simulate WAN outages
+          to test offline resilience and gateway queue/retry behaviour.
+        </div>
+        <a class="card-link" href="https://tools.imladrislab.org" target="_blank">Open Tool Cabinet</a>
+      </div>
+
+    </div>
+
+  </main>
+
+  <footer>
+    Imladris Virtual Integration Lab &nbsp;·&nbsp;
+    <a href="https://github.com/jwalbers/imladris" target="_blank">GitHub</a>
+    &nbsp;·&nbsp; Partners in Health
+  </footer>
+
+  <script>
+    // Auth bar — populated from SimpleSAMLphp session via /user-info.php.
+    // Gracefully silent when running unauthenticated (local dev on port 8090).
+    fetch('/user-info.php', { credentials: 'same-origin' })
+      .then(r => r.ok ? r.json() : null)
+      .then(u => {
+        if (u && (u.name || u.email)) {
+          document.getElementById('auth-user').textContent = u.name || u.email;
+          document.getElementById('auth-bar').style.display = 'flex';
+        }
+      })
+      .catch(() => {});
+
+    function signOut() {
+      window.location.href =
+        '/simplesaml/module.php/core/logout.php'
+        + '?ReturnTo=' + encodeURIComponent('https://imladrislab.org/');
+    }
+  </script>
+
+</body>
+</html>

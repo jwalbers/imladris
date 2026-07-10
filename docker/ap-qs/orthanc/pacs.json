@@ -1,0 +1,84 @@
+// Orthanc configuration — Imladris Cloud PACS
+// AE title: IML_PACS_01   HTTP: 8042 (exposed as 8043)   DICOM: 4242 (exposed as 4243)
+{
+  "Name"                  : "Imladris Cloud PACS",
+  "DicomAet"              : "IML_PACS_01",
+  "DicomPort"             : 4242,
+  "HttpPort"              : 8042,
+
+  // Allow connections from any host (lab environment — not for production)
+  "RemoteAccessAllowed"   : true,
+  "AuthenticationEnabled" : false,
+
+  // Accept C-STORE for any SOP class
+  "UnknownSopClassAccepted" : true,
+
+  // Do not reject associations whose Called AET doesn't match ours
+  "DicomCheckCalledAet"   : false,
+
+  // Known remote modalities
+  "DicomModalities" : {
+    "MODALITY_SIM"   : ["MODALITY_SIM",   "orthanc-modality", 4242],
+    // Simulated Qure.ai qXR DCMIO gateway
+    "QUREAI"         : ["QUREAI",         "qure-sim",         5252],
+    // AdvaPACS Gateway — C-STORE SCP on BESSIE (host-networked; Local AE configured in AdvaPACS cloud admin)
+    "ADVAPACS_GW_01" : ["ADVAPACS_GW_01", "192.168.1.10",     11112]
+  },
+
+  // Enable bundled plugins (Stone Web Viewer + DICOMweb)
+  "Plugins" : ["/usr/share/orthanc/plugins/"],
+
+  // CORS — allow OHIF (localhost:3000) to query the DICOMweb API
+  "HttpAllowCors" : true,
+  "HttpAllowedOrigins" : ["*"],
+  "HttpAllowedHeaders" : ["Authorization", "Content-Type"],
+  "HttpAllowedMethods" : ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+
+  // DICOMweb plugin — required for OHIF (WADO-RS / QIDO-RS / STOW-RS)
+  "DicomWeb" : {
+    "Enable"     : true,
+    "Root"       : "/dicom-web/",
+    "EnableWado" : true,
+    "WadoRoot"   : "/wado",
+    // Transcode frames to uncompressed on retrieval so /frames/N works
+    "TranscodeDicomWebRequestsToUncompressed" : true,
+
+    // Cloud PACS peers — Orthanc forwards stable studies to these via STOW-RS
+    "Servers" : {
+      // Path 1: Direct to AdvaPACS cloud (Basic Auth)
+      "AdvaPACS" : {
+        "Url"            : "https://usa1.api.dicomweb.advapacs.com/rs",
+        "SslEnabled"     : true,
+        "SslVerifyPeers" : true,
+        "Username"       : "${ADVAPACS_KEY_ID}",
+        "Password"       : "${ADVAPACS_SECRET}",
+        "Timeout"        : 300
+      },
+      // Path 2: Via AdvaPACS Gateway (Windows 192.168.1.10, DICOMweb proxy → cloud via RabbitMQ)
+      // No auth — Gateway handles its own auth to AdvaPACS cloud internally.
+      "AdvaPACS_GW" : {
+        "Url"     : "http://192.168.1.10:8085/rs",
+        "Timeout" : 300
+      }
+    }
+  },
+
+  // Auto-forward: stable studies → AdvaPACS cloud; CXR instances → Qure.ai gateway
+  "LuaScripts" : [
+    "/etc/orthanc/forward-to-advapacs.lua",
+    "/etc/orthanc/forward-to-qure.lua"
+  ],
+
+  // GDCM — allow transcoding all transfer syntaxes for frame retrieval
+  "Gdcm" : {
+    "Enable" : true,
+    "RestrictTransferSyntaxes" : []
+  },
+  "OrthancExplorer2" : {
+    "Enable" : true,
+    "IsDefaultOrthancUI" : true,
+    "UiOptions" : {
+      "ShowOrthancName" : true
+    }
+  }
+}

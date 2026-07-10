@@ -10,6 +10,8 @@ keys/
 # SP signing private key (generated locally; public cert saml.crt IS committed)
 docker/op-qs/simplesamlphp/cert/*.pem
 docker/op-qs/simplesamlphp/cert/*.key
+docker/ap-qs/simplesamlphp/cert/*.pem
+docker/ap-qs/simplesamlphp/cert/*.key
 __pycache__/
 .imladris_venv/
 openmrs_work/
@@ -33,6 +35,7 @@ openmrs/junk.txt
 
 # Docker runtime logs
 docker/op-qs/*.log
+docker/ap-qs/*.log
 
 # OpenMRS working spreadsheets (canonical copy in imladris-bophelong/roles/)
 openmrs/*.xlsx
