@@ -55,6 +55,7 @@ class MwlManager:
         modality: str,
         scheduled_date: str | None = None,
         scheduled_time: str | None = None,
+        station_aet: str | None = None,
     ) -> str:
         """Write a DICOM worklist file and return its path.
 
@@ -72,6 +73,8 @@ class MwlManager:
             log.debug(f"MWL create skipped — accession {accession_sh} is dismissed")
             return ""
 
+        _station_aet = station_aet or self.station_aet
+
         if not scheduled_date:
             scheduled_date = datetime.now().strftime("%Y%m%d")
         if not scheduled_time:
@@ -80,7 +83,7 @@ class MwlManager:
         ds = self._build(
             patient_id, patient_name, dob, sex,
             accession, procedure_id, procedure_desc, modality,
-            scheduled_date, scheduled_time,
+            scheduled_date, scheduled_time, _station_aet,
         )
         path = self._path(accession_sh)
         pydicom.dcmwrite(str(path), ds)
@@ -151,7 +154,7 @@ class MwlManager:
         self,
         patient_id, patient_name, dob, sex,
         accession, procedure_id, procedure_desc, modality,
-        scheduled_date, scheduled_time,
+        scheduled_date, scheduled_time, station_aet: str,
     ) -> FileDataset:
         instance_uid = generate_uid()
 
@@ -206,8 +209,8 @@ class MwlManager:
         sps.ScheduledProcedureStepStartDate = scheduled_date
         sps.ScheduledProcedureStepStartTime = scheduled_time
         sps.Modality = modality.upper()
-        sps.ScheduledStationAETitle = self.station_aet
-        sps.ScheduledStationName = self.station_aet
+        sps.ScheduledStationAETitle = station_aet
+        sps.ScheduledStationName = station_aet
         sps.ScheduledPerformingPhysicianName = ""
         sps.ScheduledProcedureStepDescription = procedure_desc
         sps.ScheduledProcedureStepStatus = "SCHEDULED"

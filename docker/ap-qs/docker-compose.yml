@@ -258,6 +258,7 @@ services:
       MODALITY_AET: IML_CR_01
       CR_AET: IML_CR_01
       US_AET: IML_US_01
+      CT_AET: IML_CT_01
       INSTITUTION: Bophelong MDR-TB Hospital
       CLOUD_PACS_AE: IML_PACS_01
       POLL_INTERVAL_MINUTES: 0.25   # 15 sec — demo mode (restore to 5 for production)

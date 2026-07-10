@@ -235,7 +235,7 @@ services:
 
   # ── Modality sidecar (HL7 bridge + MWL poller) — requires OpenMRS ──
   modality-sidecar:
-    build: ../sidecar
+    build: ../../sidecar
     container_name: imladris-sidecar
     restart: unless-stopped
     extra_hosts:
@@ -249,7 +249,7 @@ services:
     volumes:
       - worklist-data:/worklist   # shared with orthanc-modality for .wl files
       - sidecar-data:/data        # order poller state (last-polled timestamp)
-      - ../../imladris-bophelong/patients/dicom:/hospital-records:ro
+      - ../../../imladris-bophelong/patients/dicom:/hospital-records:ro
     environment:
       # Acquisition loop
       ORTHANC_URL: http://orthanc-modality:8042
@@ -258,6 +258,7 @@ services:
       MODALITY_AET: IML_CR_01
       CR_AET: IML_CR_01
       US_AET: IML_US_01
+      CT_AET: IML_CT_01
       INSTITUTION: Bophelong MDR-TB Hospital
       CLOUD_PACS_AE: IML_PACS_01
       POLL_INTERVAL_MINUTES: 0.25   # 15 sec — demo mode (restore to 5 for production)

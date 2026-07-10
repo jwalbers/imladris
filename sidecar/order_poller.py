@@ -46,6 +46,20 @@ ORDER_POLL_SEC   = int(os.getenv("ORDER_POLL_SEC",        "30"))
 WL_FOLDER        = os.getenv("WL_FOLDER",                 "/worklist")
 MODALITY_AET     = os.getenv("MODALITY_AET",              "MODALITY_SIM")
 
+# Per-modality AE Titles — fall back to MODALITY_AET if not set
+_MODALITY_AET_MAP = {
+    "CR": os.getenv("CR_AET", MODALITY_AET),
+    "DX": os.getenv("CR_AET", MODALITY_AET),   # digital X-ray → same AET as CR
+    "US": os.getenv("US_AET", MODALITY_AET),
+    "CT": os.getenv("CT_AET", MODALITY_AET),
+    "MR": os.getenv("MR_AET", MODALITY_AET),
+    "RF": os.getenv("RF_AET", MODALITY_AET),
+    "NM": os.getenv("NM_AET", MODALITY_AET),
+}
+
+def _aet_for_modality(modality: str) -> str:
+    return _MODALITY_AET_MAP.get(modality.upper(), MODALITY_AET)
+
 # Concept name keywords → DICOM modality code
 # PIH EMR concepts often encode modality in parentheses, e.g. "Abdomen, 1-2 organs (US)"
 _MODALITY_MAP = [
@@ -234,6 +248,7 @@ def _process_order(order: dict, mwl: MwlManager, sess: requests.Session | None =
         modality=modality,
         scheduled_date=scheduled_date,
         scheduled_time=scheduled_time,
+        station_aet=_aet_for_modality(modality),
     )
     log.info(
         f"MWL created from REST order: accession={accession}  "
