@@ -18,6 +18,8 @@ ADVAPACS_GW_AE     ADVAPACS_GW
 import logging
 import os
 import threading
+import time
+from collections import OrderedDict
 
 from pynetdicom import AE, StoragePresentationContexts, evt
 from pynetdicom.sop_class import Verification
@@ -30,8 +32,32 @@ ADVAPACS_GW_HOST = os.getenv("ADVAPACS_GW_HOST",   "host.docker.internal")
 ADVAPACS_GW_PORT = int(os.getenv("ADVAPACS_GW_PORT", "11112"))
 ADVAPACS_GW_AE   = os.getenv("ADVAPACS_GW_AE",    "ADVAPACS_GW")
 
+# Dedup cache — prevents loop when AdvaPACS routes instances back to this AE.
+# Keyed by SOPInstanceUID; value is monotonic timestamp. Entries expire after
+# 600 s so a legitimate re-send later still works.
+_INSTANCE_TTL = 600
+_seen: OrderedDict[str, float] = OrderedDict()
+_seen_lock = threading.Lock()
+
+
+def _already_seen(sop_uid: str) -> bool:
+    now = time.monotonic()
+    with _seen_lock:
+        cutoff = now - _INSTANCE_TTL
+        while _seen and next(iter(_seen.values())) < cutoff:
+            _seen.popitem(last=False)
+        if sop_uid in _seen:
+            return True
+        _seen[sop_uid] = now
+        return False
+
 
 def _forward(ds) -> None:
+    sop_uid = str(getattr(ds, "SOPInstanceUID", ""))
+    if _already_seen(sop_uid):
+        log.debug(f"Dedup: dropping already-relayed instance {sop_uid[:20]}…")
+        return
+
     ae = AE(ae_title=SCP_AE)
     ae.add_requested_context(ds.SOPClassUID)
     assoc = ae.associate(ADVAPACS_GW_HOST, ADVAPACS_GW_PORT, ae_title=ADVAPACS_GW_AE)

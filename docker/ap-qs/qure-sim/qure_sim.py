@@ -49,6 +49,7 @@ ORTHANC_PORT = int(os.getenv("ORTHANC_PORT", "4242"))
 ORTHANC_AE   = os.getenv("ORTHANC_AE",   "IML_PACS_01")
 SAMPLE_DIR   = Path(os.getenv("SAMPLE_DIR", "/sample_outputs"))
 DELAY_SEC    = float(os.getenv("DELAY_SEC", "3"))
+STUDY_TTL_SEC = int(os.getenv("STUDY_TTL_SEC", "30"))
 
 logging.basicConfig(
     level=logging.INFO,
@@ -58,9 +59,8 @@ logging.basicConfig(
 log = logging.getLogger("qure_sim")
 
 # Studies processed recently — prevents duplicate SC responses when a study
-# arrives as multiple instances (one C-STORE per instance from Orthanc Lua).
-# Entries expire after STUDY_TTL_SEC so the set doesn't grow unbounded.
-STUDY_TTL_SEC = 300
+# arrives as multiple instances (one C-STORE per instance).
+# Entries expire after STUDY_TTL_SEC seconds.
 _processed_studies: OrderedDict[str, float] = OrderedDict()
 _studies_lock = threading.Lock()
 

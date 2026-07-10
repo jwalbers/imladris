@@ -56,6 +56,7 @@ class WorklistEntry:
         self.sex           = str(ds.get("PatientSex", ""))
         self.accession     = str(ds.get("AccessionNumber", ""))
         self.study_desc    = str(ds.get("RequestedProcedureDescription", ""))
+        self.study_uid     = str(ds.get("StudyInstanceUID", ""))
 
         sps = ds.get("ScheduledProcedureStepSequence")
         if sps and len(sps) > 0:

@@ -67,6 +67,24 @@ class FhirOrdersRequest(BaseModel):
     modality:    str = ""         # blank = all modalities
 
 
+class DeleteStudiesRequest(BaseModel):
+    patient_id:  str = ""          # delete all studies for this patient
+    accession:   str = ""          # or delete the single study with this accession
+    dry_run:     bool = True
+    fhir_base:   str = FHIR_BASE_URL
+    key_id:      str = FHIR_KEY_ID
+    key_secret:  str = FHIR_KEY_SECRET
+
+
+class DeleteOrdersRequest(BaseModel):
+    patient_id:  str = ""          # delete all orders for this patient
+    accession:   str = ""          # or delete the single order with this accession
+    dry_run:     bool = True
+    fhir_base:   str = FHIR_BASE_URL
+    key_id:      str = FHIR_KEY_ID
+    key_secret:  str = FHIR_KEY_SECRET
+
+
 # ── FHIR helpers ─────────────────────────────────────────────────────────────
 
 _KNOWN_MODALITIES = frozenset(
@@ -147,16 +165,27 @@ def _post_service_request(req: ServiceRequestInput) -> dict:
         return {"ok": False, "error": f"Patient lookup/create error: {e}"}
 
     # ── POST ServiceRequest ─────────────────────────────────────────────
+    proc_code = req.procedure_desc.replace(" ", "_").upper()
     resource = {
         "resourceType": "ServiceRequest",
         "status":  "draft",
         "intent":  "order",
         "subject": {"reference": f"Patient/{patient_uuid}"},
-        "code":    {"concept": {"coding": [{"display": req.procedure_desc}]}},
+        "code": {
+            "concept": {
+                "coding": [{
+                    "system":  "http://imladrislab.org/procedures",
+                    "code":    proc_code,
+                    "display": req.procedure_desc,
+                }],
+                "text": req.procedure_desc,
+            }
+        },
+        "occurrenceDateTime": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "orderDetail": [{
             "parameter": [{
                 "code": {"coding": [{
-                    "system": "http://dicom.nema.org/resources/ontology/DCM",
+                    "system": "http://advapacs.com/fhir/servicerequest-orderdetail-parameter-code",
                     "code":   "modality",
                 }]},
                 "valueString": req.modality,
@@ -164,6 +193,7 @@ def _post_service_request(req: ServiceRequestInput) -> dict:
         }],
         "identifier": [
             {
+                "system": "http://imladrislab.org/accession-number",
                 "type": {"coding": [{"system": "http://terminology.hl7.org/CodeSystem/v2-0203", "code": "ACSN"}]},
                 "value": accession,
             },
@@ -268,6 +298,12 @@ def _query_fhir_orders(req: FhirOrdersRequest) -> dict:
             if modality_val not in _KNOWN_MODALITIES:
                 modality_val = _AET_TO_MODALITY.get(station_aet, modality_val)
 
+            # If station_aet still blank (no performer in SR), derive from modality.
+            if not station_aet and modality_val in _AET_TO_MODALITY.values():
+                station_aet = next(
+                    (aet for aet, mod in _AET_TO_MODALITY.items() if mod == modality_val), ""
+                )
+
             orders.append({
                 "id":           sr.get("id", ""),
                 "status":       sr.get("status", ""),
@@ -292,6 +328,144 @@ def _query_fhir_orders(req: FhirOrdersRequest) -> dict:
                 "first_device_raw": first_device_raw}
     except Exception as ex:
         return {"ok": False, "error": str(ex), "orders": []}
+
+
+# ── AdvaPACS study deletion ───────────────────────────────────────────────────
+
+def _dw_headers(key_id: str, secret: str) -> dict:
+    import base64
+    b64 = base64.b64encode(f"{key_id}:{secret}".encode()).decode()
+    return {"Authorization": f"Basic {b64}"}
+
+
+def _delete_studies(req: DeleteStudiesRequest) -> dict:
+    import base64
+    base    = (req.fhir_base or FHIR_BASE_URL).rstrip("/")
+    key_id  = req.key_id     or FHIR_KEY_ID
+    secret  = req.key_secret or FHIR_KEY_SECRET
+    fhdr    = {
+        "Authorization": f"ID={key_id},Secret={secret}",
+        "Accept": "application/fhir+json",
+    }
+    dwdr = _dw_headers(key_id, secret)
+    dw_base = "https://usa1.api.dicomweb.advapacs.com"
+
+    if not req.patient_id and not req.accession:
+        return {"ok": False, "error": "Supply patient_id or accession", "studies": []}
+
+    studies = []
+    try:
+        with httpx.Client(follow_redirects=True) as client:
+
+            if req.accession:
+                # Find ImagingStudy by accession identifier
+                r = client.get(f"{base}/ImagingStudy",
+                               params={"identifier": req.accession},
+                               headers=fhdr, timeout=15)
+                if r.status_code != 200:
+                    return {"ok": False,
+                            "error": f"ImagingStudy search: HTTP {r.status_code}",
+                            "studies": []}
+                entries = r.json().get("entry", [])
+                if not entries:
+                    return {"ok": False,
+                            "error": f"No study found with accession '{req.accession}'",
+                            "studies": []}
+                for e in entries:
+                    res = e.get("resource", {})
+                    uid = next(
+                        (i.get("value", "").removeprefix("urn:oid:")
+                         for i in res.get("identifier", [])
+                         if i.get("system") == "urn:dicom:uid"),
+                        ""
+                    )
+                    studies.append({"fhir_id": res.get("id", ""), "uid": uid,
+                                    "series": res.get("numberOfSeries", "?"),
+                                    "instances": res.get("numberOfInstances", "?"),
+                                    "started": res.get("started", "")[:10]})
+            else:
+                # Find patient UUID then all their ImagingStudy resources
+                r = client.get(f"{base}/Patient",
+                               params={"identifier": req.patient_id},
+                               headers=fhdr, timeout=15)
+                if r.status_code != 200:
+                    return {"ok": False,
+                            "error": f"Patient search: HTTP {r.status_code}: {r.text[:200]}",
+                            "studies": []}
+                pt_entries = r.json().get("entry", [])
+                if not pt_entries:
+                    return {"ok": False,
+                            "error": f"Patient '{req.patient_id}' not found",
+                            "studies": []}
+                pt_uuid = pt_entries[0]["resource"]["id"]
+
+                url    = f"{base}/ImagingStudy"
+                params: dict = {"patient": pt_uuid, "_count": "200"}
+                while url:
+                    r = client.get(url, params=params, headers=fhdr, timeout=15)
+                    if r.status_code != 200:
+                        return {"ok": False,
+                                "error": f"ImagingStudy list: HTTP {r.status_code}: {r.text[:200]}",
+                                "studies": studies}
+                    bundle = r.json()
+                    for e in bundle.get("entry", []):
+                        res = e.get("resource", {})
+                        uid = next(
+                            (i.get("value", "").removeprefix("urn:oid:")
+                             for i in res.get("identifier", [])
+                             if i.get("system") == "urn:dicom:uid"),
+                            ""
+                        )
+                        studies.append({"fhir_id": res.get("id", ""), "uid": uid,
+                                        "series": res.get("numberOfSeries", "?"),
+                                        "instances": res.get("numberOfInstances", "?"),
+                                        "started": res.get("started", "")[:10]})
+                    url    = next((l["url"] for l in bundle.get("link", [])
+                                   if l.get("relation") == "next"), None)
+                    params = {}
+
+            if req.dry_run:
+                return {"ok": True, "dry_run": True,
+                        "message": f"Would delete {len(studies)} study/studies (dry run)",
+                        "studies": studies}
+
+            deleted = failed = 0
+            results = []
+            for st in studies:
+                uid, fhir_id = st["uid"], st["fhir_id"]
+                outcome = "failed"
+                # Try FHIR DELETE first — may bypass AdvaPACS validation queue
+                if fhir_id:
+                    r = client.delete(f"{base}/ImagingStudy/{fhir_id}",
+                                      headers=fhdr, timeout=30)
+                    if r.status_code in (200, 204):
+                        outcome = "deleted (FHIR)"
+                    elif uid:
+                        # DICOMweb fallback
+                        r2 = client.delete(f"{dw_base}/studies/{uid}",
+                                           headers=dwdr, timeout=30)
+                        outcome = ("deleted (DICOMweb)" if r2.status_code in (200, 204)
+                                   else f"failed HTTP {r2.status_code}")
+                    else:
+                        outcome = f"failed HTTP {r.status_code}"
+                elif uid:
+                    r = client.delete(f"{dw_base}/studies/{uid}",
+                                      headers=dwdr, timeout=30)
+                    outcome = ("deleted (DICOMweb)" if r.status_code in (200, 204)
+                               else f"failed HTTP {r.status_code}")
+
+                if "deleted" in outcome:
+                    deleted += 1
+                else:
+                    failed += 1
+                results.append({**st, "outcome": outcome})
+
+            return {"ok": True, "dry_run": False,
+                    "message": f"Deleted {deleted}, failed {failed}",
+                    "studies": results}
+
+    except Exception as ex:
+        return {"ok": False, "error": str(ex), "studies": studies}
 
 
 # ── Startup: recover state from existing iptables rules ──────────────────────
@@ -482,3 +656,138 @@ def post_service_request(req: ServiceRequestInput):
 @app.post("/fhir/orders")
 def fhir_orders(req: FhirOrdersRequest):
     return JSONResponse(_query_fhir_orders(req))
+
+
+@app.post("/fhir/delete-studies")
+def delete_studies(req: DeleteStudiesRequest):
+    return JSONResponse(_delete_studies(req))
+
+
+def _delete_orders(req: DeleteOrdersRequest) -> dict:
+    base   = (req.fhir_base or FHIR_BASE_URL).rstrip("/")
+    key_id = req.key_id     or FHIR_KEY_ID
+    secret = req.key_secret or FHIR_KEY_SECRET
+    fhdr   = {
+        "Authorization": f"ID={key_id},Secret={secret}",
+        "Accept": "application/fhir+json",
+    }
+
+    if not req.patient_id and not req.accession:
+        return {"ok": False, "error": "Supply patient_id or accession", "orders": []}
+
+    orders = []
+    try:
+        with httpx.Client(follow_redirects=True) as client:
+
+            if req.accession:
+                r = client.get(f"{base}/ServiceRequest",
+                               params={"identifier": req.accession},
+                               headers=fhdr, timeout=15)
+                if r.status_code != 200:
+                    return {"ok": False,
+                            "error": f"ServiceRequest search: HTTP {r.status_code}: {r.text[:200]}",
+                            "orders": []}
+                entries = r.json().get("entry", [])
+                if not entries:
+                    return {"ok": False,
+                            "error": f"No order found with accession '{req.accession}'",
+                            "orders": []}
+            else:
+                r = client.get(f"{base}/Patient",
+                               params={"identifier": req.patient_id},
+                               headers=fhdr, timeout=15)
+                if r.status_code != 200:
+                    return {"ok": False,
+                            "error": f"Patient search: HTTP {r.status_code}: {r.text[:200]}",
+                            "orders": []}
+                pt_entries = r.json().get("entry", [])
+                if not pt_entries:
+                    return {"ok": False,
+                            "error": f"Patient '{req.patient_id}' not found",
+                            "orders": []}
+                pt_uuid = pt_entries[0]["resource"]["id"]
+
+                r = client.get(f"{base}/ServiceRequest",
+                               params={"patient": pt_uuid, "_count": "200"},
+                               headers=fhdr, timeout=15)
+                if r.status_code != 200:
+                    return {"ok": False,
+                            "error": f"ServiceRequest list: HTTP {r.status_code}: {r.text[:200]}",
+                            "orders": []}
+                entries = r.json().get("entry", [])
+                if not entries:
+                    return {"ok": False,
+                            "error": f"No orders found for patient '{req.patient_id}'",
+                            "orders": []}
+
+            for e in entries:
+                res = e.get("resource", {})
+                accession = next(
+                    (i.get("value", "") for i in res.get("identifier", [])
+                     if i.get("type", {}).get("coding", [{}])[0].get("code") == "ACSN"),
+                    res.get("identifier", [{}])[0].get("value", "") if res.get("identifier") else ""
+                )
+                proc = (res.get("code", {}).get("concept", {}).get("coding", [{}])[0].get("display", "")
+                        or res.get("code", {}).get("concept", {}).get("text", "")
+                        or res.get("code", {}).get("text", ""))
+                orders.append({
+                    "fhir_id":    res.get("id", ""),
+                    "status":     res.get("status", ""),
+                    "accession":  accession,
+                    "patient":    res.get("subject", {}).get("display", ""),
+                    "procedure":  proc,
+                    "occurrence": res.get("occurrenceDateTime", "")[:10],
+                })
+
+            if req.dry_run:
+                return {"ok": True, "dry_run": True,
+                        "message": f"Would revoke {len(orders)} order(s) (dry run)",
+                        "orders": orders}
+
+            revoked = failed = 0
+            results = []
+            patch_hdrs = {**fhdr, "Content-Type": "application/json-patch+json"}
+            for o in orders:
+                fhir_id = o["fhir_id"]
+                # AdvaPACS does not support DELETE on ServiceRequest;
+                # try JSON Patch first, then GET+PUT full resource as fallback.
+                r = client.patch(
+                    f"{base}/ServiceRequest/{fhir_id}",
+                    content=b'[{"op":"replace","path":"/status","value":"revoked"}]',
+                    headers=patch_hdrs, timeout=30,
+                )
+                if r.status_code in (200, 204):
+                    outcome = "revoked"
+                else:
+                    # Fallback: GET full resource, update status, PUT back
+                    rg = client.get(f"{base}/ServiceRequest/{fhir_id}",
+                                    headers=fhdr, timeout=15)
+                    if rg.status_code == 200:
+                        res_body = rg.json()
+                        res_body["status"] = "revoked"
+                        put_hdrs = {**fhdr, "Content-Type": "application/fhir+json"}
+                        rp = client.put(f"{base}/ServiceRequest/{fhir_id}",
+                                        json=res_body, headers=put_hdrs, timeout=30)
+                        if rp.status_code in (200, 204):
+                            outcome = "revoked (PUT)"
+                        else:
+                            outcome = f"failed HTTP {rp.status_code}: {rp.text[:200]}"
+                    else:
+                        outcome = f"failed HTTP {r.status_code}: {r.text[:200]}"
+                if "revoked" in outcome:
+                    revoked += 1
+                else:
+                    failed += 1
+                results.append({**o, "outcome": outcome})
+
+            return {"ok": True, "dry_run": False,
+                    "message": f"Revoked {revoked}, failed {failed}",
+                    "orders": results}
+
+    except Exception as ex:
+        return {"ok": False, "error": str(ex), "orders": orders}
+
+
+@app.post("/fhir/delete-orders")
+def delete_orders(req: DeleteOrdersRequest):
+    return JSONResponse(_delete_orders(req))

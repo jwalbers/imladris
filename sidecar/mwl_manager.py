@@ -184,8 +184,14 @@ class MwlManager:
         ds.PatientBirthDate = dob
         ds.PatientSex = sex
 
-        # AccessionNumber is SH (max 16 chars) — truncate UUID by stripping dashes
-        accession_sh = accession.replace("-", "")[:16]
+        # AccessionNumber is SH (max 16 chars).
+        # Strip dashes only when necessary to fit (UUID accessions are pre-truncated
+        # by order_poller; short TC-style accessions must keep the dash so AdvaPACS
+        # can match the DICOM to the FHIR ServiceRequest by AccessionNumber).
+        if len(accession) <= 16:
+            accession_sh = accession
+        else:
+            accession_sh = accession.replace("-", "")[:16]
 
         # Order-level
         ds.AccessionNumber = accession_sh

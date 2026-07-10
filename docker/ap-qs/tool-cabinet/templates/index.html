@@ -313,6 +313,48 @@
     <div class="result-area" id="orm-result">Ready.</div>
   </div>
 
+  <!-- ── Delete Studies ───────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-label">FHIR Tools — Delete AdvaPACS Studies</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Patient ID <small>(all studies)</small></label>
+        <input class="form-input" id="del-pid" value="" placeholder="e.g. XP92EU">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Accession # <small>(single study)</small></label>
+        <input class="form-input" id="del-accession" value="" placeholder="e.g. SPS-0710031934">
+      </div>
+    </div>
+    <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.82rem;color:#7a9ab8;margin-bottom:0.75rem;cursor:pointer;">
+      <input type="checkbox" id="del-dryrun" checked style="width:14px;height:14px;accent-color:#4a9edd;">
+      Dry run (preview only — no deletions)
+    </label>
+    <button class="tool-btn" id="btn-del" onclick="deleteStudies()">Delete Studies</button>
+    <div id="del-result"></div>
+  </div>
+
+  <!-- ── Delete Orders ──────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-label">FHIR Tools — Revoke AdvaPACS Orders (ServiceRequests)</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Patient ID <small>(all orders)</small></label>
+        <input class="form-input" id="delo-pid" value="" placeholder="e.g. XP92EU">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Accession # <small>(single order)</small></label>
+        <input class="form-input" id="delo-accession" value="" placeholder="e.g. SPS-0710031934">
+      </div>
+    </div>
+    <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.82rem;color:#7a9ab8;margin-bottom:0.75rem;cursor:pointer;">
+      <input type="checkbox" id="delo-dryrun" checked style="width:14px;height:14px;accent-color:#4a9edd;">
+      Dry run (preview only — no changes)
+    </label>
+    <button class="tool-btn" id="btn-delo" onclick="deleteOrders()">Revoke Orders</button>
+    <div id="delo-result"></div>
+  </div>
+
   <!-- ── FHIR Orders ────────────────────────────────────────────────── -->
   <div class="section">
     <div class="section-label">FHIR Orders — AdvaPACS ServiceRequest</div>
@@ -452,6 +494,90 @@
     } catch(e) {
       result.style.color = '#dd6666';
       result.textContent = 'Request failed: ' + e.message;
+    }
+    btn.disabled = false;
+  }
+
+  async function deleteStudies() {
+    const btn    = document.getElementById('btn-del');
+    const result = document.getElementById('del-result');
+    const dryRun = document.getElementById('del-dryrun').checked;
+    const pid    = document.getElementById('del-pid').value.trim();
+    const acc    = document.getElementById('del-accession').value.trim();
+    if (!pid && !acc) {
+      result.innerHTML = '<div class="result-area" style="color:#dd6666">Enter a Patient ID or Accession #.</div>';
+      return;
+    }
+    btn.disabled = true;
+    result.innerHTML = `<div class="result-area">${dryRun ? 'Previewing…' : 'Deleting…'}</div>`;
+    try {
+      const r = await fetch('/fhir/delete-studies', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ patient_id: pid, accession: acc, dry_run: dryRun }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        result.innerHTML = `<div class="result-area" style="color:#dd6666">Error: ${data.error}</div>`;
+      } else if (!data.studies || data.studies.length === 0) {
+        result.innerHTML = `<div class="result-area" style="color:#4a6a8a">No studies found.</div>`;
+      } else {
+        const color  = dryRun ? '#ccb84a' : '#4caf6a';
+        const cols   = dryRun
+          ? ['started','series','instances','uid']
+          : ['started','series','instances','uid','outcome'];
+        const hdrs   = cols.map(c => `<th>${c}</th>`).join('');
+        const rows   = data.studies.map(s =>
+          `<tr>${cols.map(c => `<td>${s[c] ?? ''}</td>`).join('')}</tr>`
+        ).join('');
+        result.innerHTML =
+          `<div style="color:${color};margin-bottom:6px">${data.message}</div>` +
+          `<table class="mwl-table"><thead><tr>${hdrs}</tr></thead><tbody>${rows}</tbody></table>`;
+      }
+    } catch(e) {
+      result.innerHTML = `<div class="result-area" style="color:#dd6666">Request failed: ${e.message}</div>`;
+    }
+    btn.disabled = false;
+  }
+
+  async function deleteOrders() {
+    const btn    = document.getElementById('btn-delo');
+    const result = document.getElementById('delo-result');
+    const dryRun = document.getElementById('delo-dryrun').checked;
+    const pid    = document.getElementById('delo-pid').value.trim();
+    const acc    = document.getElementById('delo-accession').value.trim();
+    if (!pid && !acc) {
+      result.innerHTML = '<div class="result-area" style="color:#dd6666">Enter a Patient ID or Accession #.</div>';
+      return;
+    }
+    btn.disabled = true;
+    result.innerHTML = `<div class="result-area">${dryRun ? 'Previewing…' : 'Revoking…'}</div>`;
+    try {
+      const r = await fetch('/fhir/delete-orders', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ patient_id: pid, accession: acc, dry_run: dryRun }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        result.innerHTML = `<div class="result-area" style="color:#dd6666">Error: ${data.error}</div>`;
+      } else if (!data.orders || data.orders.length === 0) {
+        result.innerHTML = `<div class="result-area" style="color:#4a6a8a">No orders found.</div>`;
+      } else {
+        const color = dryRun ? '#ccb84a' : '#4caf6a';
+        const cols  = dryRun
+          ? ['accession','status','patient','procedure','occurrence']
+          : ['accession','status','patient','procedure','occurrence','outcome'];
+        const hdrs  = cols.map(c => `<th>${c}</th>`).join('');
+        const rows  = data.orders.map(o =>
+          `<tr>${cols.map(c => `<td>${o[c] ?? ''}</td>`).join('')}</tr>`
+        ).join('');
+        result.innerHTML =
+          `<div style="color:${color};margin-bottom:6px">${data.message}</div>` +
+          `<table class="mwl-table"><thead><tr>${hdrs}</tr></thead><tbody>${rows}</tbody></table>`;
+      }
+    } catch(e) {
+      result.innerHTML = `<div class="result-area" style="color:#dd6666">Request failed: ${e.message}</div>`;
     }
     btn.disabled = false;
   }

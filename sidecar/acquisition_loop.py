@@ -35,6 +35,10 @@ def _aet_for(modality: str) -> str:
     return {"US": US_AET, "CT": CT_AET}.get(modality.upper(), CR_AET)
 
 
+# Accessions already imaged this container lifetime — reset on restart.
+_sent: set[str] = set()
+
+
 def run_cycle():
     log.info("Starting acquisition cycle …")
     try:
@@ -49,6 +53,10 @@ def run_cycle():
     time_str = now.strftime("%H%M%S")
 
     for entry in entries:
+        if entry.accession in _sent:
+            log.debug(f"Already imaged {entry.accession} this session — skipping.")
+            continue
+
         log.info(
             f"Processing: {entry.patient_name} ({entry.patient_id}) "
             f"— {entry.study_desc}  Accession: {entry.accession}"
@@ -62,8 +70,8 @@ def run_cycle():
                 )
                 continue
 
-            modality  = entry.modality or "CR"
-            study_uid = generate_uid()
+            modality   = entry.modality or "CR"
+            study_uid  = entry.study_uid or generate_uid()
             series_uid = generate_uid()
             calling_ae = _aet_for(modality)
 
@@ -102,6 +110,7 @@ def run_cycle():
                 f"✓  Sent {sent}/{len(patched)} instance(s) → AdvaPACS  "
                 f"study={study_uid[:24]}…  patient={entry.patient_name}"
             )
+            _sent.add(entry.accession)
 
             if modality.upper() in ("CR", "DX") and dc.ENABLE_QURE:
                 try:

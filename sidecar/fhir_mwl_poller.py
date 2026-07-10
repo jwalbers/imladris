@@ -73,6 +73,24 @@ def _aet_for(modality: str) -> str:
     return _MODALITY_AET_MAP.get(modality.upper(), MODALITY_AET)
 
 
+# Keyword→modality fallback for when AdvaPACS returns no usable modality code
+# and there is no station AET to map from (e.g. orders with no performer).
+_MODALITY_KEYWORDS = [
+    ("ultrasound", "US"), ("echo", "US"),
+    ("ct ",        "CT"), (" ct", "CT"), ("computed", "CT"),
+    ("mri",        "MR"), ("magnetic", "MR"),
+    ("fluoro",     "RF"),
+    ("nuclear",    "NM"),
+]
+
+def _guess_modality(text: str) -> str:
+    t = text.lower()
+    for kw, code in _MODALITY_KEYWORDS:
+        if kw in t:
+            return code
+    return "CR"  # default for unmatched radiology orders
+
+
 def _auth_headers() -> dict:
     return {
         "Authorization": f"ID={FHIR_KEY_ID},Secret={FHIR_KEY_SECRET}",
@@ -194,9 +212,18 @@ def _poll_once(
             device_cache[device_ref] = _fetch_resource(client, device_ref)
         station_aet = _extract_station_aet(device_cache.get(device_ref, {}))
 
-        # Modality: orderDetail parameter first; fall back to AE-title map.
-        # AdvaPACS may normalise our custom parameter and echo the code name
-        # ("modality") as the valueString instead of the value ("CR").
+        # Procedure description — extracted early so modality can fall back to it.
+        # AdvaPACS may not preserve concept.coding[0].display for externally-posted SRs.
+        proc_desc = (
+            sr.get("code", {}).get("concept", {}).get("coding", [{}])[0].get("display", "")
+            or sr.get("code", {}).get("concept", {}).get("text", "")
+            or sr.get("code", {}).get("text", "")
+            or "Radiology Procedure"
+        )
+
+        # Modality: orderDetail parameter first; fall back to AE-title map, then
+        # procedure text. AdvaPACS may echo the parameter code name ("modality")
+        # as the valueString instead of the value ("CR").
         modality = ""
         for od in sr.get("orderDetail", []):
             for p in od.get("parameter", []):
@@ -206,8 +233,8 @@ def _poll_once(
         if modality not in _KNOWN_MODALITIES:
             modality = _AET_TO_MODALITY.get(station_aet, "")
         if not modality:
-            log.debug(f"Skipping {accession} — no valid modality (station_aet={station_aet!r})")
-            continue
+            modality = _guess_modality(proc_desc)
+            log.debug(f"Modality guessed from procedure text for {accession}: {modality}")
 
         if not station_aet:
             station_aet = _aet_for(modality)
@@ -221,15 +248,6 @@ def _poll_once(
         )
         if not patient_id:
             patient_id = subj_ref.split("/")[-1]   # fallback: FHIR UUID
-
-        # Procedure description — AdvaPACS may not preserve concept.coding[0].display
-        # for externally-posted ServiceRequests; check several code paths.
-        proc_desc = (
-            sr.get("code", {}).get("concept", {}).get("coding", [{}])[0].get("display", "")
-            or sr.get("code", {}).get("concept", {}).get("text", "")
-            or sr.get("code", {}).get("text", "")
-            or "Radiology Procedure"
-        )
 
         # Scheduled date/time from occurrenceDateTime
         scheduled_date = scheduled_time = None
@@ -276,7 +294,11 @@ def main():
 
     log.info(f"FHIR MWL poller starting  base={FHIR_BASE_URL}  interval={FHIR_POLL_SEC}s")
     mwl = MwlManager(WL_FOLDER, station_aet=MODALITY_AET)
-    owned: set[str] = set()
+    # Seed from any .wl files already on disk so orphans from previous sessions
+    # are cleaned up on the first poll if they're no longer draft in AdvaPACS.
+    owned: set[str] = set(mwl.list_accessions())
+    if owned:
+        log.info(f"Seeded {len(owned)} existing .wl file(s) into reconciliation set")
 
     with httpx.Client(follow_redirects=True) as client:
         while True:
