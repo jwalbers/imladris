@@ -158,6 +158,38 @@ in the worklist Modality column instead of the modality code.
 
 ---
 
+## DICOM C-STORE Matching Requirements
+
+For a study sent via the AdvaPACS gateway to route directly to the study list (bypassing
+the validation queue), all three of the following must match:
+
+| DICOM tag | Required value | Source |
+|-----------|---------------|--------|
+| `PatientID (0010,0020)` | OpenMRS patient identifier (e.g. `AKR2RH`) | `.wl` file |
+| `IssuerOfPatientID (0010,0021)` | `PIH_A` (the registered Namespace ID) | `DICOM_ISSUER_OF_PATIENT_ID` env var |
+| `PatientName (0010,0010)` | Space-separated: `Mokoena Thabo` | `.wl` file (caret stripped) |
+
+### PatientName format — space, not caret
+
+AdvaPACS stores patients created via FHIR with a space-separated display name derived from
+`name.family` + `name.given`.  When a C-STORE arrives, it matches `PatientName` against
+that display name.
+
+- **Correct**: `Mokoena Thabo` (space-separated)
+- **Wrong**: `Mokoena^Thabo` (DICOM PN caret format — AdvaPACS silently drops the study,
+  it does not appear in the study list or validation queue)
+
+The sidecar's `WlEntry` class already strips carets to spaces when reading `.wl` files, so
+no special handling is needed — use `entry.patient_name` directly as `ds.PatientName`.
+
+### IssuerOfPatientID
+
+Set via `DICOM_ISSUER_OF_PATIENT_ID: PIH_A` in `docker/ap-qs/docker-compose.yml` →
+`ISSUER_OF_PATIENT` env var in `sidecar/acquisition_loop.py`.  Without this tag, studies
+are accepted by the gateway but land in the validation queue rather than the study list.
+
+---
+
 ## Order Poller State Management
 
 `sidecar/order_poller.py` polls OpenMRS for new radiology orders and posts them to AdvaPACS

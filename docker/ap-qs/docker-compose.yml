@@ -260,6 +260,7 @@ services:
       US_AET: IML_US_01
       CT_AET: IML_CT_01
       INSTITUTION: Bophelong MDR-TB Hospital
+      DICOM_ISSUER_OF_PATIENT_ID: PIH_A
       POLL_INTERVAL_MINUTES: 0.25   # 15 sec — demo mode (restore to 5 for production)
       WL_FOLDER: /worklist
       HOSPITAL_RECORDS: /hospital-records

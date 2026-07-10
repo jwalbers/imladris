@@ -96,9 +96,11 @@ def _get_worklist(modality_filter: str | None = None) -> list[dict]:
             scheduled = raw_date
         scheduled_time = raw_time[:2] + ":" + raw_time[2:4] if len(raw_time) >= 4 else raw_time
 
+        _raw_name = str(getattr(ds, "PatientName", ""))
         entries.append({
             "id":                 wl_file.stem,
-            "patient_name":       str(getattr(ds, "PatientName", "")).replace("^", " ").strip(),
+            "patient_name":       _raw_name.replace("^", " ").strip(),   # display only
+            "patient_name_dicom": _raw_name,                             # DICOM PN wire format
             "patient_id":         str(getattr(ds, "PatientID", "")),
             "dob":                str(getattr(ds, "PatientBirthDate", "")),
             "sex":                str(getattr(ds, "PatientSex", "")),

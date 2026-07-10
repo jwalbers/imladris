@@ -24,11 +24,12 @@ logging.basicConfig(
 )
 log = logging.getLogger("acquisition_loop")
 
-POLL_MINUTES = float(os.getenv("POLL_INTERVAL_MINUTES", "5"))
-INSTITUTION  = os.getenv("INSTITUTION", "Bophelong MDR-TB Hospital")
-CR_AET       = os.getenv("CR_AET", "IML_CR_01")
-US_AET       = os.getenv("US_AET", "IML_US_01")
-CT_AET       = os.getenv("CT_AET", "IML_CT_01")
+POLL_MINUTES      = float(os.getenv("POLL_INTERVAL_MINUTES", "5"))
+INSTITUTION       = os.getenv("INSTITUTION", "Bophelong MDR-TB Hospital")
+ISSUER_OF_PATIENT = os.getenv("DICOM_ISSUER_OF_PATIENT_ID", "")
+CR_AET            = os.getenv("CR_AET", "IML_CR_01")
+US_AET            = os.getenv("US_AET", "IML_US_01")
+CT_AET            = os.getenv("CT_AET", "IML_CT_01")
 
 
 def _aet_for(modality: str) -> str:
@@ -98,6 +99,8 @@ def run_cycle():
                 ds.ContentTime       = time_str
                 ds.Modality          = modality
                 ds.InstitutionName   = INSTITUTION
+                if ISSUER_OF_PATIENT:
+                    ds.IssuerOfPatientID = ISSUER_OF_PATIENT
                 if hasattr(ds, "file_meta"):
                     ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
                     ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
