@@ -1,26 +1,47 @@
 """
-dicom_client.py — DICOM network helpers for the Imladris modality console.
+dicom_client.py — DICOM helpers for the Imladris modality sidecar.
 
-Handles:
-  - MWL C-FIND SCU (query OpenMRS for scheduled exams)
-  - Orthanc REST API helpers (patient/study lookup, C-STORE trigger)
+New (Orthanc-free) path:
+  - read_wl_entries()    read .wl files directly from WL_FOLDER
+  - find_study_files()   scan /hospital-records for a matching DICOM study
+  - cstore_to()          pynetdicom C-STORE SCU
+
+Legacy (Orthanc) path — kept for the wxPython desktop console:
+  - query_mwl()          C-FIND to Orthanc MWL plugin
+  - match_tb_study()     Orthanc REST patient/study lookup
+  - send_study_to_pacs() Orthanc REST C-STORE trigger
 """
 
+import logging
 import os
+import random
+from pathlib import Path
 from typing import Optional
+
+import pydicom
 import requests
-from pynetdicom import AE
-from pynetdicom.sop_class import ModalityWorklistInformationFind
 from pydicom.dataset import Dataset
+from pynetdicom import AE, StoragePresentationContexts
+from pynetdicom.sop_class import ModalityWorklistInformationFind
 
+log = logging.getLogger("dicom_client")
 
-# ── Configuration (overridden by environment variables) ───────────────
+# ── Configuration ─────────────────────────────────────────────────────
 
-ORTHANC_URL   = os.getenv("ORTHANC_URL",    "http://localhost:8042")
-MWL_HOST      = os.getenv("MWL_HOST",       "localhost")
-MWL_PORT      = int(os.getenv("MWL_PORT",   "4242"))
-MODALITY_AET  = os.getenv("MODALITY_AET",   "MODALITY_SIM")
-CLOUD_PACS_AE = os.getenv("CLOUD_PACS_AE",  "IML_PACS_01")
+ORTHANC_URL      = os.getenv("ORTHANC_URL",      "http://localhost:8042")
+MWL_HOST         = os.getenv("MWL_HOST",          "localhost")
+MWL_PORT         = int(os.getenv("MWL_PORT",      "4242"))
+MODALITY_AET     = os.getenv("MODALITY_AET",      "MODALITY_SIM")
+CLOUD_PACS_AE    = os.getenv("CLOUD_PACS_AE",     "IML_PACS_01")
+WL_FOLDER        = Path(os.getenv("WL_FOLDER",    "/worklist"))
+HOSPITAL_RECORDS = Path(os.getenv("HOSPITAL_RECORDS", "/hospital-records"))
+ADVAPACS_GW_HOST = os.getenv("ADVAPACS_GW_HOST",  "host.docker.internal")
+ADVAPACS_GW_PORT = int(os.getenv("ADVAPACS_GW_PORT", "11112"))
+ADVAPACS_GW_AE   = os.getenv("ADVAPACS_GW_AE",   "ADVAPACS_GW")
+QURE_HOST        = os.getenv("QURE_HOST",          "imladris-qure-sim")
+QURE_PORT        = int(os.getenv("QURE_PORT",      "5252"))
+QURE_AE          = os.getenv("QURE_AE",            "QUREAI")
+ENABLE_QURE      = os.getenv("ENABLE_QURE",        "true").lower() in ("true", "1", "yes")
 
 
 # ── Data class ────────────────────────────────────────────────────────
@@ -171,3 +192,90 @@ def _fmt_date(raw: str) -> str:
     if len(raw) == 8 and raw.isdigit():
         return f"{raw[:4]}-{raw[4:6]}-{raw[6:]}"
     return raw
+
+
+# ── Orthanc-free worklist reading ─────────────────────────────────────
+
+def read_wl_entries(modality_filter: str | None = None) -> list[WorklistEntry]:
+    """Read .wl files from WL_FOLDER and return WorklistEntry list."""
+    entries = []
+    for wl_file in sorted(WL_FOLDER.glob("*.wl")):
+        try:
+            ds = pydicom.dcmread(str(wl_file), force=True)
+            entry = WorklistEntry(ds)
+            if modality_filter and entry.modality.upper() != modality_filter.upper():
+                continue
+            entries.append(entry)
+        except Exception as e:
+            log.debug(f"Skipping unreadable .wl file {wl_file.name}: {e}")
+    return entries
+
+
+# ── Orthanc-free DICOM library scan ──────────────────────────────────
+
+def find_study_files(patient_id: str, modality: str) -> list[Path]:
+    """
+    Scan HOSPITAL_RECORDS for DICOM files matching patient_id and modality.
+
+    Looks for xray/ (CR/DX) or ultrasound_cine/ (US) subdirectories.
+    Falls back to any file in the right modality directory.
+    Returns a list of .dcm Paths (may be a single-instance study).
+    """
+    if modality.upper() in ("US",):
+        base = HOSPITAL_RECORDS / "ultrasound_cine"
+        prefix = "CINE"
+    else:
+        base = HOSPITAL_RECORDS / "xray"
+        prefix = "XRAY"
+
+    # Exact match: base/patient_id/PREFIX_patient_id.dcm
+    exact = base / patient_id / f"{prefix}_{patient_id}.dcm"
+    if exact.exists():
+        return [exact]
+
+    # Fallback: any file in the modality subtree
+    all_files = list(base.glob(f"*/{prefix}_*.dcm"))
+    if all_files:
+        chosen = random.choice(all_files)
+        log.warning(f"No {modality} image for {patient_id} — using fallback {chosen.name}")
+        return [chosen]
+
+    return []
+
+
+# ── Orthanc-free C-STORE SCU ─────────────────────────────────────────
+
+def cstore_to(
+    datasets: list,
+    host: str,
+    port: int,
+    called_ae: str,
+    calling_ae: str = MODALITY_AET,
+) -> int:
+    """
+    C-STORE a list of pydicom datasets to host:port/called_ae.
+    Returns count of successfully stored instances.
+    """
+    if not datasets:
+        return 0
+
+    ae = AE(ae_title=calling_ae)
+    for ds in datasets:
+        ae.add_requested_context(ds.SOPClassUID)
+
+    assoc = ae.associate(host, port, ae_title=called_ae)
+    if not assoc.is_established:
+        raise ConnectionError(f"Cannot associate with {called_ae}@{host}:{port}")
+
+    sent = 0
+    try:
+        for ds in datasets:
+            status = assoc.send_c_store(ds)
+            if status and status.Status == 0x0000:
+                sent += 1
+            else:
+                log.warning(f"C-STORE to {called_ae} returned 0x{status.Status:04X}" if status else "C-STORE failed")
+    finally:
+        assoc.release()
+
+    return sent

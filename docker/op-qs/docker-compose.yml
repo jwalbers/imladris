@@ -93,9 +93,9 @@ services:
 
   # ── Qure.ai gateway simulator ───────────────────────────────────────
   # Listens as DICOM SCP AE "QUREAI" on port 5252.
-  # Orthanc PACS auto-forwards CR/DX instances here (forward-to-qure.lua).
-  # For each received CXR, sends back a Secondary Capture with a sample
-  # Qure.ai annotated output PNG as the "qXR AI Analysis" series.
+  # Sidecar sends CR/DX primary images here after sending to AdvaPACS.
+  # qure-sim returns a Secondary Capture to the sidecar SCP (scp_relay)
+  # which immediately forwards it to the AdvaPACS gateway.
   #
   # Requires the annotated PNG sample library to be available at SAMPLE_DIR.
   # Mount the external drive or adjust the volume path as needed.
@@ -110,13 +110,11 @@ services:
     environment:
       SCP_AE:       QUREAI
       SCP_PORT:     "5252"
-      ORTHANC_HOST: orthanc-pacs
+      ORTHANC_HOST: imladris-sidecar   # scp_relay SCP on the sidecar
       ORTHANC_PORT: "4242"
-      ORTHANC_AE:   IML_PACS_01
+      ORTHANC_AE:   IML_CR_01
       SAMPLE_DIR:   /sample_outputs
       DELAY_SEC:    "3"
-    depends_on:
-      - orthanc-pacs
     networks:
       - imladris
 
@@ -146,21 +144,6 @@ services:
     # NOTE: no 'networks' key — host mode is incompatible with bridge networks.
     # On Linux the gateway is reachable at the host IP on its native ports.
 
-  # ── Modality simulator ──────────────────────────────────────────────
-  orthanc-modality:
-    image: orthancteam/orthanc:latest
-    container_name: imladris-modality
-    restart: unless-stopped
-    ports:
-      - "4242:4242"   # DICOM C-STORE / C-FIND / MWL C-FIND
-      - "8042:8042"   # REST API + web UI
-    volumes:
-      - ./orthanc/modality.json:/etc/orthanc/orthanc.json:ro
-      - modality-data:/var/lib/orthanc/db
-      - worklist-data:/worklist   # shared with sidecar for MWL .wl files
-    networks:
-      - imladris
-
   # ── Cloud PACS ──────────────────────────────────────────────────────
   orthanc-pacs:
     image: orthancteam/orthanc:latest
@@ -177,6 +160,23 @@ services:
     environment:
       ADVAPACS_KEY_ID: ${ADVAPACS_KEY_ID:-}
       ADVAPACS_SECRET:  ${ADVAPACS_SECRET:-}
+    networks:
+      - imladris
+
+  # ── nginx CORS proxy for AdvaPACS cloud DICOMweb (required by OHIF) ─
+  # Adds Basic Auth (ADVAPACS_KEY_ID:ADVAPACS_SECRET, pre-encoded as
+  # ADVAPACS_AUTH_B64) and CORS headers so the browser can read responses.
+  # HAProxy: add backend advapacs-p.imladrislab.org → BESSIE:8087
+  advapacs-proxy:
+    image: nginx:alpine
+    container_name: imladris-advapacs-proxy
+    restart: unless-stopped
+    ports:
+      - "8087:8087"
+    volumes:
+      - ./nginx/advapacs-proxy.conf.template:/etc/nginx/templates/advapacs-proxy.conf.template:ro
+    environment:
+      ADVAPACS_AUTH_B64: ${ADVAPACS_AUTH_B64}
     networks:
       - imladris
 
@@ -217,6 +217,8 @@ services:
       PACS_PASSWORD: admin
       GATEWAY_CONTAINER: imladris-advapacs-gw
       ADVAPACS_HOSTS: "usa1.api.dicomweb.advapacs.com"
+      FHIR_KEY_ID: ${ADVAPACS_KEY_ID:-}
+      FHIR_KEY_SECRET: ${ADVAPACS_SECRET:-}
 
   # ── OHIF Viewer (radiologist workstation) ──────────────────────────
   ohif:
@@ -233,7 +235,8 @@ services:
     networks:
       - imladris
 
-  # ── Modality sidecar (HL7 bridge + MWL poller) — requires OpenMRS ──
+  # ── Modality sidecar (HL7 bridge + MWL poller + DICOM SCP relay) ────
+  # Requires OpenMRS (on host) and AdvaPACS gateway (host-networked).
   modality-sidecar:
     build: ../../sidecar
     container_name: imladris-sidecar
@@ -241,28 +244,38 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"   # Linux (GCE/WSL2) — resolves to VM host IP
     depends_on:
-      - orthanc-modality
       - orthanc-pacs
     ports:
       - "2575:2575"   # MLLP HL7 listener (OpenMRS sends orders here)
+      - "4242:4242"   # DICOM C-STORE SCP relay (scp_relay; qure-sim sends SC here)
       - "5001:5001"   # Modality console web UI
     volumes:
-      - worklist-data:/worklist   # shared with orthanc-modality for .wl files
+      - worklist-data:/worklist
       - sidecar-data:/data        # order poller state (last-polled timestamp)
       - ../../../imladris-bophelong/patients/dicom:/hospital-records:ro
     environment:
-      # Acquisition loop
-      ORTHANC_URL: http://orthanc-modality:8042
-      MWL_HOST: orthanc-modality        # now served by Orthanc modality itself
-      MWL_PORT: 4242
+      # Modality AE titles
       MODALITY_AET: IML_CR_01
       CR_AET: IML_CR_01
       US_AET: IML_US_01
       CT_AET: IML_CT_01
       INSTITUTION: Bophelong MDR-TB Hospital
-      CLOUD_PACS_AE: IML_PACS_01
       POLL_INTERVAL_MINUTES: 0.25   # 15 sec — demo mode (restore to 5 for production)
-      # Order poller (OpenMRS REST → MWL)
+      WL_FOLDER: /worklist
+      HOSPITAL_RECORDS: /hospital-records
+      # AdvaPACS gateway (host-networked on 11112)
+      ADVAPACS_GW_HOST: host.docker.internal
+      ADVAPACS_GW_PORT: "11112"
+      ADVAPACS_GW_AE: ADVAPACS_GW_01
+      # Qure.ai simulator
+      QURE_HOST: imladris-qure-sim
+      QURE_PORT: "5252"
+      QURE_AE: QUREAI
+      ENABLE_QURE: "true"
+      # scp_relay SCP (receives SC from qure-sim, forwards to AdvaPACS)
+      SCP_AE: IML_CR_01
+      SCP_PORT: "4242"
+      # Order poller (OpenMRS REST → AdvaPACS ORM^O01)
       OPENMRS_URL: http://host.docker.internal:8080/openmrs
       OPENMRS_USER: ${OPENMRS_SERVICE_USER:-imladris-service}
       OPENMRS_PASSWORD: ${OPENMRS_SERVICE_PASSWORD}
@@ -275,8 +288,11 @@ services:
       PACS_URL: http://orthanc-pacs:8042
       PACS_USER: admin
       PACS_PASSWORD: admin
-      WL_FOLDER: /worklist
       CHANGE_POLL_SEC: 15
+      # FHIR MWL synthesizer (AdvaPACS ServiceRequest → .wl files)
+      FHIR_KEY_ID: ${ADVAPACS_KEY_ID:-}
+      FHIR_KEY_SECRET: ${ADVAPACS_SECRET:-}
+      FHIR_POLL_SEC: 30
     networks:
       - imladris
     profiles:
@@ -284,9 +300,8 @@ services:
 
 volumes:
   mysql-data:
-  modality-data:
   pacs-data:
-  worklist-data:    # DICOM .wl files shared between sidecar and orthanc-modality
+  worklist-data:    # DICOM .wl files written by fhir_mwl_poller, read by sidecar
   sidecar-data:     # order poller persistent state
 
 networks:

@@ -56,6 +56,7 @@ class MwlManager:
         scheduled_date: str | None = None,
         scheduled_time: str | None = None,
         station_aet: str | None = None,
+        study_uid: str | None = None,
     ) -> str:
         """Write a DICOM worklist file and return its path.
 
@@ -84,6 +85,7 @@ class MwlManager:
             patient_id, patient_name, dob, sex,
             accession, procedure_id, procedure_desc, modality,
             scheduled_date, scheduled_time, _station_aet,
+            study_uid=study_uid,
         )
         path = self._path(accession_sh)
         pydicom.dcmwrite(str(path), ds)
@@ -155,6 +157,7 @@ class MwlManager:
         patient_id, patient_name, dob, sex,
         accession, procedure_id, procedure_desc, modality,
         scheduled_date, scheduled_time, station_aet: str,
+        study_uid: str | None = None,
     ) -> FileDataset:
         instance_uid = generate_uid()
 
@@ -189,7 +192,7 @@ class MwlManager:
         ds.RequestedProcedureID = accession_sh
         ds.RequestedProcedureDescription = procedure_desc
         ds.RequestedProcedurePriority = "ROUTINE"
-        ds.StudyInstanceUID = generate_uid()
+        ds.StudyInstanceUID = study_uid or generate_uid()
         ds.ReferencedStudySequence = Sequence([])
         ds.ReferencedPatientSequence = Sequence([])
         ds.PlacerOrderNumberImagingServiceRequest = accession_sh

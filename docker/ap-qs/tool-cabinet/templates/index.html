@@ -121,6 +121,55 @@
     .log-err  { color: #dd6666; }
     .log-info { color: #4a9edd; }
 
+    /* ── Form inputs ─────────────────────────────────────────────────── */
+    .form-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.55rem 1rem;
+      margin-bottom: 0.85rem;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 0.2rem; }
+    .form-label {
+      font-size: 0.67rem; text-transform: uppercase; letter-spacing: 0.06em;
+      color: #4a6a8a;
+    }
+    .form-input {
+      background: #070e1a; border: 1px solid #1e3a5f; border-radius: 4px;
+      padding: 0.38rem 0.55rem; color: #c8d8e8; font-size: 0.8rem;
+      font-family: monospace; width: 100%;
+    }
+    .form-input:focus { outline: none; border-color: #2a6496; }
+
+    .tool-btn {
+      background: #1a3a60; border: 1px solid #2a5a90; border-radius: 6px;
+      padding: 0.5rem 1.2rem; color: #c8d8e8; font-size: 0.82rem;
+      font-family: inherit; cursor: pointer; transition: all 0.15s;
+    }
+    .tool-btn:hover:not(:disabled) { background: #224a80; border-color: #4a8ac0; }
+    .tool-btn:disabled { opacity: 0.5; cursor: wait; }
+
+    .result-area {
+      background: #070e1a; border: 1px solid #1e3a5f; border-radius: 5px;
+      padding: 0.6rem 0.85rem; font-size: 0.75rem; font-family: monospace;
+      color: #4a7aaa; min-height: 2.4rem; margin-top: 0.7rem; white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* ── FHIR orders table ───────────────────────────────────────────── */
+    .mwl-table {
+      width: 100%; border-collapse: collapse; font-size: 0.73rem;
+      font-family: monospace; margin-top: 0.5rem;
+    }
+    .mwl-table th {
+      background: #0d1f35; color: #4a9edd; text-align: left;
+      padding: 0.3rem 0.5rem; border-bottom: 1px solid #1e3a5f;
+      white-space: nowrap;
+    }
+    .mwl-table td {
+      padding: 0.28rem 0.5rem; border-bottom: 1px solid #0d1f35;
+      color: #a0b8d0; max-width: 180px; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap;
+    }
+    .mwl-table tr:hover td { background: #0d1f35; }
+
     /* ── Footer ──────────────────────────────────────────────────────── */
     footer {
       background: #0a1628; border-top: 1px solid #1e3a5f;
@@ -137,7 +186,7 @@
       <img src="/static/earendil_star.png" alt="Eärendil's Star" class="brand-logo">
       <div class="lab-title"><span>Imladris</span> Lab Tool Cabinet</div>
     </div>
-    <div class="lab-subtitle">Network Connectivity Simulator &nbsp;·&nbsp; Partners in Health</div>
+    <div class="lab-subtitle">FHIR Tools &nbsp;·&nbsp; FHIR Orders &nbsp;·&nbsp; Network Simulator &nbsp;·&nbsp; Partners in Health</div>
   </div>
 </header>
 
@@ -226,6 +275,73 @@
     <div id="log"></div>
   </div>
 
+
+  <!-- ── FHIR Order Tools ──────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-label">FHIR Tools — Post ServiceRequest to AdvaPACS</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Patient ID</label>
+        <input class="form-input" id="orm-pid" value="XP92EU">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Patient Name (Family^Given)</label>
+        <input class="form-input" id="orm-name" value="Lethabo^Tau">
+      </div>
+      <div class="form-group">
+        <label class="form-label">DOB (YYYYMMDD)</label>
+        <input class="form-input" id="orm-dob" value="19860101">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Sex</label>
+        <input class="form-input" id="orm-sex" value="M">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Modality</label>
+        <input class="form-input" id="orm-modality" value="CR">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Procedure Description</label>
+        <input class="form-input" id="orm-desc" value="X-ray of apical lordotic chest">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Accession # <small>(blank=auto)</small></label>
+        <input class="form-input" id="orm-accession" value="" placeholder="auto">
+      </div>
+    </div>
+    <button class="tool-btn" id="btn-orm" onclick="postServiceRequest()">Post ServiceRequest</button>
+    <div class="result-area" id="orm-result">Ready.</div>
+  </div>
+
+  <!-- ── FHIR Orders ────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-label">FHIR Orders — AdvaPACS ServiceRequest</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">FHIR Base URL</label>
+        <input class="form-input" id="fhir-base" value="https://usa1.api.integration.advapacs.com/fhir/R5">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Key ID</label>
+        <input class="form-input" id="fhir-key-id" value="" placeholder="bophelong-mwl key ID">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Key Secret</label>
+        <input class="form-input" id="fhir-key-secret" type="password" value="" placeholder="key secret">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <input class="form-input" id="fhir-status" value="draft">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Modality filter <small>(blank=all)</small></label>
+        <input class="form-input" id="fhir-modality" value="">
+      </div>
+    </div>
+    <button class="tool-btn" id="btn-fhir" onclick="queryFhirOrders()">Query FHIR Orders</button>
+    <div id="fhir-result"></div>
+  </div>
+
 </main>
 
 <footer>Imladris Lab Tool Cabinet &nbsp;·&nbsp; Partners in Health</footer>
@@ -303,6 +419,87 @@
       applyStatus(await r.json());
     } catch(_) {}
   }, 5000);
+
+  async function postServiceRequest() {
+    const btn = document.getElementById('btn-orm');
+    const result = document.getElementById('orm-result');
+    btn.disabled = true;
+    result.style.color = '#4a7aaa';
+    result.textContent = 'Posting ServiceRequest…';
+    try {
+      const r = await fetch('/fhir/sr', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          patient_id:     document.getElementById('orm-pid').value,
+          patient_name:   document.getElementById('orm-name').value,
+          dob:            document.getElementById('orm-dob').value,
+          sex:            document.getElementById('orm-sex').value,
+          procedure_desc: document.getElementById('orm-desc').value,
+          modality:       document.getElementById('orm-modality').value,
+          accession:      document.getElementById('orm-accession').value,
+        }),
+      });
+      const data = await r.json();
+      if (data.ok) {
+        result.style.color = '#4caf6a';
+        result.textContent =
+          `accession=${data.accession}\nstudy_uid=${data.study_uid}\npatient_uuid=${data.patient_uuid}\nfhir_id=${data.fhir_id}`;
+      } else {
+        result.style.color = '#dd6666';
+        result.textContent = 'Error: ' + data.error;
+      }
+    } catch(e) {
+      result.style.color = '#dd6666';
+      result.textContent = 'Request failed: ' + e.message;
+    }
+    btn.disabled = false;
+  }
+
+  async function queryFhirOrders() {
+    const btn = document.getElementById('btn-fhir');
+    const result = document.getElementById('fhir-result');
+    btn.disabled = true;
+    result.innerHTML = '<div class="result-area">Querying FHIR…</div>';
+    try {
+      const r = await fetch('/fhir/orders', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          fhir_base:  document.getElementById('fhir-base').value,
+          key_id:     document.getElementById('fhir-key-id').value,
+          key_secret: document.getElementById('fhir-key-secret').value,
+          status:     document.getElementById('fhir-status').value,
+          modality:   document.getElementById('fhir-modality').value,
+        }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        result.innerHTML = `<div class="result-area" style="color:#dd6666">Error: ${data.error}</div>`;
+      } else if (!data.orders || data.orders.length === 0) {
+        result.innerHTML = `<div class="result-area" style="color:#4a6a8a">No orders found (server total: ${data.total}). Try clearing the Status field.</div>`;
+      } else {
+        const cols = ['status','modality','accession','patient','procedure','occurrence','study_uid','station_aet'];
+        const hdrs = cols.map(c => `<th>${c}</th>`).join('');
+        const rows = data.orders.map(row =>
+          `<tr>${cols.map(c => `<td>${row[c] || ''}</td>`).join('')}</tr>`
+        ).join('');
+        const statusNote = data.statuses_seen && data.statuses_seen.length ? ` — statuses: ${data.statuses_seen.join(', ')}` : '';
+        const rawBlock = data.first_raw
+          ? `<details style="margin-top:8px"><summary style="cursor:pointer;color:#4a7aaa">First ServiceRequest (raw)</summary><pre style="font-size:11px;overflow:auto;max-height:300px">${JSON.stringify(data.first_raw, null, 2)}</pre></details>`
+          : '';
+        const deviceBlock = data.first_device_raw
+          ? `<details style="margin-top:4px"><summary style="cursor:pointer;color:#4a7aaa">First Device/Station (raw)</summary><pre style="font-size:11px;overflow:auto;max-height:300px">${JSON.stringify(data.first_device_raw, null, 2)}</pre></details>`
+          : '';
+        result.innerHTML =
+          `<div style="color:#4caf6a;margin-bottom:6px">Found ${data.orders.length} of ${data.total} orders${statusNote}</div>` +
+          `<table class="mwl-table"><thead><tr>${hdrs}</tr></thead><tbody>${rows}</tbody></table>` + rawBlock + deviceBlock;
+      }
+    } catch(e) {
+      result.innerHTML = `<div class="result-area" style="color:#dd6666">Request failed: ${e.message}</div>`;
+    }
+    btn.disabled = false;
+  }
 </script>
 
 </body>

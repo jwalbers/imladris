@@ -5,6 +5,8 @@ A browser-based modality simulator console.  Shows pending worklist
 entries for this modality and lets a radiology technician simulate
 image acquisition with one click.
 
+Orthanc-free: reads .wl files directly, C-STOREs via pynetdicom.
+
 Routes
 ------
 GET  /                     Worklist page (all modalities)
@@ -15,44 +17,42 @@ GET  /status               JSON health check
 
 Environment
 -----------
-ORTHANC_URL          http://orthanc-modality:8042
-ORTHANC_USER         admin
-ORTHANC_PASSWORD     admin
-XRAY_DIR             /hospital-records/xray
-US_DIR               /hospital-records/ultrasound_cine
+WL_FOLDER            /worklist
+HOSPITAL_RECORDS     /hospital-records
+ADVAPACS_GW_HOST     host.docker.internal
+ADVAPACS_GW_PORT     11112
+ADVAPACS_GW_AE       ADVAPACS_GW
+QURE_HOST            imladris-qure-sim
+QURE_PORT            5252
+QURE_AE              QUREAI
+ENABLE_QURE          true   (set false to skip qure-sim for non-CR acquisitions)
 CONSOLE_PORT         5001
 """
 
-import io
 import logging
 import os
-import random
 from datetime import datetime
 from pathlib import Path
 
 import pydicom
-import requests
 from flask import Flask, jsonify, render_template_string, request, send_file
 from mwl_manager import MwlManager
-from pydicom.dataset import FileDataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
+
+import dicom_client as dc
 
 log = logging.getLogger("console_web")
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-ORTHANC_URL      = os.getenv("ORTHANC_URL",      "http://orthanc-modality:8042")
-ORTHANC_USER     = os.getenv("ORTHANC_USER",     "admin")
-ORTHANC_PASSWORD = os.getenv("ORTHANC_PASSWORD", "admin")
-XRAY_DIR         = Path(os.getenv("XRAY_DIR",    "/hospital-records/xray"))
-US_DIR           = Path(os.getenv("US_DIR",      "/hospital-records/ultrasound_cine"))
-CONSOLE_PORT     = int(os.getenv("CONSOLE_PORT", "5001"))
-INSTITUTION      = os.getenv("INSTITUTION",    "Bophelong MDR-TB Hospital")
-CR_AET           = os.getenv("CR_AET",         "IML_CR_01")
-US_AET           = os.getenv("US_AET",         "IML_US_01")
-WL_FOLDER        = os.getenv("WL_FOLDER",      "/worklist")
+WL_FOLDER    = Path(os.getenv("WL_FOLDER",    "/worklist"))
+CONSOLE_PORT = int(os.getenv("CONSOLE_PORT",  "5001"))
+INSTITUTION  = os.getenv("INSTITUTION",       "Bophelong MDR-TB Hospital")
+CR_AET       = os.getenv("CR_AET",            "IML_CR_01")
+US_AET       = os.getenv("US_AET",            "IML_US_01")
+CT_AET       = os.getenv("CT_AET",            "IML_CT_01")
 
-mwl = MwlManager(WL_FOLDER)
+mwl = MwlManager(str(WL_FOLDER))
 
 MODALITY_LABELS = {
     "CR": "X-Ray",
@@ -73,148 +73,125 @@ def favicon():
 # ── Worklist helpers ──────────────────────────────────────────────────────────
 
 def _get_worklist(modality_filter: str | None = None) -> list[dict]:
-    """Fetch pending worklist entries from Orthanc REST API."""
-    try:
-        r = requests.get(
-            f"{ORTHANC_URL}/worklists",
-            auth=(ORTHANC_USER, ORTHANC_PASSWORD),
-            timeout=5,
-        )
-        r.raise_for_status()
-        items = r.json()
-    except Exception as e:
-        log.warning(f"Worklist fetch failed: {e}")
-        return []
-
+    """Read pending worklist entries directly from .wl files."""
     entries = []
-    for item in items:
-        tags = item.get("Tags", {})
-        sps_list = tags.get("ScheduledProcedureStepSequence", [])
-        sps = sps_list[0] if sps_list else {}
-        mod = sps.get("Modality", "")
+    for wl_file in sorted(WL_FOLDER.glob("*.wl")):
+        try:
+            ds = pydicom.dcmread(str(wl_file), force=True)
+        except Exception as e:
+            log.debug(f"Skipping {wl_file.name}: {e}")
+            continue
+
+        sps_seq = getattr(ds, "ScheduledProcedureStepSequence", [])
+        sps = sps_seq[0] if sps_seq else pydicom.Dataset()
+        mod = str(getattr(sps, "Modality", ""))
         if modality_filter and mod.upper() != modality_filter.upper():
             continue
 
-        raw_date = sps.get("ScheduledProcedureStepStartDate", "")
-        raw_time = sps.get("ScheduledProcedureStepStartTime", "")
+        raw_date = str(getattr(sps, "ScheduledProcedureStepStartDate", ""))
+        raw_time = str(getattr(sps, "ScheduledProcedureStepStartTime", ""))
         try:
             scheduled = datetime.strptime(raw_date, "%Y%m%d").strftime("%Y-%m-%d") if raw_date else ""
         except ValueError:
             scheduled = raw_date
-        # Format HHMMSS → HH:MM
-        try:
-            scheduled_time = raw_time[:2] + ":" + raw_time[2:4] if len(raw_time) >= 4 else raw_time
-        except Exception:
-            scheduled_time = raw_time
-        # ISO-style sortable string for JS sorting
-        order_created_sort = (raw_date + raw_time)[:14]  # YYYYMMDDHHmmss
+        scheduled_time = raw_time[:2] + ":" + raw_time[2:4] if len(raw_time) >= 4 else raw_time
 
         entries.append({
-            "id":               item.get("ID", ""),
-            "patient_name":     tags.get("PatientName", ""),
-            "patient_id":       tags.get("PatientID", ""),
-            "dob":              tags.get("PatientBirthDate", ""),
-            "sex":              tags.get("PatientSex", ""),
-            "accession":        tags.get("AccessionNumber", ""),
-            "procedure":        tags.get("RequestedProcedureDescription", ""),
-            "modality":         mod,
-            "scheduled":        scheduled,
-            "scheduled_time":   scheduled_time,
-            "order_created_sort": order_created_sort,
-            "study_uid":        tags.get("StudyInstanceUID", ""),
+            "id":                 wl_file.stem,
+            "patient_name":       str(getattr(ds, "PatientName", "")).replace("^", " ").strip(),
+            "patient_id":         str(getattr(ds, "PatientID", "")),
+            "dob":                str(getattr(ds, "PatientBirthDate", "")),
+            "sex":                str(getattr(ds, "PatientSex", "")),
+            "accession":          str(getattr(ds, "AccessionNumber", "")),
+            "procedure":          str(getattr(ds, "RequestedProcedureDescription", "")),
+            "modality":           mod,
+            "scheduled":          scheduled,
+            "scheduled_time":     scheduled_time,
+            "order_created_sort": (raw_date + raw_time)[:14],
+            "study_uid":          str(getattr(ds, "StudyInstanceUID", "")),
         })
 
     return entries
 
 
-# ── Image lookup ──────────────────────────────────────────────────────────────
+# ── Acquisition ───────────────────────────────────────────────────────────────
 
-def _find_image(patient_id: str, modality: str) -> Path | None:
-    """Find the best source DICOM for this patient and modality."""
-    if modality.upper() in ("US",):
-        base_dir = US_DIR
-        pattern  = f"CINE_{patient_id}.dcm"
-    else:
-        base_dir = XRAY_DIR
-        pattern  = f"XRAY_{patient_id}.dcm"
-
-    candidate = base_dir / patient_id / pattern
-    if candidate.exists():
-        return candidate
-
-    # Fallback: any image in the modality dir
-    all_files = list(base_dir.glob(f"*/{'CINE' if modality == 'US' else 'XRAY'}_*.dcm"))
-    if all_files:
-        chosen = random.choice(all_files)
-        log.warning(f"No image for {patient_id} — using fallback {chosen.name}")
-        return chosen
-
-    return None
+def _aet_for(modality: str) -> str:
+    return {"US": US_AET, "CT": CT_AET}.get(modality.upper(), CR_AET)
 
 
-# ── DICOM patching ────────────────────────────────────────────────────────────
+def _acquire_and_send(entry: dict) -> dict:
+    """
+    Pull source DICOM from library, patch with MWL demographics,
+    C-STORE primary to AdvaPACS gateway, and (for CR) also to qure-sim
+    so the scp_relay receives the SC and forwards it automatically.
+    """
+    files = dc.find_study_files(entry["patient_id"], entry["modality"])
+    if not files:
+        return {"ok": False, "error": f"No source image for patient {entry['patient_id']} modality {entry['modality']}"}
 
-def _patch_and_upload(entry: dict) -> dict:
-    """Patch source DICOM with MWL demographics and upload to Orthanc."""
-    source = _find_image(entry["patient_id"], entry["modality"])
-    if not source:
-        return {"ok": False, "error": f"No source image found for patient {entry['patient_id']}"}
+    fallback = (files[0].parent.name != entry["patient_id"])
 
-    fallback = (source.parent.name != entry["patient_id"])
-
-    ds = pydicom.dcmread(str(source))
-    now = datetime.now()
+    now      = datetime.now()
     date_str = now.strftime("%Y%m%d")
     time_str = now.strftime("%H%M%S")
-
-    ds.PatientName      = entry["patient_name"]
-    ds.PatientID        = entry["patient_id"]
-    ds.PatientBirthDate = entry.get("dob", "")
-    ds.PatientSex       = entry.get("sex", "")
-
-    ds.StudyInstanceUID     = entry.get("study_uid") or generate_uid()
-    ds.StudyDate            = entry.get("scheduled", "").replace("-", "") or date_str
-    ds.StudyTime            = time_str
-    ds.StudyDescription     = entry.get("procedure", "Radiology Study")
-    ds.AccessionNumber      = entry.get("accession", "")
-
-    ds.SeriesInstanceUID    = generate_uid()
-    ds.SeriesDate           = date_str
-    ds.SeriesTime           = time_str
-    ds.SeriesDescription    = entry.get("procedure", "Radiology Study")
-    ds.SeriesNumber         = "1"
-    ds.SOPInstanceUID       = generate_uid()
-    ds.InstanceNumber       = "1"
-    ds.ContentDate          = date_str
-    ds.ContentTime          = time_str
     modality = entry.get("modality", "CR")
-    ds.Modality             = modality
-    ds.InstitutionName      = INSTITUTION
+    study_uid = entry.get("study_uid") or generate_uid()
 
-    if hasattr(ds, "file_meta"):
-        ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
-        ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
-        ds.file_meta.SourceApplicationEntityTitle = US_AET if modality == "US" else CR_AET
+    patched = []
+    series_uid = generate_uid()
+    for i, path in enumerate(files, start=1):
+        ds = pydicom.dcmread(str(path))
 
-    buf = io.BytesIO()
-    pydicom.dcmwrite(buf, ds)
-    buf.seek(0)
+        ds.PatientName          = entry["patient_name"]
+        ds.PatientID            = entry["patient_id"]
+        ds.PatientBirthDate     = entry.get("dob", "")
+        ds.PatientSex           = entry.get("sex", "")
+        ds.StudyInstanceUID     = study_uid
+        ds.StudyDate            = entry.get("scheduled", "").replace("-", "") or date_str
+        ds.StudyTime            = time_str
+        ds.StudyDescription     = entry.get("procedure", "Radiology Study")
+        ds.AccessionNumber      = entry.get("accession", "")
+        ds.SeriesInstanceUID    = series_uid
+        ds.SeriesDate           = date_str
+        ds.SeriesTime           = time_str
+        ds.SeriesDescription    = entry.get("procedure", "Radiology Study")
+        ds.SeriesNumber         = "1"
+        ds.SOPInstanceUID       = generate_uid()
+        ds.InstanceNumber       = str(i)
+        ds.ContentDate          = date_str
+        ds.ContentTime          = time_str
+        ds.Modality             = modality
+        ds.InstitutionName      = INSTITUTION
 
-    r = requests.post(
-        f"{ORTHANC_URL}/instances",
-        data=buf.read(),
-        headers={"Content-Type": "application/dicom"},
-        auth=(ORTHANC_USER, ORTHANC_PASSWORD),
-        timeout=30,
-    )
-    r.raise_for_status()
-    instance_id = r.json().get("ID", "")
+        if hasattr(ds, "file_meta"):
+            ds.file_meta.MediaStorageSOPInstanceUID = ds.SOPInstanceUID
+            ds.file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+            ds.file_meta.SourceApplicationEntityTitle = _aet_for(modality)
+
+        patched.append(ds)
+
+    calling_ae = _aet_for(modality)
+
+    # Send primary to AdvaPACS gateway
+    sent = dc.cstore_to(patched, dc.ADVAPACS_GW_HOST, dc.ADVAPACS_GW_PORT,
+                        dc.ADVAPACS_GW_AE, calling_ae)
+    log.info(f"Sent {sent}/{len(patched)} instance(s) → AdvaPACS  study={study_uid[:24]}…")
+
+    # For CR: also send to qure-sim; scp_relay will forward the SC to AdvaPACS
+    if modality.upper() in ("CR", "DX") and dc.ENABLE_QURE:
+        try:
+            dc.cstore_to(patched, dc.QURE_HOST, dc.QURE_PORT, dc.QURE_AE, calling_ae)
+            log.info(f"Sent primary → qure-sim; SC will be relayed to AdvaPACS")
+        except Exception as e:
+            log.warning(f"qure-sim send failed (SC skipped): {e}")
 
     return {
-        "ok":          True,
-        "instance_id": instance_id,
-        "source":      source.name,
-        "fallback":    fallback,
+        "ok":       True,
+        "source":   files[0].name,
+        "fallback": fallback,
+        "study_uid": study_uid,
+        "instances": sent,
     }
 
 
@@ -246,7 +223,7 @@ def acquire(accession: str):
         return jsonify({"ok": False, "error": f"Accession {accession} not found in worklist"}), 404
 
     try:
-        result = _patch_and_upload(entry)
+        result = _acquire_and_send(entry)
     except Exception as e:
         log.error(f"Acquire failed for {accession}: {e}", exc_info=True)
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -254,7 +231,7 @@ def acquire(accession: str):
     if result["ok"]:
         log.info(
             f"Acquired: {entry['patient_name']} ({entry['patient_id']}) "
-            f"{entry['procedure']}  instance={result['instance_id']}"
+            f"{entry['procedure']}  instances={result['instances']}  study={result['study_uid'][:24]}…"
         )
     return jsonify(result)
 
@@ -267,13 +244,19 @@ def remove(accession: str):
 
 @app.route("/status")
 def status():
+    import socket
     try:
-        r = requests.get(f"{ORTHANC_URL}/system",
-                         auth=(ORTHANC_USER, ORTHANC_PASSWORD), timeout=3)
-        orthanc_ok = r.status_code == 200
+        s = socket.create_connection((dc.ADVAPACS_GW_HOST, dc.ADVAPACS_GW_PORT), timeout=3)
+        s.close()
+        gw_ok = True
     except Exception:
-        orthanc_ok = False
-    return jsonify({"orthanc": orthanc_ok, "xray_dir": XRAY_DIR.exists(), "us_dir": US_DIR.exists()})
+        gw_ok = False
+    hr = dc.HOSPITAL_RECORDS
+    return jsonify({
+        "advapacs_gateway": gw_ok,
+        "hospital_records": hr.exists(),
+        "wl_count": len(list(WL_FOLDER.glob("*.wl"))),
+    })
 
 
 # ── HTML template ─────────────────────────────────────────────────────────────
@@ -669,7 +652,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
         markAcquired(accession, label);
         const rm = document.getElementById('rm-' + accession);
         if (rm) rm.style.display = 'inline-block';
-        log('✓ ' + accession + ' uploaded  instance=' + data.instance_id, 'ok');
+        log('✓ ' + accession + ' sent  instances=' + data.instances + '  study=' + (data.study_uid || '').slice(0,24), 'ok');
       } else {
         btn.className = 'btn-acquire error';
         btn.textContent = '✗ Failed';

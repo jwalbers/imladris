@@ -125,6 +125,9 @@
     .card-grid-4 {
       grid-template-columns: repeat(4, 1fr);
     }
+    .card-grid-2 {
+      grid-template-columns: repeat(2, 1fr);
+    }
 
     /* ── Service cards ───────────────────────────────────────────────── */
     .card {
@@ -286,7 +289,7 @@
         <div class="card-tag tag-cloud">Cloud PACS</div>
         <div class="card-desc">
           AdvaHealth cloud PACS — evaluation target for production PACS replacement.
-          Studies forwarded here automatically via Orthanc STOW-RS.
+          Studies forwarded here directly via the AdvaPACS gateway.
         </div>
         <a class="card-link external" href="https://pih.advapacs.com" target="_blank">Open AdvaPACS</a>
       </div>
@@ -294,7 +297,7 @@
     </div>
 
     <div class="section-label">Lab Infrastructure</div>
-    <div class="card-grid card-grid-4">
+    <div class="card-grid card-grid-2">
 
       <div class="card">
         <div class="card-icon">📡</div>
@@ -305,28 +308,6 @@
           on the worklist as IML_CR_01 (X-ray) or IML_US_01 (ultrasound).
         </div>
         <a class="card-link" href="https://console.imladrislab.org" target="_blank">Open Console</a>
-      </div>
-
-      <div class="card">
-        <div class="card-icon">🗄️</div>
-        <div class="card-name">Orthanc PACS</div>
-        <div class="card-tag tag-pacs">PACS</div>
-        <div class="card-desc">
-          Local DICOM archive (IML_PACS_01). Receives studies from the modality,
-          serves OHIF via DICOMweb, and forwards to AdvaPACS via STOW-RS.
-        </div>
-        <a class="card-link" href="https://orthanc-p.imladrislab.org" target="_blank">Open Orthanc PACS</a>
-      </div>
-
-      <div class="card">
-        <div class="card-icon">🔬</div>
-        <div class="card-name">Orthanc Modality</div>
-        <div class="card-tag tag-modality">Simulator</div>
-        <div class="card-desc">
-          Simulated DICOM modality (IML_CR_01 / IML_US_01). Hosts the modality
-          worklist and receives acquired studies from the console.
-        </div>
-        <a class="card-link" href="https://orthanc-m.imladrislab.org" target="_blank">Open Orthanc Modality</a>
       </div>
 
       <div class="card">

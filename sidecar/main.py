@@ -1,13 +1,14 @@
 """
 main.py — Imladris sidecar entry point.
 
-Runs four concurrent services:
-  1. Order poller — polls OpenMRS REST API for new radiology orders,
-                    creates DICOM worklist entries (blocking thread)
-  2. Acquisition loop — polls MWL, auto C-STOREs studies to PACS (blocking thread)
-  3. PACS change watcher — watches Orthanc PACS for StableStudy events,
-                           sends HL7 ORU^R01 back to OpenMRS (asyncio)
-  4. Modality console web — Flask UI for rad-tech worklist + image acquisition
+Runs five concurrent services:
+  1. Order poller     — polls OpenMRS REST, sends ORM^O01 to AdvaPACS via MLLP
+  2. FHIR MWL poller  — polls AdvaPACS FHIR ServiceRequest, writes .wl files
+  3. Acquisition loop — polls .wl files, C-STOREs studies to AdvaPACS gateway
+  4. SCP relay        — DICOM C-STORE SCP; relays SC from qure-sim → AdvaPACS
+  5. Console web      — Flask UI for rad-tech worklist + manual image acquisition
+
+  PACS change watcher (HL7 bridge) runs on the main asyncio loop.
 """
 
 import asyncio
@@ -15,9 +16,11 @@ import logging
 import threading
 
 import acquisition_loop
+import fhir_mwl_poller
 import hl7_bridge
 import modality_console_web
 import order_poller
+import scp_relay
 
 logging.basicConfig(
     level=logging.INFO,
@@ -42,7 +45,9 @@ if __name__ == "__main__":
     log.info("Imladris sidecar starting")
 
     _run_in_thread("order-poller",    order_poller.main)
+    _run_in_thread("fhir-mwl",        fhir_mwl_poller.main)
     _run_in_thread("acq-loop",        acquisition_loop.main)
+    _run_in_thread("scp-relay",       scp_relay.main)
     _run_in_thread("console-web",     modality_console_web.main)
 
     # PACS watcher runs on the main thread's asyncio loop
