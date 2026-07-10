@@ -40,6 +40,7 @@ from mwl_manager import MwlManager
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
 import dicom_client as dc
+import acquisition_loop as _acq
 
 log = logging.getLogger("console_web")
 
@@ -99,8 +100,8 @@ def _get_worklist(modality_filter: str | None = None) -> list[dict]:
         _raw_name = str(getattr(ds, "PatientName", ""))
         entries.append({
             "id":                 wl_file.stem,
-            "patient_name":       _raw_name.replace("^", " ").strip(),   # display only
-            "patient_name_dicom": _raw_name,                             # DICOM PN wire format
+            "patient_name":       _raw_name.replace("^", " ").strip(),  # display only
+            "patient_name_dicom": _raw_name,                            # DICOM wire format
             "patient_id":         str(getattr(ds, "PatientID", "")),
             "dob":                str(getattr(ds, "PatientBirthDate", "")),
             "sex":                str(getattr(ds, "PatientSex", "")),
@@ -145,7 +146,7 @@ def _acquire_and_send(entry: dict) -> dict:
     for i, path in enumerate(files, start=1):
         ds = pydicom.dcmread(str(path))
 
-        ds.PatientName          = entry["patient_name"]
+        ds.PatientName          = entry["patient_name_dicom"]
         ds.PatientID            = entry["patient_id"]
         ds.PatientBirthDate     = entry.get("dob", "")
         ds.PatientSex           = entry.get("sex", "")
@@ -224,6 +225,9 @@ def acquire(accession: str):
     if not entry:
         return jsonify({"ok": False, "error": f"Accession {accession} not found in worklist"}), 404
 
+    if accession in _acq._sent:
+        return jsonify({"ok": False, "error": f"Already acquired: {accession}"}), 409
+
     try:
         result = _acquire_and_send(entry)
     except Exception as e:
@@ -235,6 +239,8 @@ def acquire(accession: str):
             f"Acquired: {entry['patient_name']} ({entry['patient_id']}) "
             f"{entry['procedure']}  instances={result['instances']}  study={result['study_uid'][:24]}…"
         )
+        _acq._sent.add(accession)
+        _acq._persist_sent(accession)
     return jsonify(result)
 
 

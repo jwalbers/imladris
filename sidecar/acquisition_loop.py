@@ -30,14 +30,33 @@ ISSUER_OF_PATIENT = os.getenv("DICOM_ISSUER_OF_PATIENT_ID", "")
 CR_AET            = os.getenv("CR_AET", "IML_CR_01")
 US_AET            = os.getenv("US_AET", "IML_US_01")
 CT_AET            = os.getenv("CT_AET", "IML_CT_01")
+SENT_FILE         = os.getenv("ORDER_STATE_FILE", "/data/order_poller_state.json").replace(
+                        "order_poller_state.json", "acquired_accessions.txt"
+                    )
 
 
 def _aet_for(modality: str) -> str:
     return {"US": US_AET, "CT": CT_AET}.get(modality.upper(), CR_AET)
 
 
-# Accessions already imaged this container lifetime — reset on restart.
-_sent: set[str] = set()
+def _load_sent() -> set[str]:
+    try:
+        with open(SENT_FILE) as f:
+            return {line.strip() for line in f if line.strip()}
+    except FileNotFoundError:
+        return set()
+
+
+def _persist_sent(accession: str) -> None:
+    try:
+        with open(SENT_FILE, "a") as f:
+            f.write(accession + "\n")
+    except Exception as e:
+        log.warning(f"Could not persist acquired accession: {e}")
+
+
+# Accessions already imaged — persisted across restarts; shared with web console.
+_sent: set[str] = _load_sent()
 
 
 def run_cycle():
@@ -79,7 +98,7 @@ def run_cycle():
             patched = []
             for i, path in enumerate(files, start=1):
                 ds = pydicom.dcmread(str(path))
-                ds.PatientName       = entry.patient_name
+                ds.PatientName       = entry.patient_name_dicom
                 ds.PatientID         = entry.patient_id
                 ds.PatientBirthDate  = entry.dob.replace("-", "") if entry.dob else ""
                 ds.PatientSex        = entry.sex
@@ -114,6 +133,7 @@ def run_cycle():
                 f"study={study_uid[:24]}…  patient={entry.patient_name}"
             )
             _sent.add(entry.accession)
+            _persist_sent(entry.accession)
 
             if modality.upper() in ("CR", "DX") and dc.ENABLE_QURE:
                 try:

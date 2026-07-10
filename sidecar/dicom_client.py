@@ -50,7 +50,9 @@ class WorklistEntry:
     """Holds the fields of a single MWL C-FIND response item."""
 
     def __init__(self, ds: Dataset):
-        self.patient_name  = str(ds.get("PatientName",  "")).replace("^", " ").strip()
+        _raw_name          = str(ds.get("PatientName",  ""))
+        self.patient_name       = _raw_name.replace("^", " ").strip()  # display / logs
+        self.patient_name_dicom = _raw_name                            # DICOM wire format
         self.patient_id    = str(ds.get("PatientID",    ""))
         self.dob           = _fmt_date(str(ds.get("PatientBirthDate", "")))
         self.sex           = str(ds.get("PatientSex", ""))
