@@ -44,9 +44,12 @@ Then set the AdvaPACS webhook Endpoint URL to the ngrok https:// URL +
 import json
 import logging
 import os
+import threading
 from collections import deque
 from datetime import datetime
 from pathlib import Path
+
+import requests
 
 import pydicom
 from flask import Flask, jsonify, render_template_string, request, send_file
@@ -55,6 +58,7 @@ from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
 import dicom_client as dc
 import acquisition_loop as _acq
+import hl7_bridge
 
 log = logging.getLogger("console_web")
 
@@ -69,7 +73,27 @@ CT_AET       = os.getenv("CT_AET",            "IML_CT_01")
 
 mwl = MwlManager(str(WL_FOLDER))
 
-WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
+WEBHOOK_SECRET  = os.getenv("WEBHOOK_SECRET", "")
+FHIR_BASE_URL   = os.getenv("FHIR_BASE_URL",   "https://usa1.api.integration.advapacs.com/fhir/R5")
+FHIR_KEY_ID     = os.getenv("FHIR_KEY_ID",     "")
+FHIR_KEY_SECRET = os.getenv("FHIR_KEY_SECRET", "")
+
+# Order state label and color per FHIR ServiceRequest status
+_STATUS_META: dict[str, tuple[str, str]] = {
+    "draft":            ("Scheduled",   "#5aafff"),
+    "active":           ("In Progress", "#4dcc70"),
+    "on-hold":          ("On Hold",     "#ffaa44"),
+    "completed":        ("Completed",   "#7a8aaa"),
+    "revoked":          ("Cancelled",   "#ff6666"),
+    "entered-in-error": ("Error",       "#ff4444"),
+    "unknown":          ("Unknown",     "#4a5570"),
+}
+
+_ORDER_STATES_FILE = Path(
+    os.getenv("ORDER_STATE_FILE", "/data/order_poller_state.json")
+).parent / "order_states.json"
+
+_IMAGEABLE_STATUSES = {"draft", "active"}
 
 MODALITY_LABELS = {
     "CR": "X-Ray",
@@ -84,6 +108,23 @@ app = Flask(__name__)
 # Ring buffer of recent AdvaPACS webhook events (survives only until container restart)
 _webhook_events: deque = deque(maxlen=50)
 
+# Order state cache — accession → order info dict; persisted across restarts
+def _load_order_states() -> dict:
+    try:
+        with open(_ORDER_STATES_FILE) as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+def _persist_order_states() -> None:
+    try:
+        with open(_ORDER_STATES_FILE, "w") as f:
+            json.dump(_order_states, f)
+    except Exception as e:
+        log.warning(f"Could not persist order states: {e}")
+
+_order_states: dict = _load_order_states()
+
 
 @app.route('/favicon.ico')
 def favicon():
@@ -93,8 +134,10 @@ def favicon():
 # ── Worklist helpers ──────────────────────────────────────────────────────────
 
 def _get_worklist(modality_filter: str | None = None) -> list[dict]:
-    """Read pending worklist entries directly from .wl files."""
-    entries = []
+    """Return all orders: .wl files merged with _order_states, each with status."""
+    entries: dict[str, dict] = {}
+
+    # --- Primary source: .wl files (authoritative for draft/active orders) ---
     for wl_file in sorted(WL_FOLDER.glob("*.wl")):
         try:
             ds = pydicom.dcmread(str(wl_file), force=True)
@@ -117,23 +160,62 @@ def _get_worklist(modality_filter: str | None = None) -> list[dict]:
         scheduled_time = raw_time[:2] + ":" + raw_time[2:4] if len(raw_time) >= 4 else raw_time
 
         _raw_name = str(getattr(ds, "PatientName", ""))
-        entries.append({
+        acc = str(getattr(ds, "AccessionNumber", ""))
+
+        # Status from webhook cache if present, otherwise assume draft
+        state = _order_states.get(acc, {})
+        status = state.get("status", "draft")
+        status_label, status_color = _STATUS_META.get(status, ("Scheduled", "#5aafff"))
+
+        entries[acc] = {
             "id":                 wl_file.stem,
-            "patient_name":       _raw_name.replace("^", " ").strip(),  # display only
-            "patient_name_dicom": _raw_name,                            # DICOM wire format
+            "patient_name":       _raw_name.replace("^", " ").strip(),
+            "patient_name_dicom": _raw_name,
             "patient_id":         str(getattr(ds, "PatientID", "")),
             "dob":                str(getattr(ds, "PatientBirthDate", "")),
             "sex":                str(getattr(ds, "PatientSex", "")),
-            "accession":          str(getattr(ds, "AccessionNumber", "")),
+            "accession":          acc,
             "procedure":          str(getattr(ds, "RequestedProcedureDescription", "")),
             "modality":           mod,
             "scheduled":          scheduled,
             "scheduled_time":     scheduled_time,
             "order_created_sort": (raw_date + raw_time)[:14],
             "study_uid":          str(getattr(ds, "StudyInstanceUID", "")),
-        })
+            "status":             status,
+            "status_label":       status_label,
+            "status_color":       status_color,
+        }
 
-    return entries
+    # --- Secondary source: webhook state cache (completed/revoked/on-hold not in .wl) ---
+    for acc, state in _order_states.items():
+        if acc in entries:
+            continue  # already covered by .wl file above
+        if modality_filter and state.get("modality", "").upper() != modality_filter.upper():
+            continue
+        status = state.get("status", "unknown")
+        status_label, status_color = _STATUS_META.get(status, ("Unknown", "#4a5570"))
+        updated = state.get("updated_at", "")
+        sort_key = updated[:16].replace("-", "").replace("T", "").replace(":", "")
+        entries[acc] = {
+            "id":                 acc,
+            "patient_name":       state.get("patient_name", ""),
+            "patient_name_dicom": state.get("patient_name_dicom", ""),
+            "patient_id":         state.get("patient_id", ""),
+            "dob":                "",
+            "sex":                "",
+            "accession":          acc,
+            "procedure":          state.get("procedure", ""),
+            "modality":           state.get("modality", ""),
+            "scheduled":          "",
+            "scheduled_time":     "",
+            "order_created_sort": sort_key,
+            "study_uid":          "",
+            "status":             status,
+            "status_label":       status_label,
+            "status_color":       status_color,
+        }
+
+    return list(entries.values())
 
 
 # ── Acquisition ───────────────────────────────────────────────────────────────
@@ -286,6 +368,123 @@ def status():
     })
 
 
+# ── AdvaPACS order event handler ─────────────────────────────────────────────
+
+def _fhir_auth() -> dict:
+    return {"Authorization": f"ID={FHIR_KEY_ID},Secret={FHIR_KEY_SECRET}",
+            "Accept": "application/fhir+json"}
+
+def _guess_modality(text: str) -> str:
+    t = text.lower()
+    for kw, code in [("ultrasound","US"),("echo","US"),("ct ","CT"),(" ct","CT"),
+                     ("computed","CT"),("mri","MR"),("magnetic","MR"),("fluoro","RF")]:
+        if kw in t:
+            return code
+    return "CR"
+
+
+def _fetch_and_handle_sr(sr_id: str, event_type: str):
+    """Fetch ServiceRequest from AdvaPACS FHIR; update order_states; ORU if completed."""
+    try:
+        base = FHIR_BASE_URL.rstrip("/")
+        auth = _fhir_auth()
+
+        r = requests.get(f"{base}/ServiceRequest/{sr_id}", headers=auth, timeout=10)
+        r.raise_for_status()
+        sr = r.json()
+
+        status = sr.get("status", "unknown")
+        log.info(f"{event_type} {sr_id}: status={status}")
+
+        # Accession number
+        accession = next(
+            (i.get("value", "") for i in sr.get("identifier", [])
+             if "accession" in i.get("system", "").lower()),
+            sr.get("identifier", [{}])[0].get("value", sr_id[:8])
+        )
+
+        # Procedure description
+        code      = sr.get("code", {})
+        procedure = (code.get("text") or
+                     next((c.get("display","") for c in code.get("coding",[])), "") or
+                     "Radiology Study")
+
+        # Modality — try orderDetail coding first, fall back to keyword guess
+        modality = ""
+        for od in sr.get("orderDetail", []):
+            for param in od.get("parameter", []):
+                val = param.get("valueCoding", {})
+                code_val = val.get("code", "")
+                if code_val.upper() in {"CR","DX","CT","MR","US","RF","NM","PT","MG","XA"}:
+                    modality = code_val.upper()
+                    break
+        if not modality:
+            modality = _guess_modality(procedure)
+
+        # Patient details via subject reference
+        patient_id = patient_name = patient_name_dicom = ""
+        subject_ref = sr.get("subject", {}).get("reference", "")
+        if subject_ref:
+            pr = requests.get(f"{base}/{subject_ref.lstrip('/')}", headers=auth, timeout=10)
+            if pr.ok:
+                patient = pr.json()
+                patient_id = next(
+                    (i.get("value","") for i in patient.get("identifier",[])
+                     if i.get("system") == "http://openmrs.org/identifier"),
+                    ""
+                )
+                names  = patient.get("name", [{}])
+                n      = names[0] if names else {}
+                family = n.get("family", "")
+                given  = " ".join(n.get("given", []))
+                patient_name_dicom = f"{family}^{given}" if given else family
+                patient_name = patient_name_dicom.replace("^", " ").strip()
+
+        # Update persistent order state cache
+        _order_states[accession] = {
+            "accession":          accession,
+            "sr_id":              sr_id,
+            "patient_id":         patient_id,
+            "patient_name":       patient_name,
+            "patient_name_dicom": patient_name_dicom,
+            "procedure":          procedure,
+            "modality":           modality,
+            "status":             status,
+            "updated_at":         datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        _persist_order_states()
+        log.info(f"Order state: accession={accession} patient={patient_id} status={status}")
+
+        # Send ORU^R01 to OpenMRS when study is complete
+        if status == "completed":
+            now = datetime.now()
+            oru = hl7_bridge._build_oru(
+                patient_id=patient_id,
+                patient_name=patient_name_dicom,
+                accession=accession,
+                procedure_desc=procedure,
+                modality=modality or "OT",
+                study_uid="",
+                study_date=now.strftime("%Y%m%d"),
+                study_time=now.strftime("%H%M%S"),
+            )
+            log.info(f"Sending ORU^R01: accession={accession} patient={patient_id}")
+            hl7_bridge._send_hl7_rest(oru)
+
+    except Exception as e:
+        log.error(f"Order event handler failed for {sr_id}: {e}", exc_info=True)
+
+
+def _handle_order_event(event_type: str, payload: dict):
+    sr_id = payload.get("data", {}).get("id")
+    if not sr_id:
+        log.warning(f"Webhook {event_type}: missing data.id")
+        return
+    threading.Thread(
+        target=_fetch_and_handle_sr, args=(sr_id, event_type), daemon=True
+    ).start()
+
+
 # ── Webhook routes ────────────────────────────────────────────────────────────
 
 @app.route("/webhook/advapacs", methods=["POST"])
@@ -309,8 +508,11 @@ def webhook_advapacs():
         "payload":    payload,
     }
     _webhook_events.appendleft(event)
-
     log.info(f"Webhook received: {event_type}  src={request.remote_addr}  payload={json.dumps(payload)[:200]}")
+
+    if event_type in ("ORDER_CREATED", "ORDER_UPDATED"):
+        _handle_order_event(event_type, payload)
+
     return jsonify({"ok": True}), 200
 
 
@@ -445,6 +647,29 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
     .badge-CT { background: #3a2010; color: #ffaa44; }
     .badge-MR { background: #2a1a3a; color: #bb77ff; }
 
+    .status-badge {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 3px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      background: rgba(255,255,255,0.07);
+    }
+
+    .btn-filter {
+      background: none;
+      border: 1px solid #2a4a7a;
+      color: #7a8aaa;
+      padding: 4px 14px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      margin-left: 6px;
+    }
+    .btn-filter:hover { background: #1e253a; color: #c0cce8; }
+    .btn-filter.active-filter { border-color: #5aafff; color: #5aafff; background: #1a3a6a; }
+
     .btn-acquire {
       background: #155a28;
       color: #4dcc70;
@@ -531,7 +756,8 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
 <main>
   <div class="worklist-header">
     <h2>Scheduled Exams — Modality Worklist</h2>
-    <span class="count">{{ entries|length }} pending</span>
+    <span class="count" id="order-count">{{ entries|length }} orders</span>
+    <button class="btn-filter active-filter" id="filter-btn" onclick="toggleFilter()">Active Orders</button>
     <button class="refresh-btn" onclick="location.reload()">⟳ Refresh</button>
   </div>
 
@@ -545,18 +771,21 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
         <th class="sortable" data-col="3">Procedure <i class="sort-icon"></i></th>
         <th class="sortable desc" data-col="4">Order Created <i class="sort-icon"></i></th>
         <th class="sortable" data-col="5">Accession <i class="sort-icon"></i></th>
+        <th class="sortable" data-col="6">Status <i class="sort-icon"></i></th>
         <th>Action</th>
       </tr>
     </thead>
     <tbody>
     {% for e in entries %}
       <tr id="row-{{ e.accession }}"
+          data-status="{{ e.status }}"
           data-col0="{{ e.patient_name }}"
           data-col1="{{ e.patient_id }}"
           data-col2="{{ e.modality }}"
           data-col3="{{ e.procedure }}"
           data-col4="{{ e.order_created_sort }}"
-          data-col5="{{ e.accession }}">
+          data-col5="{{ e.accession }}"
+          data-col6="{{ e.status_label }}">
         <td>{{ e.patient_name or '—' }}</td>
         <td class="muted">{{ e.patient_id }}</td>
         <td>
@@ -566,11 +795,18 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
         <td class="muted">{{ e.scheduled }}{% if e.scheduled_time %} {{ e.scheduled_time }}{% endif %}</td>
         <td class="muted" style="font-size:0.75rem">{{ e.accession }}</td>
         <td>
+          <span class="status-badge" style="color: {{ e.status_color }}">{{ e.status_label }}</span>
+        </td>
+        <td>
+          {% if e.status in ('draft', 'active') %}
           <button
             class="btn-acquire"
             id="btn-{{ e.accession }}"
             onclick="acquire('{{ e.accession }}', '{{ e.modality }}')"
-          >Image the Patient</button>
+          >Image Patient</button>
+          {% else %}
+          <button class="btn-acquire" id="btn-{{ e.accession }}" disabled>Image Patient</button>
+          {% endif %}
           <button
             class="btn-remove"
             id="rm-{{ e.accession }}"
@@ -585,7 +821,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
   {% else %}
   <div class="empty-state">
     <div class="icon">📋</div>
-    <p>No pending worklist entries{% if modality %} for modality <strong>{{ modality }}</strong>{% endif %}.</p>
+    <p>No orders{% if modality %} for modality <strong>{{ modality }}</strong>{% endif %}.</p>
   </div>
   {% endif %}
 
@@ -596,6 +832,36 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
 </main>
 
 <script>
+  // Active/All filter
+  const ACTIVE_STATUSES = new Set(['draft', 'active']);
+  let filterActive = true;
+
+  function filterRows() {
+    const table = document.getElementById('wl-table');
+    if (!table) return;
+    let visible = 0;
+    Array.from(table.tBodies[0].rows).forEach(r => {
+      const show = !filterActive || ACTIVE_STATUSES.has(r.dataset.status);
+      r.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    const total = table.tBodies[0].rows.length;
+    const countEl = document.getElementById('order-count');
+    if (countEl) countEl.textContent = filterActive
+      ? visible + ' active order' + (visible !== 1 ? 's' : '')
+      : total + ' order' + (total !== 1 ? 's' : '');
+  }
+
+  function toggleFilter() {
+    filterActive = !filterActive;
+    const btn = document.getElementById('filter-btn');
+    if (btn) {
+      btn.textContent = filterActive ? 'Active Orders' : 'All Orders';
+      btn.classList.toggle('active-filter', filterActive);
+    }
+    filterRows();
+  }
+
   // Table sort
   (function() {
     const table = document.getElementById('wl-table');
@@ -633,6 +899,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
 
     // Apply initial sort (Order Created desc)
     sortTable(4);
+    filterRows();
   })();
 
   // Persist acquired state across tab switches via localStorage
