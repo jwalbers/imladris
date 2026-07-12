@@ -14,6 +14,9 @@ GET  /?modality=CR         Filtered to X-ray / CR items only
 GET  /?modality=US         Filtered to Ultrasound items only
 POST /acquire/<accession>  Simulate acquisition for one worklist item
 GET  /status               JSON health check
+POST /webhook/advapacs     AdvaPACS outbound webhook receiver
+GET  /events               Webhook event log page
+GET  /events/json          Recent webhook events as JSON (for polling)
 
 Environment
 -----------
@@ -27,10 +30,21 @@ QURE_PORT            5252
 QURE_AE              QUREAI
 ENABLE_QURE          true   (set false to skip qure-sim for non-CR acquisitions)
 CONSOLE_PORT         5001
+WEBHOOK_SECRET       (optional) bearer token AdvaPACS sends in Authorization header
+
+Network note
+------------
+AdvaPACS cloud cannot reach host.docker.internal directly.  To receive webhooks,
+expose port 5001 via ngrok on BESSIE:
+    ngrok http 5001
+Then set the AdvaPACS webhook Endpoint URL to the ngrok https:// URL +
+/webhook/advapacs  (e.g. https://abc123.ngrok.io/webhook/advapacs).
 """
 
+import json
 import logging
 import os
+from collections import deque
 from datetime import datetime
 from pathlib import Path
 
@@ -55,6 +69,8 @@ CT_AET       = os.getenv("CT_AET",            "IML_CT_01")
 
 mwl = MwlManager(str(WL_FOLDER))
 
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
+
 MODALITY_LABELS = {
     "CR": "X-Ray",
     "DX": "X-Ray",
@@ -64,6 +80,9 @@ MODALITY_LABELS = {
 }
 
 app = Flask(__name__)
+
+# Ring buffer of recent AdvaPACS webhook events (survives only until container restart)
+_webhook_events: deque = deque(maxlen=50)
 
 
 @app.route('/favicon.ico')
@@ -267,6 +286,44 @@ def status():
     })
 
 
+# ── Webhook routes ────────────────────────────────────────────────────────────
+
+@app.route("/webhook/advapacs", methods=["POST"])
+def webhook_advapacs():
+    if WEBHOOK_SECRET:
+        auth = request.headers.get("Authorization", "")
+        if auth != f"Bearer {WEBHOOK_SECRET}":
+            return jsonify({"error": "Unauthorized"}), 401
+
+    try:
+        payload = request.get_json(force=True, silent=True) or {}
+    except Exception:
+        payload = {}
+
+    event_type = payload.get("eventType") or payload.get("event") or "unknown"
+    received_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    event = {
+        "receivedAt": received_at,
+        "eventType":  event_type,
+        "payload":    payload,
+    }
+    _webhook_events.appendleft(event)
+
+    log.info(f"Webhook received: {event_type}  src={request.remote_addr}  payload={json.dumps(payload)[:200]}")
+    return jsonify({"ok": True}), 200
+
+
+@app.route("/events/json")
+def events_json():
+    return jsonify(list(_webhook_events))
+
+
+@app.route("/events")
+def events_page():
+    return render_template_string(_EVENTS_TEMPLATE)
+
+
 # ── HTML template ─────────────────────────────────────────────────────────────
 
 _HTML_TEMPLATE = """<!DOCTYPE html>
@@ -468,6 +525,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
   <a href="/?modality=CR" class="{{ 'active' if modality == 'CR' else '' }}">X-Ray (CR)</a>
   <a href="/?modality=US" class="{{ 'active' if modality == 'US' else '' }}">Ultrasound (US)</a>
   <a href="/?modality=CT" class="{{ 'active' if modality == 'CT' else '' }}">CT</a>
+  <a href="/events" style="margin-left:auto">Events</a>
 </nav>
 
 <main>
@@ -678,6 +736,121 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
       log('✗ Network error: ' + err, 'error');
     }
   }
+</script>
+</body>
+</html>
+"""
+
+
+# ── Events page template ──────────────────────────────────────────────────────
+
+_EVENTS_TEMPLATE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bophelong — AdvaPACS Events</title>
+  <link rel="icon" href="/favicon.ico">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #1a1f2e; color: #e0e4ef; min-height: 100vh; }
+    header { background: #0d111d; border-bottom: 2px solid #2a7fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; }
+    header .title { font-size: 1.25rem; font-weight: 600; color: #fff; letter-spacing: 0.04em; }
+    header .subtitle { font-size: 0.8rem; color: #7a8aaa; margin-top: 2px; }
+    nav { background: #141829; padding: 10px 24px; display: flex; gap: 8px; border-bottom: 1px solid #252d45; }
+    nav a { color: #7a8aaa; text-decoration: none; padding: 5px 14px; border-radius: 4px; font-size: 0.85rem; border: 1px solid #252d45; }
+    nav a:hover { background: #1e253a; color: #c0cce8; }
+    nav a.active { background: #1a3a6a; color: #5aafff; border-color: #2a7fff; }
+    main { padding: 20px 24px; }
+    .page-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+    .page-header h2 { font-size: 1rem; font-weight: 600; color: #c0cce8; }
+    .badge-count { font-size: 0.8rem; color: #7a8aaa; background: #1e253a; padding: 2px 8px; border-radius: 10px; }
+    .hint { font-size: 0.78rem; color: #4a5570; margin-bottom: 16px; }
+    .hint code { color: #5aafff; background: #0d111d; padding: 1px 5px; border-radius: 3px; }
+    .event-card { background: #141829; border: 1px solid #252d45; border-radius: 6px; margin-bottom: 10px; overflow: hidden; }
+    .event-card.order   { border-left: 3px solid #5aafff; }
+    .event-card.report  { border-left: 3px solid #4dcc70; }
+    .event-card.study   { border-left: 3px solid #ffaa44; }
+    .event-card.patient { border-left: 3px solid #bb77ff; }
+    .event-card.unknown { border-left: 3px solid #4a5570; }
+    .card-header { padding: 10px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .card-header:hover { background: #1a2035; }
+    .event-type { font-weight: 600; font-size: 0.85rem; color: #c0cce8; }
+    .event-time { font-size: 0.75rem; color: #4a5570; margin-left: auto; }
+    .card-body { display: none; padding: 0 14px 12px; }
+    .card-body pre { font-size: 0.75rem; color: #6a8aaa; background: #0d111d; padding: 10px; border-radius: 4px; overflow-x: auto; white-space: pre-wrap; }
+    .empty { text-align: center; padding: 48px; color: #4a5570; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <div class="title">Bophelong Hospital — AdvaPACS Events</div>
+    <div class="subtitle">Imladris Virtual Integration Lab — webhook receiver</div>
+  </div>
+</header>
+<nav>
+  <a href="/">All</a>
+  <a href="/?modality=CR">X-Ray (CR)</a>
+  <a href="/?modality=US">Ultrasound (US)</a>
+  <a href="/?modality=CT">CT</a>
+  <a href="/events" class="active" style="margin-left:auto">Events</a>
+</nav>
+<main>
+  <div class="page-header">
+    <h2>AdvaPACS Webhook Events</h2>
+    <span class="badge-count" id="count">0 events</span>
+  </div>
+  <p class="hint">
+    Webhook endpoint: <code>POST /webhook/advapacs</code> &nbsp;·&nbsp;
+    Auto-refreshes every 5 seconds &nbsp;·&nbsp;
+    Last 50 events (in-memory, resets on container restart)
+  </p>
+  <div id="events-container"><div class="empty">No events received yet.</div></div>
+</main>
+<script>
+  function colorClass(eventType) {
+    const t = (eventType || '').toLowerCase();
+    if (t.includes('order'))   return 'order';
+    if (t.includes('report'))  return 'report';
+    if (t.includes('study'))   return 'study';
+    if (t.includes('patient')) return 'patient';
+    return 'unknown';
+  }
+
+  function toggleBody(id) {
+    const el = document.getElementById('body-' + id);
+    if (el) el.style.display = el.style.display === 'block' ? 'none' : 'block';
+  }
+
+  async function refresh() {
+    try {
+      const resp = await fetch('/events/json');
+      const events = await resp.json();
+      const container = document.getElementById('events-container');
+      document.getElementById('count').textContent = events.length + ' event' + (events.length !== 1 ? 's' : '');
+      if (events.length === 0) {
+        container.innerHTML = '<div class="empty">No events received yet.</div>';
+        return;
+      }
+      container.innerHTML = events.map((e, i) => `
+        <div class="event-card ${colorClass(e.eventType)}">
+          <div class="card-header" onclick="toggleBody(${i})">
+            <span class="event-type">${e.eventType || 'unknown'}</span>
+            <span class="event-time">${e.receivedAt}</span>
+          </div>
+          <div class="card-body" id="body-${i}">
+            <pre>${JSON.stringify(e.payload, null, 2)}</pre>
+          </div>
+        </div>
+      `).join('');
+    } catch(err) {
+      console.error('Refresh failed:', err);
+    }
+  }
+
+  refresh();
+  setInterval(refresh, 5000);
 </script>
 </body>
 </html>

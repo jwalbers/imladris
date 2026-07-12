@@ -294,6 +294,8 @@ services:
       FHIR_KEY_ID: ${ADVAPACS_KEY_ID:-}
       FHIR_KEY_SECRET: ${ADVAPACS_SECRET:-}
       FHIR_POLL_SEC: 30
+      # AdvaPACS webhook receiver (POST /webhook/advapacs)
+      WEBHOOK_SECRET: ${ADVAPACS_WEBHOOK_SECRET:-}
     networks:
       - imladris
     profiles:
