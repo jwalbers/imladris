@@ -80,8 +80,8 @@ FHIR_KEY_SECRET = os.getenv("FHIR_KEY_SECRET", "")
 
 # Order state label and color per FHIR ServiceRequest status
 _STATUS_META: dict[str, tuple[str, str]] = {
-    "draft":            ("Scheduled",   "#5aafff"),
-    "active":           ("In Progress", "#4dcc70"),
+    "draft":            ("Pending Review", "#5aafff"),
+    "active":           ("Approved",      "#4dcc70"),
     "on-hold":          ("On Hold",     "#ffaa44"),
     "completed":        ("Completed",   "#7a8aaa"),
     "revoked":          ("Cancelled",   "#ff6666"),
@@ -93,7 +93,7 @@ _ORDER_STATES_FILE = Path(
     os.getenv("ORDER_STATE_FILE", "/data/order_poller_state.json")
 ).parent / "order_states.json"
 
-_IMAGEABLE_STATUSES = {"draft", "active"}
+_IMAGEABLE_STATUSES = {"active"}
 
 MODALITY_LABELS = {
     "CR": "X-Ray",
@@ -165,7 +165,7 @@ def _get_worklist(modality_filter: str | None = None) -> list[dict]:
         # Status from webhook cache if present, otherwise assume draft
         state = _order_states.get(acc, {})
         status = state.get("status", "draft")
-        status_label, status_color = _STATUS_META.get(status, ("Scheduled", "#5aafff"))
+        status_label, status_color = _STATUS_META.get(status, ("Pending Review", "#5aafff"))
 
         entries[acc] = {
             "id":                 wl_file.stem,
@@ -798,7 +798,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
           <span class="status-badge" style="color: {{ e.status_color }}">{{ e.status_label }}</span>
         </td>
         <td>
-          {% if e.status in ('draft', 'active') %}
+          {% if e.status == 'active' %}
           <button
             class="btn-acquire"
             id="btn-{{ e.accession }}"
