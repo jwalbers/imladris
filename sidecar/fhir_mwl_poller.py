@@ -1,9 +1,9 @@
 """
 fhir_mwl_poller.py — Synthesizes DICOM MWL from AdvaPACS FHIR ServiceRequests.
 
-Periodically queries AdvaPACS FHIR R5 for status=draft ServiceRequests and
+Periodically queries AdvaPACS FHIR R5 for status=draft,active ServiceRequests and
 writes one .wl file per order into the shared worklist folder.  When an order
-leaves draft status (acquired, cancelled) the corresponding .wl file is removed.
+leaves draft/active status (completed, cancelled) the corresponding .wl file is removed.
 
 The study UID from the FHIR ServiceRequest (sent via ZDS in the original ORM)
 is written into StudyInstanceUID so that the modality tags acquired DICOM with
@@ -169,7 +169,7 @@ def _poll_once(
     """
     url = f"{FHIR_BASE_URL.rstrip('/')}/ServiceRequest"
     try:
-        r = client.get(url, params={"status": "draft", "_count": "200"},
+        r = client.get(url, params={"status": "draft,active", "_count": "200"},
                        headers=_auth_headers(), timeout=15)
         if r.status_code != 200:
             log.error(f"FHIR query failed: HTTP {r.status_code}: {r.text[:200]}")
@@ -275,9 +275,9 @@ def _poll_once(
             study_uid=study_uid,
         )
 
-    # Remove .wl files for orders we own that are no longer draft
+    # Remove .wl files for orders we own that are no longer draft or active
     for acc in owned - current:
-        log.info(f"FHIR order no longer draft — removing MWL: {acc}")
+        log.info(f"FHIR order no longer draft/active — removing MWL: {acc}")
         mwl.delete(acc)
 
     if current != owned:
