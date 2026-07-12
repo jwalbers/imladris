@@ -249,9 +249,9 @@ def _poll_once(
         if not patient_id:
             patient_id = subj_ref.split("/")[-1]   # fallback: FHIR UUID
 
-        # Scheduled date/time from occurrenceDateTime
+        # Scheduled date/time: prefer occurrenceDateTime, fall back to authoredOn
         scheduled_date = scheduled_time = None
-        occurrence = sr.get("occurrenceDateTime", "")
+        occurrence = sr.get("occurrenceDateTime", "") or sr.get("authoredOn", "")
         if occurrence:
             clean = (occurrence.replace("-", "").replace(":", "")
                                .replace("T", "").split("+")[0].split("Z")[0])
