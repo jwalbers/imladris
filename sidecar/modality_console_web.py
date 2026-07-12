@@ -201,8 +201,8 @@ def _get_worklist(modality_filter: str | None = None) -> list[dict]:
             "patient_name":       state.get("patient_name", ""),
             "patient_name_dicom": state.get("patient_name_dicom", ""),
             "patient_id":         state.get("patient_id", ""),
-            "dob":                "",
-            "sex":                "",
+            "dob":                state.get("patient_dob", ""),
+            "sex":                state.get("patient_sex", ""),
             "accession":          acc,
             "procedure":          state.get("procedure", ""),
             "modality":           state.get("modality", ""),
@@ -422,7 +422,7 @@ def _fetch_and_handle_sr(sr_id: str, event_type: str):
             modality = _guess_modality(procedure)
 
         # Patient details via subject reference
-        patient_id = patient_name = patient_name_dicom = ""
+        patient_id = patient_name = patient_name_dicom = dob = sex = ""
         subject_ref = sr.get("subject", {}).get("reference", "")
         if subject_ref:
             pr = requests.get(f"{base}/{subject_ref.lstrip('/')}", headers=auth, timeout=10)
@@ -439,6 +439,9 @@ def _fetch_and_handle_sr(sr_id: str, event_type: str):
                 given  = " ".join(n.get("given", []))
                 patient_name_dicom = f"{family}^{given}" if given else family
                 patient_name = patient_name_dicom.replace("^", " ").strip()
+                dob = patient.get("birthDate", "").replace("-", "")[:8]
+                sex = {"male": "M", "female": "F", "other": "O"}.get(
+                    patient.get("gender", "").lower(), "")
 
         # Update persistent order state cache
         _order_states[accession] = {
@@ -447,6 +450,8 @@ def _fetch_and_handle_sr(sr_id: str, event_type: str):
             "patient_id":         patient_id,
             "patient_name":       patient_name,
             "patient_name_dicom": patient_name_dicom,
+            "patient_dob":        dob,
+            "patient_sex":        sex,
             "procedure":          procedure,
             "modality":           modality,
             "status":             status,
