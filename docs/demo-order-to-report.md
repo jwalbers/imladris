@@ -35,7 +35,8 @@ docker compose --profile full up -d   # from imladris/docker/ap-qs/
 | AdvaPACS FHIR webhook | https://console.imladrislab.org/events | Events page accessible |
 
 Confirm the patient **Thabo Tau** exists in both OpenMRS and AdvaPACS
-(seeded via `seed_patients.py`).
+(seeded via `seed_patients.py`). Confirm Thabo Tau's DOB and sex are populated
+in AdvaPACS — the DICOM validation check will reject the study otherwise.
 
 ---
 
@@ -74,7 +75,7 @@ Confirm the patient **Thabo Tau** exists in both OpenMRS and AdvaPACS
 1. Open AdvaPACS Orders list.
 2. Find the new order for Thabo Tau (status shown as **Draft** in AdvaPACS UI).
 3. Open the order, review procedure and patient demographics.
-4. Change status to **Scheduled** (AdvaPACS term for FHIR `active`).
+4. Change status to **In Progress** (AdvaPACS term for FHIR `active`).
 5. Save.
 
 **What happens (automated, ~2 sec):**
@@ -87,9 +88,9 @@ Confirm the patient **Thabo Tau** exists in both OpenMRS and AdvaPACS
 - Image Patient button is now **active** (green, clickable).
 - Events page shows the ORDER_UPDATED event.
 
-> **Terminology note:** AdvaPACS calls this state "Scheduled"; our console calls it
+> **Terminology note:** AdvaPACS calls this state "In Progress"; our console calls it
 > "Approved." Both refer to FHIR `active` — the order has been clinically cleared for
-> imaging. We can align the label to "Scheduled" if that matches site preference.
+> imaging. We can align the label if the site team prefers "In Progress."
 
 > **Talking point:** No one had to call the X-ray room. The badge changed the moment
 > Dr. Yonathan clicked Save in AdvaPACS. Mr. Mohapi sees it immediately on the console.
@@ -104,19 +105,18 @@ Confirm the patient **Thabo Tau** exists in both OpenMRS and AdvaPACS
 2. Verify patient name, ID, and procedure match the request form (manual ID check).
 3. Click **Image Patient**.
 
-> **5A — Rad tech QA step (current gap):**
-> In a real workflow there is typically a QA/verification step here:
-> the radiographer confirms patient identity at the machine, checks the image
-> for diagnostic quality, and only then releases to the radiologist's worklist.
-> Currently the Image Patient button is the implied go-ahead — no separate QA
-> confirmation is modelled. This is a deliberate simplification for the lab;
-> the site team should advise whether an explicit "Accept image quality" step
-> is needed in the production flow.
+> **Rad tech QA note:**
+> In a real workflow the radiographer confirms patient identity at the machine and
+> checks image quality before releasing to the radiologist. Currently the Image Patient
+> button press is the implied go-ahead. The site team should advise whether an explicit
+> "Accept image quality" confirmation step is needed in the production flow.
+> Note: AdvaPACS does not auto-close the order on study receipt (see Step 4), so
+> there is a natural human QA gate before completion is recorded.
 
 **What happens (automated):**
 - Sidecar pulls the source DICOM from the Bophelong patient library for Thabo Tau.
 - Demographics and accession number are patched onto the DICOM dataset.
-- Study (1 series, typically 2 instances for CXR) is C-STOREd to the AdvaPACS gateway.
+- Study (1 series, typically 1–2 instances for CXR) is C-STOREd to the AdvaPACS gateway.
 - Because modality is CR: study is **also** sent to Qure.ai simulator (`QUREAI` AE).
 - Qure.ai simulator attaches a **Secondary Capture** (annotated overlay image) and
   sends it back to the sidecar's SCP relay.
@@ -126,40 +126,42 @@ Confirm the patient **Thabo Tau** exists in both OpenMRS and AdvaPACS
 **What to show the audience:**
 - Console button cycles: "Acquiring…" → "✓ Acquired".
 - Open AdvaPACS study list → Thabo Tau's study appears with primary CR and Qure.ai SC.
+- Modality console badge remains **Approved** — order is not yet closed (by design).
 
 > **Talking point:** The AI analysis runs in parallel with no radiographer action.
 > Dr. Yonathan will see the Qure.ai overlay automatically when opening the study.
 
 ---
 
-## Step 4 — Order marked completed; ORU sent to OpenMRS
+## Step 4 — Radiologist accepts study; order marked completed
 
-**What should happen (automated):**
-- On study receipt, AdvaPACS may automatically transition the ServiceRequest to
-  `status=completed` and fire an **ORDER_UPDATED** webhook.
-- Sidecar receives the webhook → confirms `status=completed` → sends **ORU^R01** to
-  OpenMRS HL7 port 8066.
-- OpenMRS marks the radiology order as fulfilled; result appears on the patient chart.
+**Confirmed behaviour (tested 2026-07-12):**
+AdvaPACS does **not** automatically transition the ServiceRequest to `completed` when
+a study is received. The order stays **In Progress / Approved** until a human action
+in AdvaPACS closes it. This is clinically correct — it provides a natural QA gate
+between imaging and reporting.
 
-> **Known gap — AdvaPACS auto-completion:**
-> It is **not yet confirmed** whether AdvaPACS automatically sets ServiceRequest status
-> to `completed` when a matching study (by AccessionNumber) is received.
-> If it does not:
-> - The order will remain **Approved** on the modality console (Image Patient stays
->   enabled, which is a problem).
-> - The ORU^R01 to OpenMRS will not fire.
-> - Workaround: manually change the order to Completed in AdvaPACS UI, which will
->   trigger the webhook and resolve both issues.
->
-> **Action item:** Verify auto-completion behaviour during this demo run.
-> If AdvaPACS does not complete automatically, we need to either:
-> (a) ask AdvaPACS support whether it can be configured to do so, or
-> (b) build a study-received → complete-order step into the sidecar.
+**Actor:** Dr. Yonathan in AdvaPACS, after verifying the images are acceptable.
 
-**What to show the audience (if auto-completion fires):**
+1. Open the order in AdvaPACS.
+2. Confirm images are present and of diagnostic quality.
+3. Change order status to **Complete**.
+4. Save.
+
+**What happens (automated, ~2 sec):**
+- AdvaPACS fires **ORDER_UPDATED** webhook (`status=completed`).
+- Sidecar receives webhook → fetches ServiceRequest → confirms `status=completed`.
+- Sidecar sends **ORU^R01** to OpenMRS HL7 endpoint.
+- OpenMRS marks the radiology order as fulfilled.
+
+**What to show the audience:**
 - Modality console badge changes to **Completed** (grey); Image Patient disabled.
-- Events page shows the second ORDER_UPDATED with `status=completed`.
-- OpenMRS patient chart → Radiology Results → ORU received, order fulfilled.
+- Order disappears from **Active Orders** view; visible under **All Orders**.
+- Events page shows the ORDER_UPDATED event with `status=completed`.
+
+> **ORU → OpenMRS status:** The sidecar successfully sends the ORU^R01.
+> OpenMRS HL7 processing is confirmed working at the sidecar end;
+> end-to-end delivery to the patient chart is pending HL7 module verification.
 
 ---
 
@@ -172,13 +174,21 @@ Confirm the patient **Thabo Tau** exists in both OpenMRS and AdvaPACS
 3. Dictate or type the radiology report using AdvaPACS's built-in reporting tool.
 4. Sign and release the report.
 
-> **Next feature:** When the report is signed, AdvaPACS fires a **REPORT_CREATED**
-> webhook. The sidecar can receive this and either:
-> - Forward a second ORU^R01 to OpenMRS with the report text (OBX segment), so the
->   written report appears on the clinical chart, or
-> - Trigger a FHIR DiagnosticReport resource to be written into OpenMRS.
->
-> This is the next integration item on the roadmap.
+> **Next integration:** When the report is signed, AdvaPACS fires a **REPORT_CREATED**
+> webhook. The sidecar can receive this and forward a second ORU^R01 to OpenMRS
+> with the report text in the OBX segment, so the written report appears on the
+> clinical chart. This is the next item on the integration roadmap.
+
+---
+
+## Confirmed state machine (tested 2026-07-12)
+
+| AdvaPACS action | Webhook fired | Console badge | OpenMRS |
+|-----------------|---------------|---------------|---------|
+| `order_poller` creates order | ORDER_CREATED | **Pending Review** (blue) | Order placed |
+| Dr. Yonathan → In Progress | ORDER_UPDATED | **Approved** (green) | — |
+| Mr. Mohapi → Image Patient | *(none)* | still **Approved** | — |
+| Dr. Yonathan → Complete | ORDER_UPDATED | **Completed** (grey) | ORU^R01 sent |
 
 ---
 
@@ -186,9 +196,10 @@ Confirm the patient **Thabo Tau** exists in both OpenMRS and AdvaPACS
 
 | What the audience sees | What it means |
 |------------------------|---------------|
-| Order appears as **Pending Review**, button greyed | Order is in the system but gated — imaging cannot start without approval |
-| Badge flips to **Approved** without page reload | Real-time webhook — approving in AdvaPACS reaches the X-ray room in ~2 seconds |
+| Order appears as **Pending Review**, button greyed | Order is gated — imaging cannot start without approval |
+| Badge flips to **Approved** without page reload | Real-time webhook — approval in AdvaPACS reaches the X-ray room in ~2 seconds |
 | Image Patient button activates | The approval directly enables the next step; no phone call needed |
+| Badge stays **Approved** after imaging | Order is open — a radiologist still needs to accept the images |
 | Qure.ai SC appears in study | AI analysis is automatic — radiologist sees it without any extra steps |
 | Badge flips to **Completed**, button greys out | Feedback loop closed — the console reflects what actually happened |
 | ORU on OpenMRS chart | The ordering clinician knows the study is done without checking AdvaPACS |
@@ -197,13 +208,15 @@ Confirm the patient **Thabo Tau** exists in both OpenMRS and AdvaPACS
 
 ## Open questions for site team
 
-1. **Label alignment:** Should the console show "Scheduled" (matching AdvaPACS) or
+1. **Label alignment:** Should the console show "In Progress" (matching AdvaPACS) or
    "Approved" (emphasising the authorisation act) for `status=active`?
-2. **Rad tech QA step:** Is an explicit image quality acceptance step required, or
-   is the Image Patient button press sufficient documentation of the radiographer's action?
-3. **AdvaPACS auto-completion:** Does your AdvaPACS instance mark the ServiceRequest
-   completed on study receipt, or does this require a manual step?
-4. **Report delivery:** Should the signed report text appear on the OpenMRS clinical
-   chart, or is it sufficient for the radiologist to report in AdvaPACS only?
-5. **Urgency / STAT orders:** Should STAT orders appear differently on the modality
+2. **Rad tech QA step:** Is an explicit image quality acceptance step required at the
+   console, or is the natural gate (radiologist closes the order in AdvaPACS) sufficient?
+3. **Report delivery:** Should the signed report text appear on the OpenMRS clinical
+   chart via a second ORU^R01, or is it sufficient for the radiologist to report in
+   AdvaPACS only?
+4. **Urgency / STAT orders:** Should STAT orders appear differently on the modality
    console (e.g., red highlight, sorted to top)?
+5. **DOB / sex in DICOM:** AdvaPACS enforces that DICOM PatientSex and DOB match the
+   patient record. Ensure all patients in AdvaPACS have these fields populated before
+   go-live; a seeding gap caused a validation rejection during testing.
