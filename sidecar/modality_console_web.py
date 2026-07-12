@@ -194,8 +194,11 @@ def _get_worklist(modality_filter: str | None = None) -> list[dict]:
             continue
         status = state.get("status", "unknown")
         status_label, status_color = _STATUS_META.get(status, ("Unknown", "#4a5570"))
-        updated = state.get("updated_at", "")
-        sort_key = updated[:16].replace("-", "").replace("T", "").replace(":", "")
+        created = state.get("created_at", state.get("updated_at", ""))
+        sort_key = created[:16].replace("-", "").replace("T", "").replace(":", "")
+        # Format created_at as display date/time
+        scheduled_display = created[:10] if len(created) >= 10 else ""
+        scheduled_time_display = created[11:16] if len(created) >= 16 else ""
         entries[acc] = {
             "id":                 acc,
             "patient_name":       state.get("patient_name", ""),
@@ -206,8 +209,8 @@ def _get_worklist(modality_filter: str | None = None) -> list[dict]:
             "accession":          acc,
             "procedure":          state.get("procedure", ""),
             "modality":           state.get("modality", ""),
-            "scheduled":          "",
-            "scheduled_time":     "",
+            "scheduled":          scheduled_display,
+            "scheduled_time":     scheduled_time_display,
             "order_created_sort": sort_key,
             "study_uid":          "",
             "status":             status,
@@ -443,7 +446,9 @@ def _fetch_and_handle_sr(sr_id: str, event_type: str):
                 sex = {"male": "M", "female": "F", "other": "O"}.get(
                     patient.get("gender", "").lower(), "")
 
-        # Update persistent order state cache
+        # Update persistent order state cache; preserve created_at from first write
+        now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        created_at = _order_states.get(accession, {}).get("created_at", now_iso)
         _order_states[accession] = {
             "accession":          accession,
             "sr_id":              sr_id,
@@ -455,7 +460,8 @@ def _fetch_and_handle_sr(sr_id: str, event_type: str):
             "procedure":          procedure,
             "modality":           modality,
             "status":             status,
-            "updated_at":         datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "created_at":         created_at,
+            "updated_at":         now_iso,
         }
         _persist_order_states()
         log.info(f"Order state: accession={accession} patient={patient_id} status={status}")
