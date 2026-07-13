@@ -50,11 +50,28 @@ In production, the two paths coexist:
 AdvaPACS gateway — same address it already uses for image storage. No extra
 servers, no extra configuration. The worklist is already there."*
 
-## Action items
+## Official documentation
 
-- Confirm with AdvaPACS whether DICOM MWL C-FIND on the gateway is officially
-  supported and documented (or incidentally working).
-- Ask whether MWL results can be filtered by station AET in C-FIND queries
-  (so a CR room only sees CR orders, not US).
-- Determine whether MWL is populated from ServiceRequest `draft` only, or also
-  `active` — and whether completed orders are suppressed automatically.
+Confirmed in the [AdvaPACS DICOM Conformance Statement](https://conformance.advapacs.com/overview/dimse-services):
+
+| SOP Class | SOP UID | SCU | SCP |
+|-----------|---------|-----|-----|
+| Modality Worklist Information Model - FIND | 1.2.840.10008.5.1.4.31 | N | **Y** |
+
+Transfer syntaxes: Implicit VR Little Endian, Explicit VR Little Endian.
+
+This is official — MWL C-FIND is a documented, supported capability, not an
+undocumented side effect.
+
+Note: The conformance statement covers the AdvaPACS Gateway (both SCU and SCP
+roles for some services). The Cloud Gateway only supports SCP role. For our
+on-premise gateway at BESSIE this is irrelevant — we are always using the
+on-premise gateway as SCP.
+
+## Open questions for AdvaPACS support
+
+- Can MWL results be filtered by Scheduled Station AE Title in C-FIND queries
+  (so a CR room only sees CR orders, not US)?
+- Is MWL populated from ServiceRequest `draft` only, or also `active`?
+  Our test returned an `active` order — need to confirm this is intentional.
+- Are completed (`completed`) orders automatically suppressed from MWL results?

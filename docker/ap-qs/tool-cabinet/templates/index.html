@@ -186,7 +186,7 @@
       <img src="/static/earendil_star.png" alt="Eärendil's Star" class="brand-logo">
       <div class="lab-title"><span>Imladris</span> Lab Tool Cabinet</div>
     </div>
-    <div class="lab-subtitle">FHIR Tools &nbsp;·&nbsp; FHIR Orders &nbsp;·&nbsp; Network Simulator &nbsp;·&nbsp; Partners in Health</div>
+    <div class="lab-subtitle">FHIR Tools &nbsp;·&nbsp; FHIR Orders &nbsp;·&nbsp; DICOM MWL &nbsp;·&nbsp; Network Simulator &nbsp;·&nbsp; Partners in Health</div>
   </div>
 </header>
 
@@ -382,6 +382,35 @@
     </div>
     <button class="tool-btn" id="btn-fhir" onclick="queryFhirOrders()">Query FHIR Orders</button>
     <div id="fhir-result"></div>
+  </div>
+
+  <!-- ── DICOM MWL C-FIND ──────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-label">DICOM Modality Worklist — C-FIND (AdvaPACS Gateway)</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Gateway Host</label>
+        <input class="form-input" id="mwl-host" value="localhost">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Port</label>
+        <input class="form-input" id="mwl-port" value="11112">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Called AE Title</label>
+        <input class="form-input" id="mwl-called-ae" value="ADVAPACS_GW_01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Calling AE Title</label>
+        <input class="form-input" id="mwl-calling-ae" value="IML_CR_01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Modality filter <small>(blank=all)</small></label>
+        <input class="form-input" id="mwl-modality" value="">
+      </div>
+    </div>
+    <button class="tool-btn" id="btn-mwl" onclick="queryDicomMwl()">Query DICOM MWL</button>
+    <div id="mwl-result"></div>
   </div>
 
 </main>
@@ -620,6 +649,44 @@
         result.innerHTML =
           `<div style="color:#4caf6a;margin-bottom:6px">Found ${data.orders.length} of ${data.total} orders${statusNote}</div>` +
           `<table class="mwl-table"><thead><tr>${hdrs}</tr></thead><tbody>${rows}</tbody></table>` + rawBlock + deviceBlock;
+      }
+    } catch(e) {
+      result.innerHTML = `<div class="result-area" style="color:#dd6666">Request failed: ${e.message}</div>`;
+    }
+    btn.disabled = false;
+  }
+
+  async function queryDicomMwl() {
+    const btn    = document.getElementById('btn-mwl');
+    const result = document.getElementById('mwl-result');
+    btn.disabled = true;
+    result.innerHTML = '<div class="result-area">Sending C-FIND…</div>';
+    try {
+      const r = await fetch('/dicom/mwl', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          host:       document.getElementById('mwl-host').value.trim(),
+          port:       parseInt(document.getElementById('mwl-port').value, 10),
+          called_ae:  document.getElementById('mwl-called-ae').value.trim(),
+          calling_ae: document.getElementById('mwl-calling-ae').value.trim(),
+          modality:   document.getElementById('mwl-modality').value.trim(),
+        }),
+      });
+      const data = await r.json();
+      if (!data.ok) {
+        result.innerHTML = `<div class="result-area" style="color:#dd6666">Error: ${data.error}</div>`;
+      } else if (!data.entries || data.entries.length === 0) {
+        result.innerHTML = `<div class="result-area" style="color:#4a6a8a">No worklist entries returned.</div>`;
+      } else {
+        const cols = ['patient_name','patient_id','dob','sex','accession','modality','procedure','station_aet','scheduled'];
+        const hdrs = cols.map(c => `<th>${c}</th>`).join('');
+        const rows = data.entries.map(e =>
+          `<tr title="study_uid: ${e.study_uid}">${cols.map(c => `<td>${e[c] || ''}</td>`).join('')}</tr>`
+        ).join('');
+        result.innerHTML =
+          `<div style="color:#4caf6a;margin-bottom:6px">${data.count} worklist entr${data.count === 1 ? 'y' : 'ies'} (hover row for StudyInstanceUID)</div>` +
+          `<table class="mwl-table"><thead><tr>${hdrs}</tr></thead><tbody>${rows}</tbody></table>`;
       }
     } catch(e) {
       result.innerHTML = `<div class="result-area" style="color:#dd6666">Request failed: ${e.message}</div>`;

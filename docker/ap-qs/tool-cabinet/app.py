@@ -41,6 +41,11 @@ FHIR_BASE_URL    = os.getenv("FHIR_BASE_URL", "https://usa1.api.integration.adva
 FHIR_KEY_ID      = os.getenv("FHIR_KEY_ID", "")
 FHIR_KEY_SECRET  = os.getenv("FHIR_KEY_SECRET", "")
 
+DICOM_GW_HOST    = os.getenv("DICOM_GW_HOST",    "localhost")
+DICOM_GW_PORT    = int(os.getenv("DICOM_GW_PORT", "11112"))
+DICOM_GW_AE      = os.getenv("DICOM_GW_AE",      "ADVAPACS_GW_01")
+DICOM_CALLING_AE = os.getenv("DICOM_CALLING_AE", "IML_CR_01")
+
 _profile: str = "online"
 _blocked_ips: set[str] = set()
 
@@ -83,6 +88,14 @@ class DeleteOrdersRequest(BaseModel):
     fhir_base:   str = FHIR_BASE_URL
     key_id:      str = FHIR_KEY_ID
     key_secret:  str = FHIR_KEY_SECRET
+
+
+class MwlQueryRequest(BaseModel):
+    host:       str = DICOM_GW_HOST
+    port:       int = DICOM_GW_PORT
+    called_ae:  str = DICOM_GW_AE
+    calling_ae: str = DICOM_CALLING_AE
+    modality:   str = ""   # blank = all modalities
 
 
 # ── FHIR helpers ─────────────────────────────────────────────────────────────
@@ -468,6 +481,71 @@ def _delete_studies(req: DeleteStudiesRequest) -> dict:
         return {"ok": False, "error": str(ex), "studies": studies}
 
 
+# ── DICOM MWL C-FIND ─────────────────────────────────────────────────────────
+
+def _query_dicom_mwl(req: MwlQueryRequest) -> dict:
+    try:
+        from pynetdicom import AE
+        from pynetdicom.sop_class import ModalityWorklistInformationFind
+        from pydicom.dataset import Dataset
+        from pydicom.sequence import Sequence as DicomSequence
+    except ImportError as e:
+        return {"ok": False, "error": f"pynetdicom not installed: {e}", "entries": []}
+
+    ae = AE(ae_title=req.calling_ae[:16])
+    ae.add_requested_context(ModalityWorklistInformationFind)
+
+    try:
+        assoc = ae.associate(req.host, req.port, ae_title=req.called_ae)
+    except Exception as e:
+        return {"ok": False, "error": f"Association failed: {e}", "entries": []}
+
+    if not assoc.is_established:
+        return {"ok": False, "error": "Association rejected or could not be established", "entries": []}
+
+    # C-FIND identifier — empty string on each attribute means "match all"
+    ds = Dataset()
+    ds.PatientName               = ""
+    ds.PatientID                 = ""
+    ds.PatientBirthDate          = ""
+    ds.PatientSex                = ""
+    ds.AccessionNumber           = ""
+    ds.RequestedProcedureDescription = ""
+    ds.StudyInstanceUID          = ""
+
+    sps = Dataset()
+    sps.Modality                          = req.modality or ""
+    sps.ScheduledStationAETitle           = ""
+    sps.ScheduledProcedureStepStartDate   = ""
+    sps.ScheduledProcedureStepStartTime   = ""
+    sps.ScheduledProcedureStepDescription = ""
+    ds.ScheduledProcedureStepSequence = DicomSequence([sps])
+
+    entries = []
+    try:
+        for status, identifier in assoc.send_c_find(ds, ModalityWorklistInformationFind):
+            if status and status.Status in (0xFF00, 0xFF01) and identifier:
+                sps_seq  = getattr(identifier, "ScheduledProcedureStepSequence", None)
+                sps_item = sps_seq[0] if sps_seq else Dataset()
+                entries.append({
+                    "patient_name": str(getattr(identifier, "PatientName",                      "")),
+                    "patient_id":   str(getattr(identifier, "PatientID",                        "")),
+                    "dob":          str(getattr(identifier, "PatientBirthDate",                  "")),
+                    "sex":          str(getattr(identifier, "PatientSex",                        "")),
+                    "accession":    str(getattr(identifier, "AccessionNumber",                   "")),
+                    "procedure":    (str(getattr(identifier, "RequestedProcedureDescription",    ""))
+                                     or str(getattr(sps_item, "ScheduledProcedureStepDescription", ""))),
+                    "modality":     str(getattr(sps_item,   "Modality",                         "")),
+                    "station_aet":  str(getattr(sps_item,   "ScheduledStationAETitle",          "")),
+                    "scheduled":    str(getattr(sps_item,   "ScheduledProcedureStepStartDate",  "")),
+                    "study_uid":    str(getattr(identifier, "StudyInstanceUID",                  "")),
+                })
+    finally:
+        assoc.release()
+
+    return {"ok": True, "count": len(entries), "entries": entries}
+
+
 # ── Startup: recover state from existing iptables rules ──────────────────────
 
 def _load_existing_rules() -> None:
@@ -791,3 +869,8 @@ def _delete_orders(req: DeleteOrdersRequest) -> dict:
 @app.post("/fhir/delete-orders")
 def delete_orders(req: DeleteOrdersRequest):
     return JSONResponse(_delete_orders(req))
+
+
+@app.post("/dicom/mwl")
+def dicom_mwl(req: MwlQueryRequest):
+    return JSONResponse(_query_dicom_mwl(req))
