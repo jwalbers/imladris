@@ -3,6 +3,9 @@
 Prerequisites and configuration for running the Imladris Virtual Integration Lab
 on macOS and Windows 11.
 
+**Primary deployment host:** Windows 11 machine ("BESSIE") running all Docker
+services. macOS used for development only.
+
 ---
 
 ## macOS
@@ -28,17 +31,17 @@ on macOS and Windows 11.
 ### Python virtual environment
 
 ```bash
-cd ~/git/Fastpilot/imladris
+cd ~/git/PIH/imladris
 python3 -m venv .imladris_venv
 source .imladris_venv/bin/activate
-pip install pynetdicom pydicom requests flask numpy pandas pillow ffmpeg-python
+pip install pynetdicom pydicom requests flask numpy pandas pillow ffmpeg-python pylibjpeg pylibjpeg-libjpeg
 ```
 
 ### OpenMRS SDK setup
 
 ```bash
 export JAVA_HOME=$(/usr/libexec/java_home -v 11)
-cd ~/git/Fastpilot/imladris/openmrs/openmrs-distro-zl
+cd ~/git/PIH/imladris/openmrs/openmrs-distro-zl
 mvn openmrs-sdk:run -DserverId=imladris01
 ```
 
@@ -60,9 +63,11 @@ Then all services are reachable as `http://imladris:<port>` in addition to
 ### Docker stack
 
 ```bash
-cd ~/git/Fastpilot/imladris/docker
-docker compose --profile full up -d
+cd ~/git/PIH/imladris/docker/ap-qs   # or op-qs for local Orthanc mode
+docker compose up -d
 ```
+
+See [Switching between op-qs and ap-qs configurations](#switching-between-op-qs-and-ap-qs-configurations) below.
 
 ---
 
@@ -139,10 +144,10 @@ mvn -version    # should show Java 11
 
 In Git Bash:
 ```bash
-cd ~/git/Fastpilot/imladris
+cd ~/git/PIH/imladris
 python -m venv .imladris_venv
 source .imladris_venv/Scripts/activate      # note: Scripts/ not bin/ on Windows
-pip install pynetdicom pydicom requests flask numpy pandas pillow ffmpeg-python
+pip install pynetdicom pydicom requests flask numpy pandas pillow ffmpeg-python pylibjpeg pylibjpeg-libjpeg
 ```
 
 ### Docker Desktop configuration
@@ -171,7 +176,7 @@ Then `http://imladris:<port>` works in the browser the same as on macOS.
 
 In Git Bash (with JAVA_HOME set to Java 11):
 ```bash
-cd ~/git/Fastpilot/imladris/openmrs/openmrs-distro-zl
+cd ~/git/PIH/imladris/openmrs/openmrs-distro-zl
 mvn openmrs-sdk:run -DserverId=imladris01
 ```
 
@@ -182,8 +187,8 @@ Verify: http://localhost:8080/openmrs (admin / Admin123)
 
 In Git Bash:
 ```bash
-cd ~/git/Fastpilot/imladris/docker
-docker compose --profile full up -d
+cd ~/git/PIH/imladris/docker/ap-qs   # or op-qs / op-qs-local — see switching guide below
+docker compose up -d
 ```
 
 ### Teardown — worklist reset command on Windows
@@ -219,6 +224,71 @@ python tools/clear_hl7_queue.py
 
 ---
 
+## Switching between op-qs and ap-qs configurations
+
+Two Docker Compose stacks live under `docker/`:
+
+| Config | Directory | PACS | OHIF points at |
+|--------|-----------|------|----------------|
+| **op-qs-local** | `docker/op-qs/` + `docker/op-qs-local/` | Orthanc (local volume) | `http://localhost:8044` (direct, no HAProxy) |
+| **op-qs** | `docker/op-qs/` | Orthanc (local volume) | `orthanc-p.imladrislab.org` (via HAProxy) |
+| **ap-qs** | `docker/ap-qs/` | AdvaPACS (cloud) | `advapacs-p.imladrislab.org` |
+
+Use **op-qs-local** when running OHIF on BESSIE directly — bypasses HAProxy entirely
+and avoids Realtek NIC lockups under heavy DICOM frame load (large uncompressed studies).
+Use **op-qs** when reviewing from another machine on the network via `ohif.imladrislab.org`.
+Use **ap-qs** for full demo and production flows.
+
+### Rules
+
+1. **Never stop lesotho-emr** during a switch — it is a separate Docker Compose
+   project and must stay running.
+2. **Only one of op-qs / ap-qs should be up at a time** — both bind port 3000 (OHIF)
+   and port 8043 (Orthanc PACS).
+3. **Orthanc data persists** — the `pacs-data` volume survives `down` and is
+   available the next time op-qs is started.
+4. **`.env`** must be present in both `docker/op-qs/` and `docker/ap-qs/` (copy
+   manually; never commit).
+5. **OHIF app-config.js** is pre-configured per stack — no edits needed when switching.
+
+### Switch from ap-qs → op-qs-local (local Orthanc, no HAProxy — use on BESSIE directly)
+
+```powershell
+cd docker/ap-qs
+docker compose down
+cd ..
+docker compose -f op-qs/docker-compose.yml -f op-qs-local/docker-compose.yml up -d
+```
+
+### Switch from ap-qs → op-qs (local Orthanc, OHIF via HAProxy — use from other machines)
+
+```powershell
+cd docker/ap-qs
+docker compose down
+cd ../op-qs
+docker compose up -d
+```
+
+### Switch from op-qs → ap-qs (cloud AdvaPACS)
+
+```powershell
+cd docker/op-qs
+docker compose down
+cd ../ap-qs
+docker compose up -d
+```
+
+### Verify after switch
+
+```powershell
+# Confirm active containers
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+# OHIF should be visible at http://localhost:3000
+# Orthanc PACS (op-qs only) at http://localhost:8043
+```
+
+---
+
 ## Service URLs (all platforms)
 
 | Service | URL | Credentials |
@@ -235,14 +305,29 @@ python tools/clear_hl7_queue.py
 
 ## Claude Code memory sync
 
-Claude Code stores per-project memory locally. To preserve it across machines:
+Claude Code stores per-project memory locally. To preserve it across machines,
+sync the memory directory to/from the repo before committing or after cloning.
 
+**macOS (Git Bash):**
 ```bash
-# Save memory to repo (before committing)
-rsync -av ~/.claude/projects/-Users-jalbers-git-Fastpilot-imladris/memory/ memory/
+# Save memory to repo
+rsync -av ~/.claude/projects/-Users-$(whoami)-git-PIH-imladris/memory/ memory/
 
-# Restore memory from repo (after clone/pull)
-rsync -av memory/ ~/.claude/projects/-Users-jalbers-git-Fastpilot-imladris/memory/
+# Restore memory from repo
+rsync -av memory/ ~/.claude/projects/-Users-$(whoami)-git-PIH-imladris/memory/
 ```
 
-On Windows (Git Bash), adjust the path to match where Claude stores its config.
+**Windows (PowerShell):**
+```powershell
+$mem = "$env:USERPROFILE\.claude\projects\c--Users-$env:USERNAME-git-PIH-imladris\memory"
+
+# Save memory to repo
+Copy-Item -Recurse -Force "$mem\*" "memory\"
+
+# Restore memory from repo
+Copy-Item -Recurse -Force "memory\*" "$mem\"
+```
+
+The project key in Claude's memory directory is derived from the absolute path
+of the repo root. On Windows it will be
+`c--Users-<username>-git-PIH-imladris`; adjust if your clone lives elsewhere.

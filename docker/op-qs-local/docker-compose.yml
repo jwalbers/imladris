@@ -1,0 +1,18 @@
+# op-qs-local overlay — OHIF via direct localhost:8044, no HAProxy hairpin.
+#
+# Use when running on BESSIE directly. Overrides only the OHIF volume mounts
+# so app-config.js points at http://localhost:8044 instead of the external
+# orthanc-p.imladrislab.org hostname (which hairpins through pfSense and can
+# lock up the Realtek NIC under heavy DICOM frame load).
+#
+# Usage:
+#   docker compose -f docker/op-qs/docker-compose.yml \
+#                  -f docker/op-qs-local/docker-compose.yml up -d
+#
+# Everything else (Orthanc, pacs-proxy, sidecar, etc.) comes from op-qs unchanged.
+
+services:
+  ohif:
+    volumes:
+      - ./ohif/app-config.js:/usr/share/nginx/html/app-config.js:ro
+      - ./ohif/app-config.js.gz:/usr/share/nginx/html/app-config.js.gz:ro

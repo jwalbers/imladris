@@ -154,12 +154,14 @@ services:
       - "8043:8042"   # REST API + web UI
     volumes:
       - ./orthanc/pacs.json:/etc/orthanc/orthanc.json:ro
-      - ./orthanc/forward-to-advapacs.lua:/etc/orthanc/forward-to-advapacs.lua:ro
-      - ./orthanc/forward-to-qure.lua:/etc/orthanc/forward-to-qure.lua:ro
+      # Lua forwarding scripts are intentionally NOT mounted in op-qs.
+      # op-qs is local-only: studies stay on this machine and never leave.
+      # To enable cloud forwarding, switch to ap-qs (docker/ap-qs/).
       - pacs-data:/var/lib/orthanc/db
     environment:
-      ADVAPACS_KEY_ID: ${ADVAPACS_KEY_ID:-}
-      ADVAPACS_SECRET:  ${ADVAPACS_SECRET:-}
+      # Credentials left blank — no cloud forwarding in op-qs.
+      ADVAPACS_KEY_ID: ""
+      ADVAPACS_SECRET:  ""
     networks:
       - imladris
 

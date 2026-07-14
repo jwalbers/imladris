@@ -43,31 +43,13 @@
     // Transcode frames to uncompressed on retrieval so /frames/N works
     "TranscodeDicomWebRequestsToUncompressed" : true,
 
-    // Cloud PACS peers — Orthanc forwards stable studies to these via STOW-RS
-    "Servers" : {
-      // Path 1: Direct to AdvaPACS cloud (Basic Auth)
-      "AdvaPACS" : {
-        "Url"            : "https://usa1.api.dicomweb.advapacs.com/rs",
-        "SslEnabled"     : true,
-        "SslVerifyPeers" : true,
-        "Username"       : "${ADVAPACS_KEY_ID}",
-        "Password"       : "${ADVAPACS_SECRET}",
-        "Timeout"        : 300
-      },
-      // Path 2: Via AdvaPACS Gateway (Windows 192.168.1.10, DICOMweb proxy → cloud via RabbitMQ)
-      // No auth — Gateway handles its own auth to AdvaPACS cloud internally.
-      "AdvaPACS_GW" : {
-        "Url"     : "http://192.168.1.10:8085/rs",
-        "Timeout" : 300
-      }
-    }
+    // No cloud STOW-RS servers in op-qs — this instance is local-only.
+    // Cloud forwarding config lives in ap-qs/orthanc/pacs.json only.
+    "Servers" : {}
   },
 
-  // Auto-forward: stable studies → AdvaPACS cloud; CXR instances → Qure.ai gateway
-  "LuaScripts" : [
-    "/etc/orthanc/forward-to-advapacs.lua",
-    "/etc/orthanc/forward-to-qure.lua"
-  ],
+  // Auto-forward disabled in op-qs — local Orthanc only, no cloud forwarding.
+  // (LuaScripts are active in ap-qs/orthanc/pacs.json only.)
 
   // GDCM — allow transcoding all transfer syntaxes for frame retrieval
   "Gdcm" : {
