@@ -1,0 +1,107 @@
+# imladris-phi — PHI Review Environment
+#
+# Standalone Orthanc PACS + OHIF viewer for reviewing identifiable patient
+# DICOM studies. Completely isolated from the main 'imladris' Docker network.
+#
+# ISOLATION GUARANTEES:
+#   - Separate Docker bridge network ('phi-review') with no connection to
+#     the 'imladris' network. AdvaPACS gateway is unreachable by design.
+#   - Orthanc config (orthanc/phi.json) has empty DicomModalities and
+#     OrthancPeers — no configured path to any remote system.
+#   - No Lua forwarding scripts mounted.
+#   - No AdvaPACS credentials in any environment variable.
+#
+# Usage:
+#   cd docker/phi-review
+#   docker compose up -d
+#
+#   Landing page:  http://localhost:8055   ← start here
+#   OHIF viewer:   http://localhost:3002
+#   Orthanc UI:    http://localhost:8056
+#
+# Upload studies to Orthanc:
+#   curl -u admin:admin -X POST http://localhost:8056/instances \
+#        --data-binary @/path/to/file.dcm
+#
+# Bulk upload a directory:
+#   Get-ChildItem /path/to/studies -Recurse -Filter *.dcm | ForEach-Object {
+#     curl -u admin:admin -X POST http://localhost:8056/instances `
+#          --data-binary "@$($_.FullName)"
+#   }
+#
+# Shutdown and wipe studies when session is complete:
+#   docker compose down -v    # -v removes the phi-data volume
+
+name: imladris-phi
+
+services:
+
+  # ── Warning landing page ──────────────────────────────────────────────
+  landing:
+    image: nginx:alpine
+    container_name: phi-landing
+    restart: unless-stopped
+    ports:
+      - "8055:80"
+    volumes:
+      - ./landing/index.html:/usr/share/nginx/html/index.html:ro
+    networks:
+      - phi-review
+
+  # ── Local PACS — no remote modalities, no cloud forwarding ───────────
+  orthanc:
+    image: orthancteam/orthanc:latest
+    container_name: phi-orthanc
+    restart: unless-stopped
+    ports:
+      - "4256:4242"   # DICOM C-STORE (for dcmsend / storescu uploads)
+      - "8056:8042"   # REST API + Orthanc Explorer web UI
+    volumes:
+      - ./orthanc/phi.json:/etc/orthanc/orthanc.json:ro
+      # No Lua scripts — intentional. Mounting any .lua here risks
+      # accidentally enabling cloud forwarding in future.
+      - phi-data:/var/lib/orthanc/db
+    networks:
+      - phi-review
+
+  # ── nginx CORS proxy — required by OHIF (browser → Orthanc DICOMweb) ─
+  pacs-proxy:
+    image: nginx:alpine
+    container_name: phi-pacs-proxy
+    restart: unless-stopped
+    ports:
+      - "8057:8057"
+    volumes:
+      - ./nginx/pacs-proxy.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - orthanc
+    networks:
+      - phi-review
+
+  # ── OHIF viewer with injected PHI warning banner ──────────────────────
+  ohif:
+    image: ohif/app:v3.10.0
+    container_name: phi-ohif
+    restart: unless-stopped
+    ports:
+      - "3002:80"
+    volumes:
+      - ./ohif/app-config.js:/usr/share/nginx/html/app-config.js:ro
+      - ./ohif/app-config.js.gz:/usr/share/nginx/html/app-config.js.gz:ro
+    depends_on:
+      - pacs-proxy
+    networks:
+      - phi-review
+
+volumes:
+  phi-data:
+    # Local Orthanc storage for PHI studies.
+    # Remove with 'docker compose down -v' when the review session is complete
+    # to ensure PHI does not persist on disk longer than necessary.
+
+networks:
+  phi-review:
+    driver: bridge
+    # Intentionally NOT connected to the 'imladris' network.
+    # The AdvaPACS gateway and all cloud-connected imladris services
+    # are unreachable from containers on this network.

@@ -1,0 +1,203 @@
+<meta charset="utf-8">
+<title>imladris-phi — PHI Review Environment</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a0000;
+    color: #f0e0e0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ── top warning banner ── */
+  .top-banner {
+    width: 100%;
+    background: #8B0000;
+    border-bottom: 3px solid #FF4444;
+    padding: 14px 24px;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #FFD0D0;
+  }
+
+  /* ── main card ── */
+  .card {
+    margin: 48px 24px 24px;
+    max-width: 680px;
+    width: 100%;
+    background: #2a0808;
+    border: 2px solid #8B0000;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .card-header {
+    background: #5a0000;
+    padding: 24px 32px;
+    border-bottom: 1px solid #8B0000;
+  }
+
+  .card-header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #FFD0D0;
+    margin-bottom: 4px;
+  }
+
+  .card-header p {
+    font-size: 13px;
+    color: #c08080;
+    letter-spacing: 0.04em;
+  }
+
+  .card-body { padding: 28px 32px; }
+
+  /* ── purpose block ── */
+  .purpose {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #e0c0c0;
+    margin-bottom: 28px;
+  }
+
+  /* ── do / do-not lists ── */
+  .rules { display: flex; gap: 24px; margin-bottom: 32px; }
+
+  .rule-block { flex: 1; }
+
+  .rule-block h3 {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .do-block h3   { color: #88cc88; }
+  .dont-block h3 { color: #FF6666; }
+
+  .rule-block ul {
+    list-style: none;
+    font-size: 13px;
+    line-height: 1.8;
+    color: #d0b0b0;
+  }
+
+  .do-block   ul li::before { content: '✓  '; color: #88cc88; font-weight: 700; }
+  .dont-block ul li::before { content: '✗  '; color: #FF6666; font-weight: 700; }
+
+  /* ── nav links ── */
+  .nav { display: flex; gap: 16px; }
+
+  .nav a {
+    display: block;
+    flex: 1;
+    padding: 14px 20px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    transition: opacity 0.15s;
+  }
+
+  .nav a:hover { opacity: 0.85; }
+
+  .link-ohif {
+    background: #5a1a1a;
+    border: 1px solid #8B3333;
+    color: #FFD0D0;
+  }
+
+  .link-orthanc {
+    background: #3a1010;
+    border: 1px solid #6B2222;
+    color: #e0b0b0;
+  }
+
+  .link-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 400;
+    color: #a07070;
+    margin-top: 3px;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── footer ── */
+  .footer {
+    margin: 24px;
+    font-size: 11px;
+    color: #6a3a3a;
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+
+  @media (max-width: 480px) {
+    .rules { flex-direction: column; }
+    .nav   { flex-direction: column; }
+  }
+</style>
+
+<div class="top-banner">
+  ⚠&nbsp;&nbsp;PHI ENVIRONMENT — This system contains identifiable patient data&nbsp;&nbsp;⚠
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <h1>imladris-phi · PHI Review Environment</h1>
+    <p>ISOLATED · LOCAL ONLY · NO CLOUD FORWARDING · BESSIE ONLY</p>
+  </div>
+
+  <div class="card-body">
+    <p class="purpose">
+      This environment is reserved for reviewing identifiable patient DICOM
+      studies — for example, working with a radiologist on anonymization
+      verification before studies are de-identified. Studies loaded here
+      are stored locally on BESSIE only and cannot reach AdvaPACS or any
+      other remote system.
+    </p>
+
+    <div class="rules">
+      <div class="rule-block do-block">
+        <h3>This environment is for</h3>
+        <ul>
+          <li>Radiologist review of PHI studies</li>
+          <li>Anonymization verification sessions</li>
+          <li>Local DICOM QA before de-identification</li>
+          <li>Direct upload via Orthanc REST API</li>
+        </ul>
+      </div>
+      <div class="rule-block dont-block">
+        <h3>Never do this here</h3>
+        <ul>
+          <li>Forward studies to AdvaPACS</li>
+          <li>Forward studies to any cloud PACS</li>
+          <li>Push to GCS or any shared storage</li>
+          <li>Share screen outside secure session</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="nav">
+      <a href="http://localhost:3002" class="link-ohif">
+        OHIF Viewer
+        <span class="link-label">localhost:3002 · image review</span>
+      </a>
+      <a href="http://localhost:8056" class="link-orthanc">
+        Orthanc PACS
+        <span class="link-label">localhost:8056 · upload &amp; manage studies</span>
+      </a>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  imladris-phi · isolated Docker stack · no connection to imladris network · Bophelong MDR-TB Hospital / PIH Lesotho
+</div>

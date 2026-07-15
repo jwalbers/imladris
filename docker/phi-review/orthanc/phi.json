@@ -1,0 +1,60 @@
+// Orthanc configuration — imladris-phi PHI Review PACS
+// AE title: PHI_REVIEW   HTTP: 8042 (exposed as 8056)   DICOM: 4242 (exposed as 4256)
+//
+// ISOLATION POLICY:
+//   - DicomModalities is intentionally empty. There are no configured paths
+//     to AdvaPACS, any cloud PACS, or any remote system.
+//   - DicomWeb Servers is intentionally empty. No STOW-RS cloud forwarding.
+//   - No Lua scripts are mounted in this configuration.
+//   - This instance is for local PHI review only. Studies must not be
+//     forwarded to any external system.
+{
+  "Name"                  : "PHI Review PACS — LOCAL ONLY",
+  "DicomAet"              : "PHI_REVIEW",
+  "DicomPort"             : 4242,
+  "HttpPort"              : 8042,
+
+  "RemoteAccessAllowed"   : true,
+  "AuthenticationEnabled" : false,
+
+  "UnknownSopClassAccepted" : true,
+  "DicomCheckCalledAet"   : false,
+
+  // ── ISOLATION: no remote modalities ──────────────────────────────────
+  // Do not add AdvaPACS, any cloud PACS, or any remote system here.
+  "DicomModalities" : {},
+
+  // ── ISOLATION: no remote Orthanc peers ───────────────────────────────
+  "OrthancPeers" : {},
+
+  "Plugins" : ["/usr/share/orthanc/plugins/"],
+
+  "HttpAllowCors"          : true,
+  "HttpAllowedOrigins"     : ["*"],
+  "HttpAllowedHeaders"     : ["Authorization", "Content-Type"],
+  "HttpAllowedMethods"     : ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+
+  "DicomWeb" : {
+    "Enable"     : true,
+    "Root"       : "/dicom-web/",
+    "EnableWado" : true,
+    "WadoRoot"   : "/wado",
+    "TranscodeDicomWebRequestsToUncompressed" : true,
+
+    // ── ISOLATION: no cloud STOW-RS servers ──────────────────────────
+    "Servers" : {}
+  },
+
+  "Gdcm" : {
+    "Enable" : true,
+    "RestrictTransferSyntaxes" : []
+  },
+
+  "OrthancExplorer2" : {
+    "Enable"              : true,
+    "IsDefaultOrthancUI"  : true,
+    "UiOptions" : {
+      "ShowOrthancName" : true
+    }
+  }
+}
