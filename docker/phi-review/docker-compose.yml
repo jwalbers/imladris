@@ -40,7 +40,7 @@ services:
   landing:
     image: nginx:alpine
     container_name: phi-landing
-    restart: unless-stopped
+    restart: "no"   # PHI env must never auto-start — run docker compose up deliberately
     ports:
       - "8055:80"
     volumes:
@@ -52,7 +52,7 @@ services:
   orthanc:
     image: orthancteam/orthanc:latest
     container_name: phi-orthanc
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "4256:4242"   # DICOM C-STORE (for dcmsend / storescu uploads)
       - "8056:8042"   # REST API + Orthanc Explorer web UI
@@ -68,7 +68,7 @@ services:
   pacs-proxy:
     image: nginx:alpine
     container_name: phi-pacs-proxy
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "8057:8057"
     volumes:
@@ -82,7 +82,7 @@ services:
   ohif:
     image: ohif/app:v3.10.0
     container_name: phi-ohif
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "3002:80"
     volumes:
