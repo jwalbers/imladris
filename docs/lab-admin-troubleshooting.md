@@ -4,6 +4,74 @@ Running log of confirmed failure modes, how to spot them, and how to fix them.
 
 ---
 
+## AdvaPACS Portal Configuration Checklist (pih.advapacs.com)
+
+Use this checklist when setting up a new site or recovering after a gateway recreation.
+
+### 1. Gateway
+
+- [ ] Gateway created for the site. Name should clearly relate to its Local AE
+      (e.g. `advapacs-gw-01` for `advapacs-gw-AE-01`).
+- [ ] KEY_ID and SECRET captured at creation time — shown only once.
+- [ ] Stored in BESSIE `.env` as `ADVAPACS_GW_KEY_ID` / `ADVAPACS_GW_SECRET`.
+- [ ] Gateway shows **Enabled** and **Online** with a software version number in the Gateway list.
+
+### 2. Remote AEs
+
+- [ ] A Remote AE defined for every modality/device on the site side of the gateway.
+- [ ] IP addresses and ports confirmed correct for current subnet.
+
+### 3. Local AE
+
+- [ ] Local AE created and associated with the site gateway.
+- [ ] AE title matches what BESSIE docker-compose configures (`ADVAPACS_GW_AE`; default `ADVAPACS_GW_01`).
+- [ ] DICOM port set to **11112**.
+- [ ] Accepted Calling AEs set to the Remote AEs defined in step 2.
+  - Note: Accepted Calling AEs belong to the Local AE, not the gateway — they survive
+    gateway recreation and only need updating when AE titles or site config changes.
+- [ ] IP whitelist confirmed. Current known-good whitelist for Bophelong lab:
+  ```
+  98.100.201.218/32   Wisconsin static WAN
+  192.168.3.0/24      Wisconsin LAN
+  192.168.1.0/24      Bophelong/imladrislab LAN
+  172.16.0.0/12       Docker bridge ranges
+  68.116.51.144/30    Bophelong static WAN (covers .144–.147; static IP is .146)
+  127.0.0.0/8         Localhost
+  ```
+
+### 4. DICOM C-ECHO verification
+
+- [ ] Use the AdvaPACS portal DICOM C-ECHO tool to confirm every Remote AE can
+      C-ECHO its peer Local AE and vice versa.
+
+### 5. Inbound HL7 Service
+
+- [ ] Inbound HL7 Service of type **AdvaPACS Gateway** created and associated
+      with the site gateway via the Gateway dropdown.
+- [ ] Current working config for Bophelong:
+
+  | Field | Value |
+  |---|---|
+  | Type | AdvaPACS Gateway |
+  | Name | Main Bophelong Worklist service |
+  | AdvaPACS Worklist Status | Ready to Report |
+  | Gateway | advapacs-gw-01 |
+  | Server Mode | TCP |
+  | Port | 2576 |
+  | Retention (success / fail) | 30 days / 30 days |
+  | Default Timezone | America/Los_Angeles |
+  | Default Country Code | +1 |
+  | Default Issuer of Patient ID | PIH_A |
+  | Default Issuer of Accession Number | PIH_A |
+  | Interface Version | 2026-05-19 |
+  | Mode | Live |
+  | Identify Order By | Placer Order Number, Filler Order Number, Placer Group Number, Study Instance UID |
+  | Lenient Order Control Processing | Enabled |
+  | Allow Report Override | Enabled |
+  | Enabled | Enabled |
+
+---
+
 ## Issue: Services unreachable after Windows Update forced reboot
 
 **Affected services:** Any container using `network_mode: host` (currently: `tool-cabinet`, `advapacs-gateway`)  
