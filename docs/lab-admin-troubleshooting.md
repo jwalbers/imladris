@@ -216,17 +216,22 @@ connections from local modalities. Several distinct failure modes can cause
 **Key finding: Re-keying (Regenerate Key) never fixes a non-functional gateway.**
 You must delete and recreate the gateway registration on `pih.advapacs.com`.
 
-**Procedure:**
-1. On `pih.advapacs.com`, the gateway entry cannot be deleted while a Local AE is
-   bound to it. Re-bind the Local AE (`advapacs-gw-AE-01`) to the backup gateway
-   (`advapacs-gw-02`) temporarily to free the target for deletion.
-2. Delete `advapacs-gw-01`.
-3. Create a new gateway registration with the same name.
-4. Copy KEY_ID and SECRET immediately — they are shown only once (ephemeral).
+**Procedure (preferred — no spare gateway required):**
+1. Create a **new** gateway registration on `pih.advapacs.com` (e.g. a second `advapacs-gw-01`
+   entry or a temporary name). Copy its KEY_ID and SECRET immediately — shown once only.
+2. Re-bind the Local AE (`advapacs-gw-AE-01`) to point to the new gateway.
+3. **Now** delete the old gateway — the Local AE is no longer bound to it.
+4. Rename the new gateway to `advapacs-gw-01` if desired.
 5. Update `.env`: `ADVAPACS_GW_KEY_ID` and `ADVAPACS_GW_SECRET`.
-6. Re-bind the Local AE back to the new `advapacs-gw-01`.
-7. `docker compose up -d --force-recreate advapacs-gateway`
-8. Re-add all Accepted Calling AEs (see below) — they are wiped on recreation.
+6. `docker compose up -d --force-recreate advapacs-gateway`
+
+**Alternative (requires a spare gateway):**
+Keep a permanently configured spare gateway (`advapacs-gw-02`) with no Local AE bound to it.
+Re-bind the Local AE to `advapacs-gw-02`, delete `advapacs-gw-01`, recreate it, re-bind
+the Local AE back. Useful if you cannot create a new gateway entry mid-procedure.
+
+**Note:** Accepted Calling AEs are a property of the **Local AE** (`advapacs-gw-AE-01`),
+not the gateway. They survive gateway recreation — no need to re-add them.
 
 #### 2. Registration state lost on container recreation
 
@@ -254,9 +259,10 @@ Cannot associate with ADVAPACS_GW_01@host.docker.internal:11112
 ```
 
 **Root cause:** The Local AE's Accepted Calling AEs list does not include the
-sidecar's AE title (`IML_CR_01`). This list is reset when the gateway is recreated
-and must be re-added manually. Also check that no conflicting AE titles from other
-site configurations (e.g. Wisconsin migration) are present.
+sidecar's AE title (`IML_CR_01`). Accepted Calling AEs are a property of the
+**Local AE** (not the gateway) and survive gateway recreation. However, if the
+lab has been moved to a new subnet or site configuration was changed (e.g. Wisconsin
+migration), the AE titles in the list may no longer match the current sidecar config.
 
 **Fix:**
 1. On `pih.advapacs.com` → Local AE `advapacs-gw-AE-01` → Accepted Calling AEs:
