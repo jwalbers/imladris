@@ -37,4 +37,19 @@ window.config = {
   ],
 
   defaultDataSourceName: 'dicomweb',
+
+  // Sort study-browser display sets by InstanceNumber so the left panel order
+  // matches the original acquisition sequence (Phase 1 assigns sequential
+  // InstanceNumbers 1..N in acquisition order for all anonymized studies).
+  experimentalStudyBrowserSort: true,
+  customizationService: {
+    'studyBrowser.sortFunctions': [
+      {
+        label: 'Instance Number',
+        sortFunction: (a, b) =>
+          (parseInt(a.InstanceNumber, 10) || 0) -
+          (parseInt(b.InstanceNumber, 10) || 0),
+      },
+    ],
+  },
 };

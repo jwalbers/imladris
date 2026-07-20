@@ -1,18 +1,36 @@
-# op-qs-local overlay — OHIF via direct localhost:8044, no HAProxy hairpin.
+# op-qs-local — standalone OHIF override for direct BESSIE access.
 #
-# Use when running on BESSIE directly. Overrides only the OHIF volume mounts
-# so app-config.js points at http://localhost:8044 instead of the external
-# orthanc-p.imladrislab.org hostname (which hairpins through pfSense and can
-# lock up the Realtek NIC under heavy DICOM frame load).
+# Replaces ONLY the OHIF container with one that points app-config.js at
+# http://localhost:8044 (pacs-proxy) instead of orthanc-p.imladrislab.org.
+# All other op-qs services (orthanc, pacs-proxy, sidecar, etc.) keep running.
 #
 # Usage:
-#   docker compose -f docker/op-qs/docker-compose.yml \
-#                  -f docker/op-qs-local/docker-compose.yml up -d
+#   1. Start op-qs as normal:
+#        cd docker/op-qs && docker compose up -d
+#   2. Then switch OHIF to local config (run from docker/ or repo root):
+#        docker compose -f docker/op-qs-local/docker-compose.yml up -d --force-recreate
+#   3. To switch back to external OHIF (ohif.imladrislab.org via HAProxy):
+#        docker compose -f docker/op-qs/docker-compose.yml up -d --force-recreate ohif
 #
-# Everything else (Orthanc, pacs-proxy, sidecar, etc.) comes from op-qs unchanged.
+# Why standalone instead of a -f overlay:
+#   Docker Compose deduplicates volumes by target path, keeping the FIRST
+#   occurrence (from the base file). An overlay cannot replace a same-target
+#   bind mount. A standalone file with the same project name and container
+#   name avoids the conflict entirely.
+#
+# Note: OHIF only serves static files; it does not call pacs-proxy directly.
+# The browser fetches DICOM frames from localhost:8044 — no internal network
+# connection is needed from the container itself.
+
+name: ${SERVICE_NAME:-imladris}
 
 services:
   ohif:
+    image: ohif/app:v3.10.0
+    container_name: imladris-ohif
+    restart: unless-stopped
+    ports:
+      - "3000:80"
     volumes:
       - ./ohif/app-config.js:/usr/share/nginx/html/app-config.js:ro
       - ./ohif/app-config.js.gz:/usr/share/nginx/html/app-config.js.gz:ro
