@@ -230,12 +230,14 @@ Two Docker Compose stacks live under `docker/`:
 
 | Config | Directory | PACS | OHIF points at |
 |--------|-----------|------|----------------|
-| **op-qs-local** | `docker/op-qs/` + `docker/op-qs-local/` | Orthanc (local volume) | `http://localhost:8044` (direct, no HAProxy) |
+| **op-qs-local** | `docker/op-qs-local/` (standalone) | Orthanc (local volume) | `http://localhost:8044` (direct, no HAProxy) |
 | **op-qs** | `docker/op-qs/` | Orthanc (local volume) | `orthanc-p.imladrislab.org` (via HAProxy) |
 | **ap-qs** | `docker/ap-qs/` | AdvaPACS (cloud) | `advapacs-p.imladrislab.org` |
 
 Use **op-qs-local** when running OHIF on BESSIE directly — bypasses HAProxy entirely
 and avoids Realtek NIC lockups under heavy DICOM frame load (large uncompressed studies).
+op-qs-local is a **standalone** compose file (not an overlay). Start op-qs first for all
+other services, then run op-qs-local to replace just the OHIF container.
 Use **op-qs** when reviewing from another machine on the network via `ohif.imladrislab.org`.
 Use **ap-qs** for full demo and production flows.
 
@@ -254,10 +256,21 @@ Use **ap-qs** for full demo and production flows.
 ### Switch from ap-qs → op-qs-local (local Orthanc, no HAProxy — use on BESSIE directly)
 
 ```powershell
+# Step 1: bring up op-qs (all services, including OHIF with external config)
 cd docker/ap-qs
 docker compose down
-cd ..
-docker compose -f op-qs/docker-compose.yml -f op-qs-local/docker-compose.yml up -d
+cd ../op-qs
+docker compose up -d
+
+# Step 2: replace OHIF with the local-config version (localhost:8044, no HAProxy)
+cd ../..
+docker compose -f docker/op-qs-local/docker-compose.yml up -d --force-recreate
+```
+
+Verify OHIF is using the local config:
+```powershell
+curl http://localhost:3000/app-config.js 2>$null | Select-String "wadoRoot"
+# Should show: http://localhost:8044/dicom-web
 ```
 
 ### Switch from ap-qs → op-qs (local Orthanc, OHIF via HAProxy — use from other machines)
@@ -267,6 +280,13 @@ cd docker/ap-qs
 docker compose down
 cd ../op-qs
 docker compose up -d
+```
+
+### Switch from op-qs-local → op-qs (restore OHIF via HAProxy — for remote reviewers)
+
+```powershell
+cd docker/op-qs
+docker compose up -d --force-recreate ohif
 ```
 
 ### Switch from op-qs → ap-qs (cloud AdvaPACS)

@@ -4,6 +4,114 @@ Running log of confirmed failure modes, how to spot them, and how to fix them.
 
 ---
 
+## Routine Operations
+
+### Cold start (after reboot, power-on, or Docker Desktop restart)
+
+**Before you start:** Docker Desktop must be fully settled — the whale icon in the
+system tray must be static, not animating. Give it 30–60 seconds after login.
+
+**Step 1 — Restore portproxy and network profile (always run this first):**
+
+```powershell
+# Run as Administrator
+powershell -ExecutionPolicy Bypass -File `
+  C:\Users\JimAlbers\git\PIH\imladris-personal\processes\restore-portproxy.ps1
+```
+
+This is idempotent — safe to run even if nothing is broken. It:
+- Detects the current Docker VM IP and rebuilds all portproxy rules
+- Ensures the LAN adapter is classified as Private (not Public)
+- Adds any missing inbound firewall rules
+- Prints a connectivity summary at the end
+
+**Step 2 — Start the stack:**
+
+```powershell
+cd C:\Users\JimAlbers\git\PIH\imladris\docker\ap-qs
+docker compose up -d
+```
+
+**Step 3 — Wait for OpenMRS** (~2–3 minutes on a cold start). Watch the log:
+
+```powershell
+docker logs imladris-openmrs -f --tail 5
+# Wait for: INFO: Server startup in [N] milliseconds
+```
+
+**Step 4 — Verify:**
+
+```powershell
+# All containers should show "Up"
+docker ps --format "table {{.Names}}\t{{.Status}}" | Select-String "imladris"
+
+# Gateway must show no 401 errors (empty log = healthy)
+docker logs imladris-advapacs-gw --tail 10
+
+# Sidecar threads should be running
+docker logs imladris-sidecar --tail 15
+
+# Tool cabinet reachable from LAN IP
+Invoke-WebRequest http://192.168.1.10:5002/status -UseBasicParsing | Select-Object StatusCode
+```
+
+Expected: gateway log has only the `MCID_SEQ already exists` Hibernate note (harmless) and
+no `401` lines. Sidecar log shows "FHIR MWL: N active orders" within the first 30 seconds.
+
+---
+
+### Clean shutdown (before hibernate, reboot, or leaving for the day)
+
+Always bring the stack down before hibernating BESSIE. Containers that are running
+when Windows hibernates freeze mid-execution — the AdvaPACS gateway registration drifts,
+the sidecar state file can corrupt, and MySQL may require recovery on next start.
+
+```powershell
+cd C:\Users\JimAlbers\git\PIH\imladris\docker\ap-qs
+docker compose down
+# Wait for "Container imladris-* Stopped" lines before closing the window
+```
+
+Then hibernate or reboot as normal. On next start, follow the Cold Start steps above.
+
+---
+
+### Wedged state — full reset path
+
+Use this when the lab is randomly broken and you can't quickly identify why.
+It is safe to run any time — it does not delete data volumes.
+
+```powershell
+# Step 1: Fix the Windows networking layer
+#   (run as Administrator)
+powershell -ExecutionPolicy Bypass -File `
+  C:\Users\JimAlbers\git\PIH\imladris-personal\processes\restore-portproxy.ps1
+
+# Step 2: Tear down all containers cleanly
+cd C:\Users\JimAlbers\git\PIH\imladris\docker\ap-qs
+docker compose down
+
+# Step 3: Bring everything back up
+docker compose up -d
+
+# Step 4: Wait for OpenMRS, then run the verification checks from Cold Start above
+```
+
+**If the stack is still wedged after this:**
+
+| Symptom | Next step |
+|---|---|
+| Gateway logs show `401 Unauthorized` on startup | See "AdvaPACS gateway DICOM C-STORE failing" → Failure mode 1 |
+| DICOM C-STORE shows "Association Aborted" | See "AdvaPACS gateway DICOM C-STORE failing" → Failure mode 3 |
+| Tool cabinet / sidecar reachable but `imladrislab.org` returns 503 | Check HAProxy in pfSense — backend may have flapped |
+| OpenMRS returns blank page or redirect loop | Wait longer; if persistent, check `docker logs imladris-openmrs` for Java errors |
+| Sidecar threads missing from log | Run `docker compose up -d --build modality-sidecar` to force rebuild |
+
+**Data volumes are never touched by `docker compose down`.** MySQL data, PACS studies,
+worklist files, and gateway registration state all survive a full down/up cycle.
+
+---
+
 ## AdvaPACS Portal Configuration Checklist (pih.advapacs.com)
 
 Use this checklist when setting up a new site or recovering after a gateway recreation.
