@@ -13,6 +13,7 @@ Runs five concurrent services:
 
 import asyncio
 import logging
+import time
 import threading
 
 import acquisition_loop
@@ -30,12 +31,21 @@ logging.basicConfig(
 log = logging.getLogger("main")
 
 
+_RESTART_DELAY = 30  # seconds between crash restarts
+
+
 def _run_in_thread(name: str, fn):
     def target():
-        try:
-            fn()
-        except Exception as e:
-            log.error(f"{name} crashed: {e}", exc_info=True)
+        while True:
+            try:
+                fn()
+                # fn() returned normally — service disabled or intentionally done
+                log.info(f"{name} exited normally — not restarting")
+                return
+            except Exception as e:
+                log.error(f"{name} crashed: {e}", exc_info=True)
+                log.warning(f"{name} restarting in {_RESTART_DELAY}s")
+                time.sleep(_RESTART_DELAY)
     t = threading.Thread(target=target, daemon=True, name=name)
     t.start()
     return t

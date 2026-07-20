@@ -560,5 +560,8 @@ def main():
 
     with httpx.Client(headers=_fhir_headers(), follow_redirects=True) as fhir_client:
         while True:
-            state = _poll_once(omrs_sess, fhir_client, order_type_uuid, state)
+            try:
+                state = _poll_once(omrs_sess, fhir_client, order_type_uuid, state)
+            except Exception as e:
+                log.error(f"Order poll iteration error: {e}", exc_info=True)
             time.sleep(ORDER_POLL_SEC)
