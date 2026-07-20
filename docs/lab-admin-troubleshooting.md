@@ -194,4 +194,96 @@ stays until the next hardware change triggers reclassification.
 
 ---
 
+## Issue: AdvaPACS gateway DICOM C-STORE failing ("Cannot associate")
+
+**Affected services:** Modality sidecar → AdvaPACS gateway DICOM path  
+**First observed:** 2026-07-19 (after host hardware swap)
+
+### Background
+
+The AdvaPACS gateway (`imladris-advapacs-gw`) is a Spring Boot / dcm4che application
+that authenticates to the AdvaPACS cloud on startup and then accepts DICOM C-STORE
+connections from local modalities. Several distinct failure modes can cause
+"Cannot associate with ADVAPACS_GW_01@host.docker.internal:11112" in the sidecar.
+
+### Failure modes and fixes (work through in order)
+
+#### 1. Gateway 401 — stale registration
+
+**Symptom:** `docker logs imladris-advapacs-gw` shows repeated 401 errors from
+`https://usa1.api.gateway.advapacs.com/auth/token` immediately on startup.
+
+**Key finding: Re-keying (Regenerate Key) never fixes a non-functional gateway.**
+You must delete and recreate the gateway registration on `pih.advapacs.com`.
+
+**Procedure:**
+1. On `pih.advapacs.com`, the gateway entry cannot be deleted while a Local AE is
+   bound to it. Re-bind the Local AE (`advapacs-gw-AE-01`) to the backup gateway
+   (`advapacs-gw-02`) temporarily to free the target for deletion.
+2. Delete `advapacs-gw-01`.
+3. Create a new gateway registration with the same name.
+4. Copy KEY_ID and SECRET immediately — they are shown only once (ephemeral).
+5. Update `.env`: `ADVAPACS_GW_KEY_ID` and `ADVAPACS_GW_SECRET`.
+6. Re-bind the Local AE back to the new `advapacs-gw-01`.
+7. `docker compose up -d --force-recreate advapacs-gateway`
+8. Re-add all Accepted Calling AEs (see below) — they are wiped on recreation.
+
+#### 2. Registration state lost on container recreation
+
+**Symptom:** Gateway was working, then `--force-recreate` causes 401 again.
+
+**Root cause:** The gateway stores its device ID and Derby DB in
+`/opt/AdvaHealthSolutions/AdvaPACSGateway` inside the container. Without a named
+volume, `--force-recreate` wipes this directory and the cloud rejects the new device ID.
+
+**Fix:** The `docker-compose.yml` now mounts a named volume at that path:
+```yaml
+volumes:
+  - advapacs-gw-data:/opt/AdvaHealthSolutions/AdvaPACSGateway
+```
+With the volume in place, `--force-recreate` is safe. The Hibernate error
+`Sequence 'MCID_SEQ' already exists` will appear in logs after every force-recreate
+— this is **harmless and expected**. Ignore it.
+
+#### 3. DICOM associations aborted ("Association Aborted" / "calling-AE-title-not-recognized")
+
+**Symptom:** Gateway is Online (no 401), but sidecar logs show:
+```
+Association Aborted
+Cannot associate with ADVAPACS_GW_01@host.docker.internal:11112
+```
+
+**Root cause:** The Local AE's Accepted Calling AEs list does not include the
+sidecar's AE title (`IML_CR_01`). This list is reset when the gateway is recreated
+and must be re-added manually. Also check that no conflicting AE titles from other
+site configurations (e.g. Wisconsin migration) are present.
+
+**Fix:**
+1. On `pih.advapacs.com` → Local AE `advapacs-gw-AE-01` → Accepted Calling AEs:
+   add `IML_CR_01` (and any other modality AE titles that need access).
+2. `docker compose up -d --force-recreate advapacs-gateway` to pull updated config.
+3. If still failing: use the **Restart** option in the gateway's portal menu
+   (same menu as Reconfigure / Regenerate Key). This triggers a cloud-side config
+   push. Cause/effect uncertain but harmless and sometimes resolves residual issues.
+
+### General notes
+
+- **After any portal config change** (Accepted Calling AEs, Remote AE IPs, etc.),
+  the gateway must be force-recreated to fetch the new config from the cloud.
+- **Cloud-side "Restart"** (portal menu): triggers a config sync from the cloud.
+  Use after config changes if force-recreate alone doesn't resolve association issues.
+- **Always use `--force-recreate`**, never `docker compose restart`. Plain restart
+  preserves the Derby DB but prevents schema re-init; with the volume in place,
+  force-recreate is always safe.
+- Gateway logs (`docker logs imladris-advapacs-gw`) are minimal by design.
+  The only meaningful log entry is the 401 error. Association rejections are not
+  logged locally — check the portal's server-side logs for `advapacs-gw-01`.
+
+### Recovery script
+
+`restore-portproxy.ps1` restores portproxy rules for port 11112 (DICOM) and 8085
+(DICOMweb). Run after any forced reboot or WSL2 IP change.
+
+---
+
 *Add new issues below in the same format.*

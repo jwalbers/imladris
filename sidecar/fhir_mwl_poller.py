@@ -1,7 +1,7 @@
 """
 fhir_mwl_poller.py — Synthesizes DICOM MWL from AdvaPACS FHIR ServiceRequests.
 
-Periodically queries AdvaPACS FHIR R5 for status=draft,active ServiceRequests and
+Periodically queries AdvaPACS FHIR R5 for status=active ServiceRequests and
 writes one .wl file per order into the shared worklist folder.  When an order
 leaves draft/active status (completed, cancelled) the corresponding .wl file is removed.
 
@@ -169,7 +169,7 @@ def _poll_once(
     """
     url = f"{FHIR_BASE_URL.rstrip('/')}/ServiceRequest"
     try:
-        r = client.get(url, params={"status": "draft,active", "_count": "200"},
+        r = client.get(url, params=[("status", "active"), ("_count", "200")],
                        headers=_auth_headers(), timeout=15)
         if r.status_code != 200:
             log.error(f"FHIR query failed: HTTP {r.status_code}: {r.text[:200]}")
