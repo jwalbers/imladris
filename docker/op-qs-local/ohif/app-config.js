@@ -47,8 +47,8 @@ window.config = {
       {
         label: 'Instance Number',
         sortFunction: (a, b) =>
-          (parseInt(a.InstanceNumber, 10) || 0) -
-          (parseInt(b.InstanceNumber, 10) || 0),
+          (parseInt(a.instanceNumber, 10) || 0) -
+          (parseInt(b.instanceNumber, 10) || 0),
       },
     ],
   },

@@ -42,10 +42,12 @@ window.config = {
   customizationService: {
     'studyBrowser.sortFunctions': [
       {
-        label: 'Instance Number',
-        sortFunction: (a, b) =>
-          (parseInt(a.InstanceNumber, 10) || 0) -
-          (parseInt(b.InstanceNumber, 10) || 0),
+        label: 'Acquisition Time',
+        sortFunction: (a, b) => {
+          const ta = a.acquisitionDatetime || '￿';
+          const tb = b.acquisitionDatetime || '￿';
+          return ta < tb ? -1 : ta > tb ? 1 : 0;
+        },
       },
     ],
   },
