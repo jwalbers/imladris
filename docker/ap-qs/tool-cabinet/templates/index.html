@@ -186,7 +186,7 @@
       <img src="/static/earendil_star.png" alt="Eärendil's Star" class="brand-logo">
       <div class="lab-title"><span>Imladris</span> Lab Tool Cabinet</div>
     </div>
-    <div class="lab-subtitle">FHIR Tools &nbsp;·&nbsp; FHIR Orders &nbsp;·&nbsp; DICOM MWL &nbsp;·&nbsp; Network Simulator &nbsp;·&nbsp; Partners in Health</div>
+    <div class="lab-subtitle">FHIR Tools &nbsp;·&nbsp; FHIR Orders &nbsp;·&nbsp; DICOM MWL &nbsp;·&nbsp; DICOM Upload &nbsp;·&nbsp; Network Simulator &nbsp;·&nbsp; Partners in Health</div>
   </div>
 </header>
 
@@ -382,6 +382,37 @@
     </div>
     <button class="tool-btn" id="btn-fhir" onclick="queryFhirOrders()">Query FHIR Orders</button>
     <div id="fhir-result"></div>
+  </div>
+
+  <!-- ── DICOM Study Upload ────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-label">DICOM Study Upload — C-STORE to AdvaPACS Gateway (IML_TOOLS)</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Gateway Host</label>
+        <input class="form-input" id="upload-host" value="localhost">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Port</label>
+        <input class="form-input" id="upload-port" value="11112">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Called AE Title</label>
+        <input class="form-input" id="upload-called-ae" value="ADVAPACS_GW_01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Calling AE Title</label>
+        <input class="form-input" id="upload-calling-ae" value="IML_TOOLS">
+      </div>
+    </div>
+    <div class="form-group" style="margin-bottom:0.85rem">
+      <label class="form-label">.dcm files or a .zip containing .dcm files (nested dirs OK)</label>
+      <input type="file" id="upload-files" accept=".dcm,.zip" multiple
+             style="background:#070e1a;border:1px solid #1e3a5f;border-radius:4px;
+                    padding:0.38rem 0.55rem;color:#c8d8e8;font-size:0.8rem;width:100%;cursor:pointer;">
+    </div>
+    <button class="tool-btn" id="btn-upload" onclick="uploadStudy()">Send to AdvaPACS Gateway</button>
+    <div id="upload-result"></div>
   </div>
 
   <!-- ── DICOM MWL C-FIND ──────────────────────────────────────────────── -->
@@ -652,6 +683,69 @@
       }
     } catch(e) {
       result.innerHTML = `<div class="result-area" style="color:#dd6666">Request failed: ${e.message}</div>`;
+    }
+    btn.disabled = false;
+  }
+
+  async function uploadStudy() {
+    const btn       = document.getElementById('btn-upload');
+    const fileInput = document.getElementById('upload-files');
+    const resultDiv = document.getElementById('upload-result');
+    const files     = fileInput.files;
+
+    if (!files.length) {
+      resultDiv.innerHTML = '<div class="result-area" style="color:#dd6666">Select .dcm or .zip files first.</div>';
+      return;
+    }
+
+    btn.disabled = true;
+    resultDiv.innerHTML =
+      '<div id="upload-summary" style="color:#4a9edd;margin-bottom:6px">Uploading…</div>' +
+      '<table class="mwl-table"><thead><tr><th>file</th><th>status</th></tr></thead>' +
+      '<tbody id="upload-tbody"></tbody></table>';
+
+    const form = new FormData();
+    for (const f of files) form.append('files', f);
+    form.append('host',       document.getElementById('upload-host').value.trim());
+    form.append('port',       document.getElementById('upload-port').value.trim());
+    form.append('called_ae',  document.getElementById('upload-called-ae').value.trim());
+    form.append('calling_ae', document.getElementById('upload-calling-ae').value.trim());
+
+    let ok = 0, failed = 0;
+    try {
+      const resp   = await fetch('/dicom/upload', { method: 'POST', body: form });
+      const reader = resp.body.getReader();
+      const dec    = new TextDecoder();
+      let buf = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop();                    // keep incomplete last line
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const r     = JSON.parse(line);
+            const color = r.ok ? '#4caf6a' : '#dd6666';
+            const label = r.ok ? '✓ sent' : `✗ ${r.error}`;
+            const short = r.file.split(/[/\\]/).pop();
+            if (r.ok) ok++; else failed++;
+            document.getElementById('upload-tbody').insertAdjacentHTML('beforeend',
+              `<tr><td title="${r.file}">${short}</td><td style="color:${color}">${label}</td></tr>`);
+            document.getElementById('upload-summary').textContent =
+              `Sending… ${ok + failed} processed`;
+          } catch(_) {}
+        }
+      }
+
+      const sumColor = failed ? (ok ? '#ccb84a' : '#dd6666') : '#4caf6a';
+      const summary  = document.getElementById('upload-summary');
+      summary.style.color = sumColor;
+      summary.textContent = `Done — ${ok} sent, ${failed} failed`;
+    } catch(e) {
+      resultDiv.innerHTML = `<div class="result-area" style="color:#dd6666">Upload failed: ${e.message}</div>`;
     }
     btn.disabled = false;
   }

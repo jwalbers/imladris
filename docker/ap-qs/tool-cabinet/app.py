@@ -9,20 +9,25 @@ Requires:
   /var/run/docker.sock (read container status)
 """
 
+import asyncio
 import datetime
+import io
 import ipaddress
+import json
 import logging
 import os
 import socket
 import subprocess
+import threading
+import zipfile
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import docker
 import httpx
 import pydicom
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, File, Form, Request, UploadFile
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -45,6 +50,7 @@ DICOM_GW_HOST    = os.getenv("DICOM_GW_HOST",    "localhost")
 DICOM_GW_PORT    = int(os.getenv("DICOM_GW_PORT", "11112"))
 DICOM_GW_AE      = os.getenv("DICOM_GW_AE",      "ADVAPACS_GW_01")
 DICOM_CALLING_AE = os.getenv("DICOM_CALLING_AE", "IML_CR_01")
+DICOM_TOOLS_AE   = os.getenv("DICOM_TOOLS_AE",   "IML_TOOLS")
 
 _profile: str = "online"
 _blocked_ips: set[str] = set()
@@ -546,6 +552,94 @@ def _query_dicom_mwl(req: MwlQueryRequest) -> dict:
     return {"ok": True, "count": len(entries), "entries": entries}
 
 
+# ── DICOM C-STORE upload ──────────────────────────────────────────────────────
+
+def _collect_dcm(files_data: list[tuple[str, bytes]]) -> list[tuple[str, bytes]]:
+    """Expand zip uploads; return list of (display_name, raw_bytes) for every .dcm."""
+    out = []
+    for filename, raw in files_data:
+        if filename.lower().endswith(".zip"):
+            try:
+                with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+                    for name in sorted(zf.namelist()):
+                        if name.lower().endswith(".dcm") and not name.startswith("__MACOSX"):
+                            out.append((name, zf.read(name)))
+            except Exception as exc:
+                out.append((filename, b""))  # will surface as parse error below
+        elif filename.lower().endswith(".dcm"):
+            out.append((filename, raw))
+    return out
+
+
+def _c_store_worker(files_data, my_ae, gw_ae, gw_host, gw_port, queue, loop):
+    """Background thread: C-STOREs each file and puts result dicts into queue."""
+    def put(item):
+        asyncio.run_coroutine_threadsafe(queue.put(item), loop)
+
+    all_dcm = _collect_dcm(files_data)
+    if not all_dcm:
+        put({"file": "(none)", "ok": False, "error": "No .dcm files found"})
+        put(None)
+        return
+
+    datasets = []
+    for name, raw in all_dcm:
+        if not raw:
+            put({"file": name, "ok": False, "error": "Could not read from ZIP"})
+            continue
+        try:
+            ds = pydicom.dcmread(io.BytesIO(raw), force=True)
+            sop = str(ds.get("SOPClassUID", ""))
+            if not sop:
+                put({"file": name, "ok": False, "error": "No SOPClassUID"})
+            else:
+                datasets.append((name, ds, sop))
+        except Exception as exc:
+            put({"file": name, "ok": False, "error": f"Parse failed: {exc}"})
+
+    if not datasets:
+        put(None)
+        return
+
+    from pynetdicom import AE as DicomAE
+    ae = DicomAE(ae_title=my_ae[:16])
+    for sop in {sop for _, _, sop in datasets}:
+        try:
+            ae.add_requested_context(sop)
+        except Exception:
+            pass
+
+    try:
+        assoc = ae.associate(gw_host, gw_port, ae_title=gw_ae)
+    except Exception as exc:
+        for name, _, _ in datasets:
+            put({"file": name, "ok": False, "error": f"Association failed: {exc}"})
+        put(None)
+        return
+
+    if not assoc.is_established:
+        for name, _, _ in datasets:
+            put({"file": name, "ok": False, "error": "Association rejected by gateway"})
+        put(None)
+        return
+
+    try:
+        for name, ds, _ in datasets:
+            try:
+                status = assoc.send_c_store(ds)
+                if status and status.Status == 0x0000:
+                    put({"file": name, "ok": True})
+                else:
+                    code = getattr(status, "Status", None)
+                    msg = f"C-STORE 0x{code:04x}" if isinstance(code, int) else "no response"
+                    put({"file": name, "ok": False, "error": msg})
+            except Exception as exc:
+                put({"file": name, "ok": False, "error": str(exc)})
+    finally:
+        assoc.release()
+        put(None)
+
+
 # ── Startup: recover state from existing iptables rules ──────────────────────
 
 def _load_existing_rules() -> None:
@@ -874,3 +968,36 @@ def delete_orders(req: DeleteOrdersRequest):
 @app.post("/dicom/mwl")
 def dicom_mwl(req: MwlQueryRequest):
     return JSONResponse(_query_dicom_mwl(req))
+
+
+@app.post("/dicom/upload")
+async def dicom_upload(
+    files:      list[UploadFile] = File(...),
+    host:       str = Form(default=""),
+    port:       str = Form(default=""),
+    called_ae:  str = Form(default=""),
+    calling_ae: str = Form(default=""),
+):
+    gw_host = host.strip()       or DICOM_GW_HOST
+    gw_port = int(port.strip())  if port.strip().isdigit() else DICOM_GW_PORT
+    gw_ae   = called_ae.strip()  or DICOM_GW_AE
+    my_ae   = calling_ae.strip() or DICOM_TOOLS_AE
+
+    files_data = [(f.filename or "unknown", await f.read()) for f in files]
+
+    queue = asyncio.Queue()
+    loop  = asyncio.get_event_loop()
+    threading.Thread(
+        target=_c_store_worker,
+        args=(files_data, my_ae, gw_ae, gw_host, gw_port, queue, loop),
+        daemon=True,
+    ).start()
+
+    async def stream():
+        while True:
+            item = await queue.get()
+            if item is None:
+                break
+            yield json.dumps(item) + "\n"
+
+    return StreamingResponse(stream(), media_type="application/x-ndjson")

@@ -221,6 +221,10 @@ services:
       ADVAPACS_HOSTS: "usa1.api.dicomweb.advapacs.com"
       FHIR_KEY_ID: ${ADVAPACS_KEY_ID:-}
       FHIR_KEY_SECRET: ${ADVAPACS_SECRET:-}
+      DICOM_TOOLS_AE: IML_TOOLS
+      DICOM_GW_HOST: localhost
+      DICOM_GW_PORT: "11112"
+      DICOM_GW_AE: ADVAPACS_GW_01
 
   # ── OHIF Viewer (radiologist workstation) ──────────────────────────
   ohif:
