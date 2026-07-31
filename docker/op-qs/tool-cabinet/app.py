@@ -33,6 +33,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 logging.getLogger("pynetdicom").setLevel(logging.WARNING)
+log = logging.getLogger("tool_cabinet")
 
 PACS_URL         = os.getenv("PACS_URL", "http://localhost:8043")
 PACS_USER        = os.getenv("PACS_USER", "admin")
@@ -603,37 +604,52 @@ def _c_store_worker(files_data, my_ae, gw_ae, gw_host, gw_port, queue, loop):
 
     from pynetdicom import AE as DicomAE
     ae = DicomAE(ae_title=my_ae[:16])
-    for sop in {sop for _, _, sop in datasets}:
+    sop_classes = {sop for _, _, sop in datasets}
+    for sop in sop_classes:
         try:
             ae.add_requested_context(sop)
         except Exception:
             pass
 
+    log.info(
+        f"DICOM upload: {len(datasets)} instance(s) → {gw_ae}@{gw_host}:{gw_port} "
+        f"as {my_ae}  requested_contexts={sorted(sop_classes)}"
+    )
+
     try:
         assoc = ae.associate(gw_host, gw_port, ae_title=gw_ae)
     except Exception as exc:
+        log.warning(f"DICOM upload: association to {gw_ae}@{gw_host}:{gw_port} failed: {exc}")
         for name, _, _ in datasets:
             put({"file": name, "ok": False, "error": f"Association failed: {exc}"})
         put(None)
         return
 
     if not assoc.is_established:
+        log.warning(f"DICOM upload: association rejected by {gw_ae}@{gw_host}:{gw_port}")
         for name, _, _ in datasets:
             put({"file": name, "ok": False, "error": "Association rejected by gateway"})
         put(None)
         return
+
+    accepted = [str(cx.abstract_syntax) for cx in assoc.accepted_contexts]
+    rejected = [str(cx.abstract_syntax) for cx in assoc.rejected_contexts]
+    log.info(f"DICOM upload: association established  accepted={accepted}  rejected={rejected}")
 
     try:
         for name, ds, _ in datasets:
             try:
                 status = assoc.send_c_store(ds)
                 if status and status.Status == 0x0000:
+                    log.debug(f"DICOM upload: C-STORE OK  {name}")
                     put({"file": name, "ok": True})
                 else:
                     code = getattr(status, "Status", None)
                     msg = f"C-STORE 0x{code:04x}" if isinstance(code, int) else "no response"
+                    log.warning(f"DICOM upload: C-STORE failed  {name}  status={msg}")
                     put({"file": name, "ok": False, "error": msg})
             except Exception as exc:
+                log.warning(f"DICOM upload: C-STORE exception  {name}  error={exc}")
                 put({"file": name, "ok": False, "error": str(exc)})
     finally:
         assoc.release()

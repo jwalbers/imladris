@@ -140,6 +140,8 @@ services:
       ADVAPACS_ACCESS_KEY_SECRET: ${ADVAPACS_GW_SECRET}
       ADVAPACS_REGION:            "usa1"
       TZ:                         America/Los_Angeles
+      LOGGING_LEVEL_ORG_DCM4CHE3:              INFO
+      LOGGING_LEVEL_COM_ADVAHEALTHSOLUTIONS:   INFO
     network_mode: "host"
     # NOTE: no 'networks' key — host mode is incompatible with bridge networks.
     # On Linux the gateway is reachable at the host IP on its native ports.
