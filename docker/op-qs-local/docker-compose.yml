@@ -1,15 +1,19 @@
-# op-qs-local — standalone OHIF override for direct BESSIE access.
+# op-qs-local — OHIF override for direct BESSIE access + remote-client OHIF.
 #
-# Replaces ONLY the OHIF container with one that points app-config.js at
-# http://localhost:8044 (pacs-proxy) instead of orthanc-p.imladrislab.org.
-# All other op-qs services (orthanc, pacs-proxy, sidecar, etc.) keep running.
+# Two OHIF containers:
+#   ohif        port 3000  localhost:8044 config — BESSIE local browser only.
+#                          Bypasses HAProxy/NIC to avoid Realtek lockups under
+#                          heavy DICOM frame load.
+#   ohif-remote port 3001  orthanc-p.imladrislab.org config — for remote clients.
+#                          HAProxy ohif.imladrislab.org backend → BESSIE:3001.
 #
 # Usage:
 #   1. Start op-qs as normal:
 #        cd docker/op-qs && docker compose up -d
-#   2. Then switch OHIF to local config (run from docker/ or repo root):
+#   2. Then start both OHIF containers (run from docker/ or repo root):
 #        docker compose -f docker/op-qs-local/docker-compose.yml up -d --force-recreate
-#   3. To switch back to external OHIF (ohif.imladrislab.org via HAProxy):
+#   3. Update HAProxy: set ohif.imladrislab.org backend server port to 3001.
+#   4. To revert to a single OHIF on port 3000:
 #        docker compose -f docker/op-qs/docker-compose.yml up -d --force-recreate ohif
 #
 # Why standalone instead of a -f overlay:
@@ -17,14 +21,11 @@
 #   occurrence (from the base file). An overlay cannot replace a same-target
 #   bind mount. A standalone file with the same project name and container
 #   name avoids the conflict entirely.
-#
-# Note: OHIF only serves static files; it does not call pacs-proxy directly.
-# The browser fetches DICOM frames from localhost:8044 — no internal network
-# connection is needed from the container itself.
 
 name: ${SERVICE_NAME:-imladris}
 
 services:
+  # Local BESSIE browser — bypasses HAProxy/NIC, avoids Realtek lockups.
   ohif:
     image: ohif/app:v3.10.0
     container_name: imladris-ohif
@@ -34,3 +35,15 @@ services:
     volumes:
       - ./ohif/app-config.js:/usr/share/nginx/html/app-config.js:ro
       - ./ohif/app-config.js.gz:/usr/share/nginx/html/app-config.js.gz:ro
+
+  # Remote clients — HAProxy ohif.imladrislab.org → BESSIE:3001.
+  # Uses ap-qs config so remote browsers hit advapacs-p.imladrislab.org.
+  ohif-remote:
+    image: ohif/app:v3.10.0
+    container_name: imladris-ohif-remote
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+    volumes:
+      - ../ap-qs/ohif/app-config.js:/usr/share/nginx/html/app-config.js:ro
+      - ../ap-qs/ohif/app-config.js.gz:/usr/share/nginx/html/app-config.js.gz:ro
