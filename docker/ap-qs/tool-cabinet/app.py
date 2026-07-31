@@ -34,6 +34,13 @@ from pydantic import BaseModel
 
 logging.getLogger("pynetdicom").setLevel(logging.WARNING)
 log = logging.getLogger("tool_cabinet")
+log.setLevel(logging.INFO)
+if not log.handlers:
+    _h = logging.StreamHandler()
+    _h.setLevel(logging.INFO)
+    _h.setFormatter(logging.Formatter("%(asctime)s  %(levelname)-8s  %(message)s"))
+    log.addHandler(_h)
+    log.propagate = False
 
 PACS_URL         = os.getenv("PACS_URL", "http://localhost:8043")
 PACS_USER        = os.getenv("PACS_USER", "admin")
@@ -603,17 +610,35 @@ def _c_store_worker(files_data, my_ae, gw_ae, gw_host, gw_port, queue, loop):
         return
 
     from pynetdicom import AE as DicomAE
+    from pydicom.uid import ImplicitVRLittleEndian, ExplicitVRLittleEndian
     ae = DicomAE(ae_title=my_ae[:16])
-    sop_classes = {sop for _, _, sop in datasets}
-    for sop in sop_classes:
+
+    # Build per-SOP-class set of transfer syntaxes actually present in the
+    # datasets, plus the standard uncompressed fallbacks.  pynetdicom's
+    # send_c_store() picks the accepted context whose TS matches the dataset's
+    # file_meta.TransferSyntaxUID — if that TS was never proposed, it raises
+    # "No presentation context … has been accepted" even when the SOP class was.
+    from collections import defaultdict
+    sop_ts: defaultdict[str, set[str]] = defaultdict(lambda: {
+        ExplicitVRLittleEndian, ImplicitVRLittleEndian
+    })
+    for _, ds, sop in datasets:
         try:
-            ae.add_requested_context(sop)
+            ts = str(ds.file_meta.TransferSyntaxUID)
+            sop_ts[sop].add(ts)
         except Exception:
             pass
 
+    for sop, ts_set in sop_ts.items():
+        try:
+            ae.add_requested_context(sop, list(ts_set))
+        except Exception:
+            pass
+
+    sop_classes = set(sop_ts.keys())
     log.info(
         f"DICOM upload: {len(datasets)} instance(s) → {gw_ae}@{gw_host}:{gw_port} "
-        f"as {my_ae}  requested_contexts={sorted(sop_classes)}"
+        f"as {my_ae}  requested_contexts={sorted(sop_ts.items())}"
     )
 
     try:
@@ -632,8 +657,8 @@ def _c_store_worker(files_data, my_ae, gw_ae, gw_host, gw_port, queue, loop):
         put(None)
         return
 
-    accepted = [str(cx.abstract_syntax) for cx in assoc.accepted_contexts]
-    rejected = [str(cx.abstract_syntax) for cx in assoc.rejected_contexts]
+    accepted = [f"{cx.abstract_syntax}@{cx.transfer_syntax}" for cx in assoc.accepted_contexts]
+    rejected = [f"{cx.abstract_syntax}@{cx.transfer_syntax}" for cx in assoc.rejected_contexts]
     log.info(f"DICOM upload: association established  accepted={accepted}  rejected={rejected}")
 
     try:
