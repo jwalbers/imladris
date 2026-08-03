@@ -615,19 +615,17 @@ def _c_store_worker(files_data, my_ae, gw_ae, gw_host, gw_port, queue, loop):
 
     # Build per-SOP-class set of transfer syntaxes actually present in the
     # datasets, plus the standard uncompressed fallbacks.  pynetdicom's
-    # send_c_store() picks the accepted context whose TS matches the dataset's
-    # file_meta.TransferSyntaxUID — if that TS was never proposed, it raises
-    # "No presentation context … has been accepted" even when the SOP class was.
+    # Only propose the TS the file is actually encoded in — proposing uncompressed
+    # TS we can't deliver lets the peer accept one we can't use, causing a
+    # send_c_store() failure even though the association succeeded.
     from collections import defaultdict
-    sop_ts: defaultdict[str, set[str]] = defaultdict(lambda: {
-        ExplicitVRLittleEndian, ImplicitVRLittleEndian
-    })
+    sop_ts: defaultdict[str, set[str]] = defaultdict(set)
     for _, ds, sop in datasets:
         try:
             ts = str(ds.file_meta.TransferSyntaxUID)
             sop_ts[sop].add(ts)
         except Exception:
-            pass
+            sop_ts[sop].add(ExplicitVRLittleEndian)
 
     for sop, ts_set in sop_ts.items():
         try:
