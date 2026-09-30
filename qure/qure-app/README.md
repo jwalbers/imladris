@@ -106,6 +106,11 @@ MinXray detector container ──C-FIND──▶ mwl_server        :9003  (MWL S
                               results → frontend :3000 / optional publish back via DICOM (dcmioConfig.publishers)
 ```
 
+**Confirmed by probing the clone (2026-09-30):** both SCPs accept any AE title. The MWL items use
+modality `DX` and station AE `MIX`. dcmio has no publishers enabled. qTrack pushes patients to the
+MWL server only when `NEXT_PUBLIC_IS_MWL_ENABLED` is true. Details and the simulator are in
+[../../minxray-sim/README.md](../../minxray-sim/README.md).
+
 The detector's AE titles, the called/calling AE whitelist, filters and publishers all live in
 files that were **not** examined (see below):
 
