@@ -1,0 +1,22 @@
+# Override for the dev-user clone of the Qure.ai App stack.
+#
+# The clone shares the 'qure' install's account, license and sync tokens, so any
+# service that talks to Qure's cloud is moved into a profile. A plain `up` then
+# won't start it. To enable one deliberately: `--profile cloud`.
+#
+# Usage (from the cloned qureapp directory):
+#   docker compose -p platform -f docker-compose.yml -f docker-compose.dev-override.yml up -d
+
+services:
+  # Pushes studies/results to Qure's cloud with the shared sync token.
+  # Running it from two installs could duplicate or conflict records.
+  qsync:
+    profiles: ["cloud"]
+
+  # Countly usage analytics edge server.
+  edge-server:
+    profiles: ["cloud"]
+
+  # Installer smoke tests (host network, test credentials).
+  playwright:
+    profiles: ["tests"]
