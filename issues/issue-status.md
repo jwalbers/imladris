@@ -45,3 +45,8 @@ Tue Jul  7 12:35:40 PDT 2026 - https://pihemr.atlassian.net/browse/UHM-9385
 ## radiologyapp-no-provider-record-crashes-order-page.md
 
 Tue Jul  7 12:37:43 PDT 2026 - https://pihemr.atlassian.net/browse/UHM-9385
+
+
+## advaview-pdf-viewport-blocked-by-csp-frame-src.md
+
+Thu Oct  1 2026 - drafted; to file with Adva Health service desk (portal/2)
