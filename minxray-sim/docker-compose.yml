@@ -17,7 +17,10 @@ services:
       STORE_HOST: dcmio_dicom_server
       STORE_PORT: "5252"
     volumes:
-      - ./library:/library:ro         # source chest PNGs (not committed)
+      # Source chest images (not committed). Default ./library; point at the
+      # imladris-data raw tier to use the census-assigned images directly:
+      #   $env:LIBRARY_HOST = "../../imladris-data/raw/tb-cxr/set-1"
+      - ${LIBRARY_HOST:-./library}:/library:ro
       - ./output:/output              # copies of every DICOM sent
     networks: [qure]
 

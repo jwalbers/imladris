@@ -106,6 +106,17 @@ by content hash, the same scheme `imladris-data` uses for its manifests.
 
 ## Open items
 
+- **Conversion bias on qXR TB score (found 2026-10-01).** For the same source image
+  (`Normal/Normal-1500.png`, patient RQ23Z1), qXR on the direct PNG import gave Abnormal / **TB 0.28 (negative)**,
+  while the simulator capture gave Abnormal / **TB 0.56 (presumptive)**. The pipeline (noise, MTF blur,
+  log mapping, collimation, 16-bit) shifts the TB score up. Run a batch A/B (direct vs simulated, Normal and TB
+  sets) and tune before treating simulator qXR scores as meaningful. Until then, label results "sample only".
+  Confirmed same source: direct import corr +1.000, simulator anatomy crop +0.998, matching sha256.
+- **qTrack drops the synthetic marker.** qTrack re-encodes received images as lossy JPEG baseline (q90) and
+  **overwrites `DerivationDescription`** with its compression note, so the "SYNTHETIC … sha256" provenance is lost
+  in qTrack's copy and in anything exported from it (e.g. to AdvaPACS). Only `output/` keeps it. Put the marker
+  somewhere qTrack preserves as well (e.g. `ImageComments`, `SeriesDescription` or a private tag), and check the export.
+
 - Replace the guessed tag values once the dicomPACS DX-R conformance statement arrives
   (request it from Qure/MinXray): PhotometricInterpretation, BitsStored, For Presentation vs For Processing, Manufacturer strings.
 - MPPS round trip with a qTrack-registered patient; fix or report the 403 callback.
