@@ -1,0 +1,30 @@
+# MinXray wireless detector simulator, attached to the Qure.ai stack's network
+# so it reaches the MWL SCP and the dcmio gateway by container name.
+#
+#   docker compose run --rm minxray-sim worklist
+#   docker compose run --rm minxray-sim capture --index 0
+#   docker compose run --rm minxray-sim capture --accession ACC123 --image /library/foo.png
+name: minxray-sim
+
+services:
+  minxray-sim:
+    build: .
+    image: imladris/minxray-sim:0.1
+    environment:
+      STATION_AE: MIX                 # station AE the Qure MWL schedules for
+      MWL_HOST: mwl
+      MWL_PORT: "222"                 # container port (host: 9003)
+      STORE_HOST: dcmio_dicom_server
+      STORE_PORT: "5252"
+    volumes:
+      # Source chest images (not committed). Default ./library; point at the
+      # imladris-data raw tier to use the census-assigned images directly:
+      #   $env:LIBRARY_HOST = "../../imladris-data/raw/tb-cxr/set-1"
+      - ${LIBRARY_HOST:-./library}:/library:ro
+      - ./output:/output              # copies of every DICOM sent
+    networks: [qure]
+
+networks:
+  qure:
+    external: true
+    name: platform_default            # compose project "platform" = the Qure stack

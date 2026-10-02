@@ -1,0 +1,3 @@
+# Source images come from the GCS library; generated DICOM stays local
+library/
+output/
