@@ -188,7 +188,7 @@ Verify: http://localhost:8080/openmrs (admin / Admin123)
 In Git Bash:
 ```bash
 cd ~/git/PIH/imladris/docker/ap-qs   # or op-qs / op-qs-local — see switching guide below
-docker compose up -d
+docker compose --profile full up -d   # --profile full includes the modality sidecar
 ```
 
 ### Teardown — worklist reset command on Windows
@@ -226,19 +226,32 @@ python tools/clear_hl7_queue.py
 
 ## Switching between op-qs and ap-qs configurations
 
-Two Docker Compose stacks live under `docker/`:
+Stacks under `docker/`:
 
 | Config | Directory | PACS | OHIF points at |
 |--------|-----------|------|----------------|
-| **op-qs-local** | `docker/op-qs-local/` (standalone) | Orthanc (local volume) | `http://localhost:8044` (direct, no HAProxy) |
-| **op-qs** | `docker/op-qs/` | Orthanc (local volume) | `orthanc-p.imladrislab.org` (via HAProxy) |
-| **ap-qs** | `docker/ap-qs/` | AdvaPACS (cloud) | `advapacs-p.imladrislab.org` |
+| **ap-qs** (default) | `docker/ap-qs/` | AdvaPACS (cloud) | `advapacs-p.imladrislab.org` |
+| **op-qs** | `docker/op-qs/` | Orthanc (`pacs-data-opqs` volume) | `orthanc-p.imladrislab.org` — route **removed** in HAProxy, see below |
+| **op-qs-local** | `docker/op-qs-local/` (standalone) | op-qs's Orthanc | `http://localhost:8044` (direct, no HAProxy) |
+| **phi-review** | `docker/phi-review/` (separate project `imladris-phi`) | Its own isolated Orthanc | `http://localhost:8057` |
 
-Use **op-qs-local** when running OHIF on BESSIE directly — bypasses HAProxy entirely
-and avoids Realtek NIC lockups under heavy DICOM frame load (large uncompressed studies).
-op-qs-local is a **standalone** compose file (not an overlay). Start op-qs first for all
-other services, then run op-qs-local to replace just the OHIF container.
-Use **op-qs** when reviewing from another machine on the network via `ohif.imladrislab.org`.
+**ap-qs is the lab configuration.** `start-lab.ps1` (imladris-personal) brings it up
+at logon with `--profile full`, then runs a PHI check on the lab Orthanc.
+
+**Real PHI goes in phi-review only.** It has its own network, no forwarding, no
+credentials, no autostart, and a red PHI banner in OHIF. Side-by-side review of
+originals vs. scrubbed copies happens there too. A study goes to AdvaPACS only
+by hand, after it has been confirmed de-identified. Never load real studies into
+op-qs, op-qs-local or ap-qs. In Oct 2026 PHI studies loaded under op-qs-local
+appeared in ap-qs through a shared Orthanc volume and were served publicly via
+orthanc-p.
+
+Use **op-qs-local** for synthetic op-qs data on BESSIE itself. It bypasses HAProxy
+and avoids Realtek NIC lockups under heavy DICOM frame load. op-qs-local is a
+**standalone** compose file (not an overlay). Start op-qs first for all other
+services, then run op-qs-local to replace just the OHIF container.
+The `orthanc-p` / `orthanc-m` HAProxy routes were removed (2026-10-02, no auth), so
+op-qs's Orthanc can no longer be reviewed remotely via `ohif.imladrislab.org`.
 Use **ap-qs** for full demo and production flows.
 
 ### Rules
@@ -247,8 +260,9 @@ Use **ap-qs** for full demo and production flows.
    project and must stay running.
 2. **Only one of op-qs / ap-qs should be up at a time** — both bind port 3000 (OHIF)
    and port 8043 (Orthanc PACS).
-3. **Orthanc data persists** — the `pacs-data` volume survives `down` and is
-   available the next time op-qs is started.
+3. **Orthanc data persists, per stack.** ap-qs uses `imladris_pacs-data` and op-qs
+   uses `imladris_pacs-data-opqs`; both survive `down`. They are deliberately
+   separate, so nothing loaded in one appears in the other.
 4. **`.env`** must be present in both `docker/op-qs/` and `docker/ap-qs/` (copy
    manually; never commit).
 5. **OHIF app-config.js** is pre-configured per stack — no edits needed when switching.
@@ -273,7 +287,7 @@ curl http://localhost:3000/app-config.js 2>$null | Select-String "wadoRoot"
 # Should show: http://localhost:8044/dicom-web
 ```
 
-### Switch from ap-qs → op-qs (local Orthanc, OHIF via HAProxy — use from other machines)
+### Switch from ap-qs → op-qs (local Orthanc; remote OHIF no longer works — orthanc-p route removed)
 
 ```powershell
 cd docker/ap-qs

@@ -158,12 +158,11 @@ services:
       - "8043:8042"   # REST API + web UI
     volumes:
       - ./orthanc/pacs.json:/etc/orthanc/orthanc.json:ro
-      - ./orthanc/forward-to-advapacs.lua:/etc/orthanc/forward-to-advapacs.lua:ro
+      # forward-to-advapacs.lua intentionally NOT mounted: Orthanc never sends to AdvaPACS.
+      - ./orthanc/lab-guard.lua:/etc/orthanc/lab-guard.lua:ro
       - ./orthanc/forward-to-qure.lua:/etc/orthanc/forward-to-qure.lua:ro
       - pacs-data:/var/lib/orthanc/db
-    environment:
-      ADVAPACS_KEY_ID: ${ADVAPACS_KEY_ID:-}
-      ADVAPACS_SECRET:  ${ADVAPACS_SECRET:-}
+    # No AdvaPACS credentials: Orthanc has no path to AdvaPACS.
     networks:
       - imladris
 

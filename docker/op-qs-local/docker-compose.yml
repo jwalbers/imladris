@@ -7,6 +7,10 @@
 #   ohif-remote port 3001  orthanc-p.imladrislab.org config — for remote clients.
 #                          HAProxy ohif.imladrislab.org backend → BESSIE:3001.
 #
+# NOT FOR PHI. op-qs-local is for synthetic lab data only. Real patient studies,
+# including side-by-side original vs. scrubbed review, belong in docker/phi-review
+# (isolated network, no forwarding, no autostart, red PHI banner).
+#
 # Usage:
 #   1. Start op-qs as normal:
 #        cd docker/op-qs && docker compose up -d

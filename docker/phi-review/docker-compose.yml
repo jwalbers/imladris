@@ -11,6 +11,12 @@
 #   - No Lua forwarding scripts mounted.
 #   - No AdvaPACS credentials in any environment variable.
 #
+# This is the ONLY place real PHI may be loaded. That includes side-by-side
+# review of originals vs. scrubbed/anonymized copies: load both here. Send a
+# study to AdvaPACS only by hand, after it has been confirmed de-identified.
+# Do not use op-qs-local for PHI. It shares the lab Orthanc, which is how PHI
+# leaked into ap-qs in Oct 2026.
+#
 # Usage:
 #   cd docker/phi-review
 #   docker compose up -d

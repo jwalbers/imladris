@@ -9,6 +9,9 @@
 -- number during normal workflow; retag.py sets BPH-{PatientID} as a fallback
 -- for direct uploads. The Validation Queue is not queryable via standard QIDO-RS.
 function OnStableStudy(studyId, tags, metadata)
+    if not IsLabStudy(studyId) then   -- lab-guard.lua: never forward real PHI
+        return
+    end
     local body = '{"Resources":["' .. studyId .. '"]}'
     local ok, err = pcall(function()
         RestApiPost('/dicom-web/servers/AdvaPACS/stow', body)

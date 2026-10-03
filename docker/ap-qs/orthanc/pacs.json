@@ -43,29 +43,15 @@
     // Transcode frames to uncompressed on retrieval so /frames/N works
     "TranscodeDicomWebRequestsToUncompressed" : true,
 
-    // Cloud PACS peers — Orthanc forwards stable studies to these via STOW-RS
-    "Servers" : {
-      // Path 1: Direct to AdvaPACS cloud (Basic Auth)
-      "AdvaPACS" : {
-        "Url"            : "https://usa1.api.dicomweb.advapacs.com/rs",
-        "SslEnabled"     : true,
-        "SslVerifyPeers" : true,
-        "Username"       : "${ADVAPACS_KEY_ID}",
-        "Password"       : "${ADVAPACS_SECRET}",
-        "Timeout"        : 300
-      },
-      // Path 2: Via AdvaPACS Gateway (Windows 192.168.1.10, DICOMweb proxy → cloud via RabbitMQ)
-      // No auth — Gateway handles its own auth to AdvaPACS cloud internally.
-      "AdvaPACS_GW" : {
-        "Url"     : "http://192.168.1.10:8085/rs",
-        "Timeout" : 300
-      }
-    }
+    // No STOW-RS servers: Orthanc never forwards to AdvaPACS (decided 2026-10-02).
+    // Studies that should be in AdvaPACS are sent there deliberately, by hand.
+    "Servers" : {}
   },
 
-  // Auto-forward: stable studies → AdvaPACS cloud; CXR instances → Qure.ai gateway
+  // Auto-forward: lab CXR instances → Qure.ai simulator (local only).
+  // lab-guard.lua must load first: it defines IsLabStudy(), which blocks real PHI.
   "LuaScripts" : [
-    "/etc/orthanc/forward-to-advapacs.lua",
+    "/etc/orthanc/lab-guard.lua",
     "/etc/orthanc/forward-to-qure.lua"
   ],
 
