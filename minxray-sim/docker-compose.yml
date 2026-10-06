@@ -1,28 +1,65 @@
 # MinXray wireless detector simulator, attached to the Qure.ai stack's network
 # so it reaches the MWL SCP and the dcmio gateway by container name.
 #
+# One-shot CLI:
 #   docker compose run --rm minxray-sim worklist
 #   docker compose run --rm minxray-sim capture --index 0
 #   docker compose run --rm minxray-sim capture --accession ACC123 --image /library/foo.png
+#
+# Modality agent (watches qTrack's worklist, images each new patient):
+#   docker compose --profile agent up -d minxray-agent
+#   docker compose logs -f minxray-agent
+#
+# Source images (not committed). Default ./library; to use the imladris-data
+# tb-cxr set and the Bophelong census in place:
+#   $env:LIBRARY_HOST = "../../imladris-data/raw/tb-cxr/set-1"
+#   $env:CENSUS_DIR   = "../../imladris-bophelong/patients"
 name: minxray-sim
+
+x-sim: &sim
+  build: .
+  image: imladris/minxray-sim:0.2
+  environment: &sim-env
+    STATION_AE: MIX                 # station AE the Qure MWL schedules for
+    MWL_HOST: mwl
+    MWL_PORT: "222"                 # container port (host: 9003)
+    STORE_HOST: dcmio_dicom_server
+    STORE_PORT: "5252"
+    # Extra destinations for each capture, e.g. the AdvaPACS gateway:
+    #   FORWARD_TO=ADVAPACS_GW_02@host.docker.internal:11112   FORWARD_AE=IML_MX_01
+    FORWARD_TO: ${FORWARD_TO:-}
+    FORWARD_AE: ${FORWARD_AE:-MIX}
+  volumes: &sim-volumes
+    - ${LIBRARY_HOST:-./library}:/library:ro
+    - ./output:/output              # copies of every DICOM sent
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+  networks: [qure]
 
 services:
   minxray-sim:
-    build: .
-    image: imladris/minxray-sim:0.1
+    <<: *sim
+
+  minxray-agent:
+    <<: *sim
+    profiles: [agent]
+    container_name: minxray-agent
+    command: ["watch"]
+    restart: unless-stopped
     environment:
-      STATION_AE: MIX                 # station AE the Qure MWL schedules for
-      MWL_HOST: mwl
-      MWL_PORT: "222"                 # container port (host: 9003)
-      STORE_HOST: dcmio_dicom_server
-      STORE_PORT: "5252"
+      <<: *sim-env
+      POLL_SECONDS: "15"
+      CAPTURE_DELAY_SECONDS: "5"
+      SKIP_PATIENT_PREFIXES: E2ETEST          # the installer's stuck test entries
+      NEW_PATIENT_LABEL: random               # non-census patients: Normal | Tuberculosis | random
+      TB_FRACTION: "0.3"
+      CENSUS_CSV: /census/bophelong_census.csv
+      STATE_FILE: /state/acquired.json
     volumes:
-      # Source chest images (not committed). Default ./library; point at the
-      # imladris-data raw tier to use the census-assigned images directly:
-      #   $env:LIBRARY_HOST = "../../imladris-data/raw/tb-cxr/set-1"
       - ${LIBRARY_HOST:-./library}:/library:ro
-      - ./output:/output              # copies of every DICOM sent
-    networks: [qure]
+      - ./output:/output
+      - ./state:/state
+      - ${CENSUS_DIR:-./census}:/census:ro
 
 networks:
   qure:

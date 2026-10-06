@@ -49,6 +49,37 @@ Simulation options, shared by `capture` and `convert`: `--panel {wireless154,tos
 `--dose`, `--seed`, `--anatomy-fraction`, `--presentation {presentation,processing}`,
 `--defects`, `--image-type-original`.
 
+## Modality agent (watches qTrack's worklist)
+
+`agent.py` (`minxray_sim.py watch`) is the headless version of `capture`, modelled on the lab
+sidecar's acquisition loop. Every `POLL_SECONDS` it C-FINDs the worklist for station `MIX`
+and images every new item: MPPS IN PROGRESS → DX → dcmio → MPPS COMPLETED → optional
+forwards. So **registering a patient in qTrack is all it takes**: about 20 s later the image
+and qXR result appear.
+
+```powershell
+cd C:\Dev\git\imladris\minxray-sim
+$env:LIBRARY_HOST = "../../imladris-data/raw/tb-cxr/set-1"
+$env:CENSUS_DIR   = "../../imladris-bophelong/patients"
+docker compose --profile agent up -d minxray-agent      # restart: unless-stopped
+docker compose logs -f minxray-agent
+docker compose --profile agent run --rm minxray-agent watch --once --dry-run   # preview, sends nothing
+```
+
+- **Image per patient (deterministic):** census patients get their census-assigned image (`CR_raw`).
+  Anyone else gets a stable per-PatientID pick of class `NEW_PATIENT_LABEL` (`random` = Tuberculosis
+  with probability `TB_FRACTION`, else Normal), never a census image.
+- **What's done:** qTrack's MWL server only returns REGISTERED items, and MPPS COMPLETED removes them.
+  The agent also records each capture in `state/acquired.json` (git-ignored), so an item whose MPPS
+  fails isn't re-imaged. Failures are retried up to `MAX_ATTEMPTS`.
+- **Skipped:** PatientIDs starting with `SKIP_PATIENT_PREFIXES` (default `E2ETEST`, the installer's
+  stuck test entries) and items scheduled more than `MAX_ITEM_AGE_DAYS` ago.
+- **Forwarding (e.g. AdvaPACS gateway):** set `FORWARD_TO=CALLED_AE@host:port[,…]` and
+  `FORWARD_AE=<this modality's AE title as registered at the destination>`. Each capture is then also
+  C-STOREd there after dcmio accepts it, like a DX-R station with several send destinations.
+  The destination must know `FORWARD_AE` as a Remote AE (AdvaPACS rejects unregistered calling AEs),
+  with IP mismatch allowed, because the agent connects from a container address.
+
 ## Enabling qTrack's worklist mode (one-time, in the clone)
 
 qTrack only pushes registered patients to the MWL server, and shows the MPPS

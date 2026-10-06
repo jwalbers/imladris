@@ -11,6 +11,7 @@ Plays the modality side of the Qure.ai field workflow:
 Commands:
   worklist                     list scheduled procedures from the MWL SCP
   capture                      pick a worklist item, "expose" a PNG, send it
+  watch                        agent: poll the worklist and capture each new item (see agent.py)
   convert PNG OUT.dcm          offline PNG -> MinXray DX conversion only
 
 Configuration (environment variables; defaults suit running on the laptop host,
@@ -24,6 +25,10 @@ the compose file overrides them for running inside the Qure docker network):
   STORE_AE     dcmio called AE                           (default: QUREAI)
   LIBRARY_DIR  directory of source chest PNGs            (default: ./library)
   OUTPUT_DIR   where copies of sent DICOM are kept       (default: ./output)
+  FORWARD_TO   extra C-STORE destinations for each capture, comma-separated
+               CALLED_AE@host:port (e.g. ADVAPACS_GW_02@host.docker.internal:11112)
+  FORWARD_AE   calling AE for those forwards, i.e. the AE registered for this
+               modality at the destination                (default: STATION_AE)
 """
 from __future__ import annotations
 
@@ -60,7 +65,9 @@ CFG = {
     "STORE_AE": os.environ.get("STORE_AE", "QUREAI"),
     "LIBRARY_DIR": Path(os.environ.get("LIBRARY_DIR", "library")),
     "OUTPUT_DIR": Path(os.environ.get("OUTPUT_DIR", "output")),
+    "FORWARD_TO": os.environ.get("FORWARD_TO", ""),
 }
+CFG["FORWARD_AE"] = os.environ.get("FORWARD_AE", CFG["STATION_AE"])
 
 PATIENT_KEYS = ("PatientName", "PatientID", "PatientBirthDate", "PatientSex",
                 "AccessionNumber", "StudyInstanceUID", "RequestedProcedureID",
@@ -70,13 +77,24 @@ SPS_KEYS = ("Modality", "ScheduledStationAETitle", "ScheduledProcedureStepStartD
             "ScheduledProcedureStepDescription")
 
 
-def _ae() -> AE:
-    ae = AE(ae_title=CFG["STATION_AE"])
+def _ae(calling_ae: str | None = None) -> AE:
+    ae = AE(ae_title=calling_ae or CFG["STATION_AE"])
     ae.acse_timeout = ae.dimse_timeout = ae.network_timeout = 30
     return ae
 
 
 # ---------------------------------------------------------------- worklist
+
+def _fix_text(value) -> str:
+    """Qure's MWL server sends UTF-8 text without declaring a UTF-8 Specific
+    Character Set, so pydicom decodes it as Latin-1 ('Tšepiso' -> 'TÅ¡episo').
+    Undo that when the Latin-1 bytes form valid UTF-8; leave real Latin-1 alone."""
+    s = str(value or "")
+    try:
+        return s.encode("latin-1").decode("utf-8")
+    except (UnicodeEncodeError, UnicodeDecodeError):
+        return s
+
 
 def query_worklist(station: str | None, date: str | None, modality: str | None) -> list[dict]:
     q = Dataset()
@@ -102,9 +120,9 @@ def query_worklist(station: str | None, date: str | None, modality: str | None) 
     try:
         for status, ident in assoc.send_c_find(q, ModalityWorklistInformationFind):
             if status and status.Status in (0xFF00, 0xFF01) and ident is not None:
-                item = {kw: str(ident.get(kw, "") or "") for kw in PATIENT_KEYS}
+                item = {kw: _fix_text(ident.get(kw, "")) for kw in PATIENT_KEYS}
                 s = ident.ScheduledProcedureStepSequence[0] if ident.get("ScheduledProcedureStepSequence") else Dataset()
-                item.update({kw: str(s.get(kw, "") or "") for kw in SPS_KEYS})
+                item.update({kw: _fix_text(s.get(kw, "")) for kw in SPS_KEYS})
                 items.append(item)
     finally:
         assoc.release()
@@ -137,6 +155,7 @@ def _mpps_assoc():
 
 def mpps_create(item: dict, mpps_uid: str, started: datetime) -> bool:
     ds = Dataset()
+    ds.SpecificCharacterSet = "ISO_IR 192"
     ssa = Dataset()
     ssa.StudyInstanceUID = item.get("StudyInstanceUID", "")
     ssa.AccessionNumber = item.get("AccessionNumber", "")
@@ -215,22 +234,71 @@ def mpps_finish(mpps_uid: str, sent: Dataset | None, completed: bool) -> None:
 
 # ---------------------------------------------------------------- store
 
-def c_store(ds: Dataset, path: Path) -> bool:
+def c_store(ds: Dataset, path: Path, host: str | None = None, port: int | None = None,
+            called_ae: str | None = None, calling_ae: str | None = None) -> bool:
     """Send the saved file, so the bytes on the wire match its Explicit VR
-    encoding exactly (an in-memory FileDataset may be flagged as implicit)."""
-    ae = _ae()
+    encoding exactly (an in-memory FileDataset may be flagged as implicit).
+    Defaults to the dcmio gateway (STORE_*)."""
+    host, port = host or CFG["STORE_HOST"], port or CFG["STORE_PORT"]
+    called_ae = called_ae or CFG["STORE_AE"]
+    ae = _ae(calling_ae)
     ae.add_requested_context(ds.SOPClassUID, ds.file_meta.TransferSyntaxUID)
-    assoc = ae.associate(CFG["STORE_HOST"], CFG["STORE_PORT"], ae_title=CFG["STORE_AE"], max_pdu=0)
+    assoc = ae.associate(host, port, ae_title=called_ae, max_pdu=0)
     if not assoc.is_established:
-        log.error("C-STORE association to %s:%s failed", CFG["STORE_HOST"], CFG["STORE_PORT"])
+        log.error("C-STORE association to %s@%s:%s failed%s", called_ae, host, port,
+                  " (rejected: is our calling AE registered there?)" if assoc.is_rejected else "")
         return False
     try:
         status = assoc.send_c_store(path)
         ok = bool(status) and status.Status == 0x0000
-        log.info("C-STORE %s -> 0x%04X", ds.SOPInstanceUID, status.Status if status else -1)
+        log.info("C-STORE -> %s@%s:%s %s -> 0x%04X", called_ae, host, port,
+                 ds.SOPInstanceUID, status.Status if status else -1)
         return ok
     finally:
         assoc.release()
+
+
+def forward_destinations() -> list[tuple[str, str, int]]:
+    """Parse FORWARD_TO ('AE@host:port,...') into (called_ae, host, port)."""
+    dests = []
+    for spec in filter(None, (s.strip() for s in CFG["FORWARD_TO"].split(","))):
+        called, _, hostport = spec.partition("@")
+        host, _, port = hostport.rpartition(":")
+        if not (called and host and port.isdigit()):
+            raise SystemExit(f"Bad FORWARD_TO entry {spec!r}; expected CALLED_AE@host:port")
+        dests.append((called, host, int(port)))
+    return dests
+
+
+def capture_item(item: dict, png: Path, params: dx.SimParams, use_mpps: bool = True) -> bool:
+    """Expose one worklist item: MPPS IN PROGRESS -> build DX -> C-STORE to dcmio
+    -> MPPS COMPLETED (or DISCONTINUED) -> forward to FORWARD_TO destinations.
+    Returns True when the image reached dcmio."""
+    log.info("Capturing %s (%s, acc %s) from %s", item["PatientName"], item["PatientID"],
+             item["AccessionNumber"], png)
+    mpps_uid = generate_uid()
+    mpps_ok = use_mpps and mpps_create(item, mpps_uid, datetime.now())
+
+    ds = dx.build_dx(png, params, item, station_ae=CFG["STATION_AE"])
+    if mpps_ok:
+        ref = Dataset()
+        ref.ReferencedSOPClassUID = ModalityPerformedProcedureStep
+        ref.ReferencedSOPInstanceUID = mpps_uid
+        ds.ReferencedPerformedProcedureStepSequence = Sequence([ref])
+    out = CFG["OUTPUT_DIR"] / f"{ds.AccessionNumber or ds.PatientID}_{ds.SOPInstanceUID}.dcm"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    ds.save_as(out, enforce_file_format=True)
+    log.info("Saved %s", out)
+
+    sent = c_store(ds, out)
+    if mpps_ok:
+        mpps_finish(mpps_uid, ds if sent else None, completed=sent)
+    if sent:
+        # Like a DX-R station configured with several send destinations; failures
+        # here don't undo the capture (the gateway queues/retries on its own side).
+        for called, host, port in forward_destinations():
+            c_store(ds, out, host, port, called, CFG["FORWARD_AE"])
+    return sent
 
 
 # ---------------------------------------------------------------- commands
@@ -275,26 +343,12 @@ def cmd_capture(a) -> int:
         raise SystemExit("Several items match; choose one with --index, --accession or --patient-id")
     item = items[a.index or 0]
     png = _pick_source(a.image, a.label)
-    log.info("Capturing %s (%s, acc %s) from %s", item["PatientName"], item["PatientID"], item["AccessionNumber"], png)
+    return 0 if capture_item(item, png, _sim_params(a), use_mpps=not a.no_mpps) else 1
 
-    mpps_uid = generate_uid()
-    mpps_ok = False if a.no_mpps else mpps_create(item, mpps_uid, datetime.now())
 
-    ds = dx.build_dx(png, _sim_params(a), item, station_ae=CFG["STATION_AE"])
-    if mpps_ok:
-        ref = Dataset()
-        ref.ReferencedSOPClassUID = ModalityPerformedProcedureStep
-        ref.ReferencedSOPInstanceUID = mpps_uid
-        ds.ReferencedPerformedProcedureStepSequence = Sequence([ref])
-    out = CFG["OUTPUT_DIR"] / f"{ds.AccessionNumber or ds.PatientID}_{ds.SOPInstanceUID}.dcm"
-    out.parent.mkdir(parents=True, exist_ok=True)
-    ds.save_as(out, enforce_file_format=True)
-    log.info("Saved %s", out)
-
-    sent = c_store(ds, out)
-    if mpps_ok:
-        mpps_finish(mpps_uid, ds if sent else None, completed=sent)
-    return 0 if sent else 1
+def cmd_watch(a) -> int:
+    import agent  # imports this module; keep the dependency one-way at load time
+    return agent.run(_sim_params(a), once=a.once, dry_run=a.dry_run)
 
 
 def cmd_convert(a) -> int:
@@ -341,6 +395,12 @@ def main(argv=None) -> int:
     sp.add_argument("--no-mpps", action="store_true")
     sim_opts(sp)
     sp.set_defaults(func=cmd_capture)
+
+    sp = sub.add_parser("watch", help="agent: poll the worklist and capture each new item")
+    sp.add_argument("--once", action="store_true", help="one worklist pass, then exit")
+    sp.add_argument("--dry-run", action="store_true", help="log what would be captured; send nothing")
+    sim_opts(sp)
+    sp.set_defaults(func=cmd_watch)
 
     sp = sub.add_parser("convert", help="PNG -> DX file, no network")
     sp.add_argument("png")

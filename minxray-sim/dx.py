@@ -200,7 +200,7 @@ def build_dx(png: Path, params: SimParams, patient: dict, station_ae: str = "MIX
     ds = FileDataset(None, {}, file_meta=meta, preamble=b"\0" * 128)
     ds.SOPClassUID = sop_class
     ds.SOPInstanceUID = meta.MediaStorageSOPInstanceUID
-    ds.SpecificCharacterSet = "ISO_IR 100"
+    ds.SpecificCharacterSet = "ISO_IR 192"  # UTF-8: Sesotho names use š, which Latin-1 lacks
 
     # Patient / study (from the worklist when available)
     ds.PatientName = patient.get("PatientName", "SIMULATED^PATIENT")
