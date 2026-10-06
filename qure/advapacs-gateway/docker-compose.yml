@@ -1,0 +1,45 @@
+# AdvaPACS Gateway for the Qure field laptop.
+#
+# Store-and-forward bridge from the laptop to AdvaPACS cloud: local AEs C-STORE
+# to the gateway's Local AE (port 11112); the gateway queues in its volume and
+# uploads when the network is available.
+#
+# Differences from the lab (docker/ap-qs): bridge networking instead of host mode
+# (Docker Desktop on Windows), attached to the Qure stack's network so the
+# MinXray agent and dcmio reach it as "advapacs-gateway".
+#
+#   copy .env.example .env      # then fill the gateway key from 1Password
+#   docker compose up -d
+#   docker compose logs -f
+#
+# Portal side (Configuration → Gateways / Local AEs / Remote AEs): a gateway for
+# this laptop, a Local AE on port 11112, and a Remote AE for each sender (e.g. the
+# MinXray agent's FORWARD_AE) with "Allow IP Mismatch" enabled — senders connect
+# from container addresses.
+name: advapacs-gateway
+
+services:
+  advapacs-gateway:
+    image: advahealthsolutions/advapacs-gateway:latest
+    container_name: advapacs-gateway
+    restart: unless-stopped
+    environment:
+      ADVAPACS_ACCESS_KEY_ID:     ${ADVAPACS_GW_KEY_ID:?set ADVAPACS_GW_KEY_ID in .env}
+      ADVAPACS_ACCESS_KEY_SECRET: ${ADVAPACS_GW_SECRET:?set ADVAPACS_GW_SECRET in .env}
+      ADVAPACS_REGION:            ${ADVAPACS_REGION:-usa1}
+      TZ:                         ${TZ:-Africa/Maseru}
+      LOGGING_LEVEL_COM_ADVAHEALTHSOLUTIONS: ${GW_LOG_LEVEL:-INFO}
+    ports:
+      - "11112:11112"   # DICOM C-STORE SCP (Local AE)
+      - "8085:8085"     # DICOMweb proxy
+    volumes:
+      - advapacs-gw-data:/opt/AdvaHealthSolutions/AdvaPACSGateway   # registration + store-and-forward queue
+    networks: [qure]
+
+volumes:
+  advapacs-gw-data:
+
+networks:
+  qure:
+    external: true
+    name: platform_default
