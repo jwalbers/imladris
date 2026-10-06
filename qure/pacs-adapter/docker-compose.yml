@@ -1,0 +1,39 @@
+# IMLADRIS PACS adapter: completed qTrack/qXR studies -> AdvaPACS Gateway.
+#
+#   copy .env.example .env      # PLATFORM_DB_PASSWORD for the read-only role imladris_ro
+#   docker compose up -d        # watch mode (only studies completed after first start)
+#   docker compose logs -f
+#   docker compose run --rm pacs-adapter send --patient-id AZ1234 [--dry-run]
+#   docker compose run --rm pacs-adapter list
+name: pacs-adapter
+
+services:
+  pacs-adapter:
+    build: .
+    image: imladris/pacs-adapter:0.1
+    container_name: pacs-adapter
+    restart: unless-stopped
+    environment:
+      PLATFORM_DB_HOST: postgres
+      PLATFORM_DB_USER: imladris_ro
+      PLATFORM_DB_PASSWORD: ${PLATFORM_DB_PASSWORD:?set PLATFORM_DB_PASSWORD in .env}
+      GATEWAY_HOST: advapacs-gateway
+      GATEWAY_PORT: "11112"
+      GATEWAY_AE: QURE01_GW_01
+      ADAPTER_AE: QURE01_ADP_01
+      POLL_SECONDS: "20"
+    volumes:
+      - prod-data:/srv/data:ro                       # Qure platform filestore (read-only)
+      - ../../minxray-sim/output:/primary:ro         # MinXray lossless originals
+      - ./state:/state
+      - ./output:/output                             # normalized copies of what was sent
+    networks: [qure]
+
+volumes:
+  prod-data:
+    external: true                                   # the Qure stack's filestore volume
+
+networks:
+  qure:
+    external: true
+    name: platform_default
