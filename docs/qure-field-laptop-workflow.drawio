@@ -1,0 +1,206 @@
+<mxfile host="Electron" pages="1">
+  <diagram name="Qure field laptop workflow" id="qure-field-laptop-workflow">
+    <mxGraphModel dx="1735" dy="1224" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2100" pageHeight="1500" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=20;fontStyle=1;" value="Qure.ai field laptop — MinXray capture → qXR → qTrack Cloud &amp;amp; AdvaPACS (MWL and DICOM transactions ①–⑮)" vertex="1">
+          <mxGeometry height="40" width="1640" x="40" y="10" as="geometry" />
+        </mxCell>
+
+        <!-- Outer swimlane: the laptop -->
+        <mxCell id="lap" parent="1" style="swimlane;startSize=40;fillColor=#d0cee2;strokeWidth=2;dashed=1;dashPattern=8 8;fontSize=14;fontStyle=1;swimlaneLine=1;align=right;strokeColor=#56517e;" value="Qure.ai field laptop — Docker Desktop (WSL2) · works offline" vertex="1">
+          <mxGeometry height="970" width="1640" x="40" y="60" as="geometry" />
+        </mxCell>
+
+        <!-- Footer bar -->
+        <mxCell id="foot" parent="lap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontStyle=1;fontSize=20;align=right;" value="QURE01 · Qure.ai App on-prem stack + IMLADRIS agents  " vertex="1">
+          <mxGeometry height="50" width="1600" x="20" y="905" as="geometry" />
+        </mxCell>
+
+        <!-- ROW A -->
+        <mxCell id="tech" parent="lap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;fontSize=11;align=center;verticalAlign=middle;arcSize=8;" value="&lt;b&gt;Health worker / Rad Tech&lt;/b&gt;&lt;br&gt;Browser Client&lt;br&gt;&lt;hr/&gt;qTrack UI :3000&lt;br&gt;Register patient&lt;br&gt;Review image + qXR report" vertex="1">
+          <mxGeometry height="150" width="200" x="30" y="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ui" parent="lap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6d0de;strokeColor=#996185;strokeWidth=2;fontSize=11;align=center;verticalAlign=middle;arcSize=8;gradientColor=#d5739d;" value="&lt;b&gt;qTrack Web UI&lt;/b&gt;&lt;br&gt;Docker · qure-app-frontend&lt;br&gt;&lt;hr/&gt;Port 3000 HTTP&lt;br&gt;Add Patient · worklist · patient channel · viewer&lt;br&gt;&lt;br&gt;&lt;i&gt;MWL mode: NEXT_PUBLIC_IS_MWL_ENABLED=true&lt;br&gt;(runtimeConfig.js)&lt;/i&gt;" vertex="1">
+          <mxGeometry height="180" width="260" x="290" y="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mwl" parent="lap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6d0de;strokeColor=#996185;strokeWidth=2;fontSize=11;align=center;verticalAlign=middle;arcSize=8;gradientColor=#d5739d;" value="&lt;b&gt;Modality Worklist server&lt;/b&gt;&lt;br&gt;Docker · mwl (qureai/dicom-scp) + postgres_mwl&lt;br&gt;&lt;hr/&gt;Port 9003 → 222  DICOM: MWL C-FIND, MPPS&lt;br&gt;Port 9002 → 4000  HTTP: /patient/add, /patient/upsert&lt;br&gt;Implicit VR LE only · accepts any AE&lt;br&gt;&lt;br&gt;REGISTERED → IN PROGRESS → COMPLETED&lt;br&gt;C-FIND returns REGISTERED items only&lt;br&gt;&lt;i&gt;Items: Modality DX · Scheduled Station AE MIX&lt;/i&gt;" vertex="1">
+          <mxGeometry height="220" width="340" x="610" y="45" as="geometry" />
+        </mxCell>
+
+        <mxCell id="qsync" parent="lap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6d0de;strokeColor=#996185;strokeWidth=2;dashed=1;fontSize=11;align=center;verticalAlign=middle;arcSize=8;gradientColor=#d5739d;" value="&lt;b&gt;qsync — cloud sync&lt;/b&gt;&lt;br&gt;Docker · qsync (qure_platform_api send)&lt;br&gt;&lt;hr/&gt;Store-and-forward to qTrack Cloud&lt;br&gt;patients · images · qXR reports&lt;br&gt;&lt;br&gt;&lt;i&gt;Enabled on the production install;&lt;br&gt;off on the lab clone (needs its own identity)&lt;/i&gt;" vertex="1">
+          <mxGeometry height="170" width="290" x="1300" y="60" as="geometry" />
+        </mxCell>
+
+        <!-- ROW B -->
+        <mxCell id="minx" parent="lap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=11;align=center;verticalAlign=middle;arcSize=8;" value="&lt;b&gt;MinXray detector simulator&lt;/b&gt;&lt;br&gt;Docker · minxray-agent (IMLADRIS)&lt;br&gt;&lt;hr/&gt;AE MIX (worklist, MPPS, dcmio)&lt;br&gt;Keeps a lossless copy of every capture&lt;br&gt;Polls the worklist every 15 s → auto-capture&lt;br&gt;PNG → synthetic DX For Presentation&lt;br&gt;2304×2816 @ 0.154 mm · 16-bit · MONOCHROME2&lt;br&gt;MTF blur · Poisson + electronic noise · UTF-8&lt;br&gt;&lt;br&gt;&lt;i&gt;Emulates dicomPACS DX-R + CareRay CareView 1500Cw&lt;br&gt;Source: tb-cxr library · Bophelong census&lt;/i&gt;" vertex="1">
+          <mxGeometry height="270" width="310" x="30" y="330" as="geometry" />
+        </mxCell>
+
+        <mxCell id="dcmio" parent="lap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6d0de;strokeColor=#996185;strokeWidth=2;fontSize=11;align=center;verticalAlign=middle;arcSize=8;gradientColor=#d5739d;" value="&lt;b&gt;dcmio DICOM gateway&lt;/b&gt;&lt;br&gt;Docker · dcmio_dicom_server · dcmio_worker&lt;br&gt;&lt;hr/&gt;Port 5252 DICOM C-STORE SCP (AE QUREAI)&lt;br&gt;Port 7000 web / config API&lt;br&gt;DX · CR · SC · any AE · common TS&lt;br&gt;&lt;br&gt;filter → validate → upload → compute → publish&lt;br&gt;&lt;i&gt;DICOM publishers: none configured&lt;/i&gt;" vertex="1">
+          <mxGeometry height="230" width="290" x="400" y="350" as="geometry" />
+        </mxCell>
+
+        <mxCell id="api" parent="lap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6d0de;strokeColor=#996185;strokeWidth=2;fontSize=11;align=center;verticalAlign=middle;arcSize=8;gradientColor=#d5739d;" value="&lt;b&gt;Qure Platform API&lt;/b&gt;&lt;br&gt;Docker · qureapi (+ workers, ws, nginx)&lt;br&gt;&lt;hr/&gt;Port 8080 HTTP API · 8081 WebSocket&lt;br&gt;Port 2001 nginx&lt;br&gt;Patients · studies · reports · workflow&lt;br&gt;Stores primary as JPEG (q90)&lt;br&gt;&lt;br&gt;&lt;i&gt;sc_generation_api: SC overlays · PDF report&lt;/i&gt;" vertex="1">
+          <mxGeometry height="230" width="290" x="750" y="350" as="geometry" />
+        </mxCell>
+
+        <mxCell id="qxr" parent="lap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6d0de;strokeColor=#996185;strokeWidth=2;fontSize=11;align=center;verticalAlign=middle;arcSize=8;gradientColor=#d5739d;" value="&lt;b&gt;qXR inference&lt;/b&gt;&lt;br&gt;Docker · cathode-api · cathode-worker&lt;br&gt;&lt;hr/&gt;Port 8180 HTTP (cathode API)&lt;br&gt;GPU: NVIDIA RTX 1000 Ada (6 GB)&lt;br&gt;qXR v4 · 26 models&lt;br&gt;≈30 s per study (≈3 min cold start)&lt;br&gt;&lt;br&gt;Findings · TB score · CTR" vertex="1">
+          <mxGeometry height="230" width="270" x="1110" y="350" as="geometry" />
+        </mxCell>
+
+        <!-- ROW C -->
+        <mxCell id="store" parent="lap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;fontSize=11;align=center;verticalAlign=middle;arcSize=8;" value="&lt;b&gt;Platform storage&lt;/b&gt;&lt;br&gt;postgres :5432 · volume prod-data&lt;br&gt;&lt;hr/&gt;DB: patients · studies · series · images · sync state&lt;br&gt;Filestore /srv/data/hct/&amp;lt;workspace&amp;gt;/&amp;lt;SeriesUID&amp;gt;/&lt;br&gt;· original — DX (JPEG q90)&lt;br&gt;· _sc.dcm · _sc_without_sidebar.dcm — SC overlays&lt;br&gt;· _sr.dcm — Basic Text SR&lt;br&gt;· _reports/*.dcm — Encapsulated PDF" vertex="1">
+          <mxGeometry height="220" width="340" x="700" y="650" as="geometry" />
+        </mxCell>
+
+        <mxCell id="adapter" parent="lap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;fontSize=11;align=center;verticalAlign=middle;arcSize=8;" value="&lt;b&gt;IMLADRIS PACS adapter&lt;/b&gt;&lt;br&gt;Docker · pacs-adapter · AE QURE01_ADP_01&lt;br&gt;&lt;hr/&gt;Watches for studies qXR has finished&lt;br&gt;Primary: MinXray lossless DX · qXR: 2 SC, SR, PDF&lt;br&gt;Normalizes before AdvaPACS:&lt;br&gt;· valid UIDs · accession ≤ 16 chars&lt;br&gt;· PatientName Family^Given · sex · DOB&lt;br&gt;· StudyDate / Description on every object&lt;br&gt;· UTF-8 (ISO_IR 192) · synthetic marker&lt;br&gt;&lt;br&gt;&lt;i&gt;DB access: read-only role imladris_ro&lt;/i&gt;" vertex="1">
+          <mxGeometry height="220" width="290" x="1080" y="650" as="geometry" />
+        </mxCell>
+
+        <mxCell id="gw" parent="lap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#FF8000;strokeWidth=2;fontSize=11;align=center;verticalAlign=middle;arcSize=8;" value="&lt;b&gt;AdvaPACS Gateway&lt;/b&gt;&lt;br&gt;Docker · advapacs-gateway&lt;br&gt;(qure01-gw-01)&lt;br&gt;&lt;hr/&gt;Port 11112 DICOM C-STORE SCP&lt;br&gt;Local AE QURE01_GW_01&lt;br&gt;Port 8085 DICOMweb proxy&lt;br&gt;Calling AE: QURE01_ADP_01&lt;br&gt;&lt;br&gt;Store-and-forward queue (volume)&lt;br&gt;&lt;i&gt;uploads when online&lt;/i&gt;" vertex="1">
+          <mxGeometry height="220" width="210" x="1410" y="650" as="geometry" />
+        </mxCell>
+
+        <!-- CLOUDS (outside the laptop) -->
+        <mxCell id="qcloud" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6d0de;strokeColor=#996185;strokeWidth=3;fontSize=11;align=center;verticalAlign=middle;arcSize=8;fontStyle=1;gradientColor=#d5739d;" value="&lt;b&gt;qTrack Cloud&lt;/b&gt;&lt;br&gt;Qure.ai · PIH demo workspace&lt;br&gt;&lt;hr/&gt;HTTPS sync API&lt;br&gt;Patients · images · qXR reports&lt;br&gt;qTrack web + mobile" vertex="1">
+          <mxGeometry height="170" width="270" x="1790" y="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="acloud" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#0066CC;strokeWidth=3;fontSize=11;align=center;verticalAlign=middle;arcSize=8;fontStyle=1;" value="&lt;b&gt;AdvaPACS Cloud&lt;/b&gt;&lt;br&gt;advapacs.com · Region: usa1&lt;br&gt;&lt;hr/&gt;Gateway upload API (HTTPS)&lt;br&gt;Study Validation queue&lt;br&gt;AdvaView · MedDream · eUnity&lt;br&gt;Issuers: PIH_A" vertex="1">
+          <mxGeometry height="190" width="270" x="1790" y="700" as="geometry" />
+        </mxCell>
+
+        <!-- EDGES -->
+        <!-- ① tech → UI -->
+        <mxCell id="e1" edge="1" parent="lap" source="tech" target="ui" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#b85450;strokeWidth=2;fontSize=10;fontStyle=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="① register&lt;br&gt;HTTP :3000">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ② UI → MWL -->
+        <mxCell id="e2" edge="1" parent="lap" source="ui" target="mwl" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#996185;strokeWidth=2;fontSize=10;fontStyle=1;exitX=1;exitY=0.4;exitDx=0;exitDy=0;entryX=0;entryY=0.4;entryDx=0;entryDy=0;" value="② HTTP POST&lt;br&gt;/patient/add :9002">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ③④⑦ minx ↔ MWL -->
+        <mxCell id="e3" edge="1" parent="lap" source="minx" target="mwl" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=2;fontSize=10;fontStyle=1;startArrow=classic;startFill=1;exitX=0.75;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" value="③ MWL C-FIND (every 15 s)&lt;br&gt;④ MPPS N-CREATE IN PROGRESS&lt;br&gt;⑦ MPPS N-SET COMPLETED&lt;br&gt;DICOM :9003 · AE MIX">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="263" y="300" />
+              <mxPoint x="695" y="300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ⑤ MWL → API -->
+        <mxCell id="e5" edge="1" parent="lap" source="mwl" target="api" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#996185;strokeWidth=2;dashed=1;fontSize=10;fontStyle=2;exitX=0.8;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" value="⑤ HTTP POST /patients/&amp;lt;id&amp;gt;/&lt;br&gt;mpps_progress (via nginx)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ⑥ minx → dcmio -->
+        <mxCell id="e6" edge="1" parent="lap" source="minx" target="dcmio" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=3;fontSize=10;fontStyle=1;exitX=1;exitY=0.55;exitDx=0;exitDy=0;entryX=0;entryY=0.55;entryDx=0;entryDy=0;" value="⑥ C-STORE&lt;br&gt;DX For Presentation&lt;br&gt;MIX → QUREAI :5252">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ⑧ dcmio → API -->
+        <mxCell id="e8" edge="1" parent="lap" source="dcmio" target="api" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#996185;strokeWidth=2;fontSize=10;fontStyle=1;exitX=1;exitY=0.55;exitDx=0;exitDy=0;entryX=0;entryY=0.55;entryDx=0;entryDy=0;" value="⑧ upload&lt;br&gt;HTTP :8080">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ⑨ API ↔ qXR -->
+        <mxCell id="e9" edge="1" parent="lap" source="api" target="qxr" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#996185;strokeWidth=2;fontSize=10;fontStyle=1;startArrow=classic;startFill=1;exitX=1;exitY=0.55;exitDx=0;exitDy=0;entryX=0;entryY=0.55;entryDx=0;entryDy=0;" value="⑨ compute&lt;br&gt;HTTP :8180&lt;br&gt;findings, scores">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ⑩ API → storage -->
+        <mxCell id="e10" edge="1" parent="lap" source="api" target="store" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;fontSize=10;fontStyle=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" value="⑩ write DX (JPEG) · 2× SC&lt;br&gt;Enc PDF · SR · DB rows">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ⑪ UI ↔ API -->
+        <mxCell id="e11" edge="1" parent="lap" source="ui" target="api" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#996185;strokeWidth=2;fontSize=10;fontStyle=1;startArrow=classic;startFill=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" value="⑪ study + qXR report&lt;br&gt;HTTP :8080 / ws :8081">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="420" y="285" />
+              <mxPoint x="823" y="285" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ⑫a API → qsync -->
+        <mxCell id="e12a" edge="1" parent="lap" source="api" target="qsync" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#996185;strokeWidth=2;dashed=1;fontSize=10;fontStyle=2;exitX=0.85;exitY=0;exitDx=0;exitDy=0;entryX=0.3;entryY=1;entryDx=0;entryDy=0;" value="⑫ sync queue (DB)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="997" y="290" />
+              <mxPoint x="1387" y="290" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ⑬ storage → adapter -->
+        <mxCell id="e13" edge="1" parent="lap" source="store" target="adapter" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=2;fontSize=10;fontStyle=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="⑬ read study&lt;br&gt;SQL :5432 +&lt;br&gt;filestore (ro)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ⑭ adapter → GW -->
+        <mxCell id="e14" edge="1" parent="lap" source="adapter" target="gw" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=3;fontSize=10;fontStyle=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="⑭ C-STORE&lt;br&gt;DX + 2 SC&lt;br&gt;+ Enc PDF + SR&lt;br&gt;QURE01_ADP_01&lt;br&gt;→ :11112">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ⑬ minx → adapter: lossless primary via shared folder -->
+        <mxCell id="e13p" edge="1" parent="lap" source="minx" target="adapter" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=2;fontSize=10;fontStyle=1;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.3;entryY=0;entryDx=0;entryDy=0;" value="⑬ lossless primary DX (minxray-sim/output, read-only · matched by SOP Instance UID)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="263" y="625" />
+              <mxPoint x="1167" y="625" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- ⑫b qsync ↔ qTrack Cloud -->
+        <mxCell id="e12b" edge="1" parent="1" source="qsync" target="qcloud" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#996185;strokeWidth=3;dashed=1;fontSize=10;fontStyle=1;startArrow=classic;startFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="⑫ HTTPS sync&lt;br&gt;(when online)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ⑮ GW ↔ AdvaPACS Cloud -->
+        <mxCell id="e15" edge="1" parent="1" source="gw" target="acloud" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#FF8000;strokeWidth=3;fontSize=10;fontStyle=1;startArrow=classic;startFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" value="⑮ HTTPS upload&lt;br&gt;store-and-forward">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="leg_title" parent="1" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontStyle=1;" value="Legend" vertex="1">
+          <mxGeometry height="20" width="200" x="1790" y="920" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" value="IMLADRIS agents" vertex="1">
+          <mxGeometry height="26" width="130" x="1790" y="945" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e6d0de;strokeColor=#996185;fontSize=10;gradientColor=#d5739d;" value="Qure.ai stack" vertex="1">
+          <mxGeometry height="26" width="130" x="1930" y="945" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#FF8000;fontSize=10;" value="AdvaPACS Gateway" vertex="1">
+          <mxGeometry height="26" width="130" x="1790" y="980" as="geometry" />
+        </mxCell>
+        <mxCell id="leg4" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=10;" value="Storage / PACS" vertex="1">
+          <mxGeometry height="26" width="130" x="1930" y="980" as="geometry" />
+        </mxCell>
+        <mxCell id="leg5" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=10;" value="Browser Client" vertex="1">
+          <mxGeometry height="26" width="130" x="1790" y="1015" as="geometry" />
+        </mxCell>
+        <mxCell id="leg6" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#666666;dashed=1;fontSize=10;" value="dashed = indirect / when online" vertex="1">
+          <mxGeometry height="26" width="270" x="1790" y="1050" as="geometry" />
+        </mxCell>
+
+        <!-- Transaction sequence table -->
+        <mxCell id="seq" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=2;fontSize=11;align=left;verticalAlign=top;arcSize=3;spacing=12;" value="&lt;b style=&quot;font-size:14px&quot;&gt;Workflow: one chest X-ray, registration to AdvaPACS&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;table cellpadding=&quot;3&quot; style=&quot;border-collapse:collapse;font-size:11px&quot;&gt;&lt;tr&gt;&lt;td&gt;&lt;b&gt;#&lt;/b&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;Transaction&lt;/b&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;From → To&lt;/b&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;Protocol · port · AE&lt;/b&gt;&lt;/td&gt;&lt;td&gt;&lt;b&gt;Status&lt;/b&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;①&lt;/td&gt;&lt;td&gt;Register patient (ID, name, age, gender)&lt;/td&gt;&lt;td&gt;Health worker → qTrack UI&lt;/td&gt;&lt;td&gt;HTTP :3000&lt;/td&gt;&lt;td&gt;working&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;②&lt;/td&gt;&lt;td&gt;Create worklist item (REGISTERED)&lt;/td&gt;&lt;td&gt;qTrack UI → MWL server&lt;/td&gt;&lt;td&gt;HTTP POST /patient/add :9002&lt;/td&gt;&lt;td&gt;working&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;③&lt;/td&gt;&lt;td&gt;Query worklist&lt;/td&gt;&lt;td&gt;MinXray sim → MWL server&lt;/td&gt;&lt;td&gt;DICOM MWL C-FIND :9003 · AE MIX&lt;/td&gt;&lt;td&gt;working&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;④&lt;/td&gt;&lt;td&gt;Exposure started&lt;/td&gt;&lt;td&gt;MinXray sim → MWL server&lt;/td&gt;&lt;td&gt;DICOM MPPS N-CREATE (IN PROGRESS) :9003&lt;/td&gt;&lt;td&gt;working&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;⑤&lt;/td&gt;&lt;td&gt;Progress shown in qTrack&lt;/td&gt;&lt;td&gt;MWL server → Platform API&lt;/td&gt;&lt;td&gt;HTTP POST /patients/&amp;lt;id&amp;gt;/ (mpps_progress)&lt;/td&gt;&lt;td&gt;working&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;⑥&lt;/td&gt;&lt;td&gt;Primary image&lt;/td&gt;&lt;td&gt;MinXray sim → dcmio&lt;/td&gt;&lt;td&gt;DICOM C-STORE DX For Presentation · MIX → QUREAI :5252&lt;/td&gt;&lt;td&gt;working&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;⑥b&lt;/td&gt;&lt;td&gt;&lt;i&gt;(retired)&lt;/i&gt; primary sent directly to the PACS&lt;/td&gt;&lt;td&gt;MinXray sim → AdvaPACS Gateway&lt;/td&gt;&lt;td&gt;DICOM C-STORE · MINX_DX_01 → QURE01_GW_01&lt;/td&gt;&lt;td&gt;off since 2026-10-07; replaced by ⑭&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;⑦&lt;/td&gt;&lt;td&gt;Exposure done; item leaves worklist&lt;/td&gt;&lt;td&gt;MinXray sim → MWL server&lt;/td&gt;&lt;td&gt;DICOM MPPS N-SET (COMPLETED) :9003&lt;/td&gt;&lt;td&gt;working&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;⑧&lt;/td&gt;&lt;td&gt;Filter, validate, upload&lt;/td&gt;&lt;td&gt;dcmio → Platform API&lt;/td&gt;&lt;td&gt;HTTP :8080&lt;/td&gt;&lt;td&gt;working&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;⑨&lt;/td&gt;&lt;td&gt;AI inference&lt;/td&gt;&lt;td&gt;Platform API ↔ qXR&lt;/td&gt;&lt;td&gt;HTTP :8180 · GPU&lt;/td&gt;&lt;td&gt;working&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;⑩&lt;/td&gt;&lt;td&gt;Results stored: DX (JPEG), SC ×2, Encapsulated PDF, Basic Text SR&lt;/td&gt;&lt;td&gt;Platform API → storage&lt;/td&gt;&lt;td&gt;filestore + postgres :5432&lt;/td&gt;&lt;td&gt;working&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;⑪&lt;/td&gt;&lt;td&gt;Study and qXR report in patient channel&lt;/td&gt;&lt;td&gt;Platform API ↔ qTrack UI&lt;/td&gt;&lt;td&gt;HTTP :8080 · WebSocket :8081&lt;/td&gt;&lt;td&gt;working&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;⑫&lt;/td&gt;&lt;td&gt;Sync patients, images, reports&lt;/td&gt;&lt;td&gt;qsync → qTrack Cloud&lt;/td&gt;&lt;td&gt;HTTPS, store-and-forward&lt;/td&gt;&lt;td&gt;production install; lab clone needs own identity&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;⑬&lt;/td&gt;&lt;td&gt;Collect the completed study: lossless primary + qXR objects + patient sex/DOB&lt;/td&gt;&lt;td&gt;MinXray output, storage → PACS adapter&lt;/td&gt;&lt;td&gt;shared folder · filestore (read-only) · SQL :5432 as imladris_ro&lt;/td&gt;&lt;td&gt;working&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;⑭&lt;/td&gt;&lt;td&gt;Normalized study: DX + SC ×2 + Encapsulated PDF + SR&lt;/td&gt;&lt;td&gt;PACS adapter → AdvaPACS Gateway&lt;/td&gt;&lt;td&gt;DICOM C-STORE · QURE01_ADP_01 → QURE01_GW_01 :11112&lt;/td&gt;&lt;td&gt;working&lt;/td&gt;&lt;/tr&gt;&lt;tr&gt;&lt;td&gt;⑮&lt;/td&gt;&lt;td&gt;Upload to cloud PACS (queues while offline)&lt;/td&gt;&lt;td&gt;AdvaPACS Gateway → AdvaPACS Cloud&lt;/td&gt;&lt;td&gt;HTTPS (usa1)&lt;/td&gt;&lt;td&gt;working&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" vertex="1">
+          <mxGeometry height="470" width="1640" x="40" y="1060" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
