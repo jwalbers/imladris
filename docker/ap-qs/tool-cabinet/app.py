@@ -58,7 +58,7 @@ DICOM_GW_HOST    = os.getenv("DICOM_GW_HOST",    "localhost")
 DICOM_GW_PORT    = int(os.getenv("DICOM_GW_PORT", "11112"))
 DICOM_GW_AE      = os.getenv("DICOM_GW_AE",      "ADVAPACS_GW_01")
 DICOM_CALLING_AE = os.getenv("DICOM_CALLING_AE", "IML_CR_01")
-DICOM_TOOLS_AE   = os.getenv("DICOM_TOOLS_AE",   "IML_TOOLS")
+DICOM_TOOLS_AE   = os.getenv("DICOM_TOOLS_AE",   "IML_TOOLS_01")
 
 _profile: str = "online"
 _blocked_ips: set[str] = set()
