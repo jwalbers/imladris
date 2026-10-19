@@ -185,6 +185,7 @@ def _get_worklist(modality_filter: str | None = None) -> list[dict]:
             "scheduled_time":     scheduled_time,
             "order_created_sort": (raw_date + raw_time)[:14],
             "study_uid":          str(getattr(ds, "StudyInstanceUID", "")),
+            "acquired":           acc in _acq._sent,
             "status":             status,
             "status_label":       status_label,
             "status_color":       status_color,
@@ -217,6 +218,7 @@ def _get_worklist(modality_filter: str | None = None) -> list[dict]:
             "scheduled_time":     scheduled_time_display,
             "order_created_sort": sort_key,
             "study_uid":          "",
+            "acquired":           acc in _acq._sent,
             "status":             status,
             "status_label":       status_label,
             "status_color":       status_color,
@@ -834,7 +836,9 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
           <span class="status-badge" style="color: {{ e.status_color }}">{{ e.status_label }}</span>
         </td>
         <td>
-          {% if e.status == 'active' %}
+          {% if e.acquired %}
+          <button class="btn-acquire done" id="btn-{{ e.accession }}" disabled>✓ Acquired</button>
+          {% elif e.status == 'active' %}
           <button
             class="btn-acquire"
             id="btn-{{ e.accession }}"
@@ -845,7 +849,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
           {% endif %}
           <button
             class="btn-remove"
-            id="rm-{{ e.accession }}"
+            id="rm-{{ e.accession }}"{% if e.acquired %} style="display:inline-block"{% endif %}
             onclick="removeEntry('{{ e.accession }}')"
           >✕ Remove</button>
           <div class="status-msg" id="msg-{{ e.accession }}"></div>
