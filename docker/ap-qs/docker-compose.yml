@@ -112,7 +112,7 @@ services:
       SCP_PORT:     "5252"
       ORTHANC_HOST: imladris-sidecar   # scp_relay SCP on the sidecar
       ORTHANC_PORT: "4242"
-      ORTHANC_AE:   IML_CR_01
+      ORTHANC_AE:   ${LAB_CR_AET:-IML_CR_01}
       SAMPLE_DIR:   /sample_outputs
       DELAY_SEC:    "3"
     networks:
@@ -139,7 +139,7 @@ services:
       ADVAPACS_ACCESS_KEY_ID:     ${ADVAPACS_GW_KEY_ID}
       ADVAPACS_ACCESS_KEY_SECRET: ${ADVAPACS_GW_SECRET}
       ADVAPACS_REGION:            "usa1"
-      TZ:                         America/Los_Angeles
+      TZ:                         ${LAB_TZ:-America/Los_Angeles}
       LOGGING_LEVEL_ORG_DCM4CHE3:              DEBUG
       LOGGING_LEVEL_COM_ADVAHEALTHSOLUTIONS:   DEBUG
     network_mode: "host"
@@ -163,6 +163,12 @@ services:
       - ./orthanc/forward-to-qure.lua:/etc/orthanc/forward-to-qure.lua:ro
       - pacs-data:/var/lib/orthanc/db
     # No AdvaPACS credentials: Orthanc has no path to AdvaPACS.
+    # pacs.json reads ${ADVAPACS_GW_AE} (Orthanc expands env vars in its config);
+    # the host-networked gateway is reached via host.docker.internal.
+    environment:
+      ADVAPACS_GW_AE: ${ADVAPACS_GW_AE:-ADVAPACS_GW_01}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - imladris
 
@@ -222,10 +228,14 @@ services:
       ADVAPACS_HOSTS: "usa1.api.dicomweb.advapacs.com"
       FHIR_KEY_ID: ${ADVAPACS_KEY_ID:-}
       FHIR_KEY_SECRET: ${ADVAPACS_SECRET:-}
-      DICOM_TOOLS_AE: IML_TOOLS
+      DICOM_TOOLS_AE: ${LAB_TOOLS_AET:-IML_TOOLS_01}
       DICOM_GW_HOST: localhost
       DICOM_GW_PORT: "11112"
-      DICOM_GW_AE: ADVAPACS_GW_01
+      DICOM_GW_AE: ${ADVAPACS_GW_AE:-ADVAPACS_GW_01}
+      DICOM_CALLING_AE: ${LAB_CR_AET:-IML_CR_01}
+      CR_AET: ${LAB_CR_AET:-IML_CR_01}
+      US_AET: ${LAB_US_AET:-IML_US_01}
+      CT_AET: ${LAB_CT_AET:-IML_CT_01}
 
   # ── OHIF Viewer (radiologist workstation) ──────────────────────────
   ohif:
@@ -261,11 +271,11 @@ services:
       - sidecar-data:/data        # order poller state (last-polled timestamp)
       - ../../../imladris-bophelong/patients/dicom:/hospital-records:ro
     environment:
-      # Modality AE titles
-      MODALITY_AET: IML_CR_01
-      CR_AET: IML_CR_01
-      US_AET: IML_US_01
-      CT_AET: IML_CT_01
+      # Modality AE titles — per site (Oregon _01, Wisconsin _02); set in .env
+      MODALITY_AET: ${LAB_CR_AET:-IML_CR_01}
+      CR_AET: ${LAB_CR_AET:-IML_CR_01}
+      US_AET: ${LAB_US_AET:-IML_US_01}
+      CT_AET: ${LAB_CT_AET:-IML_CT_01}
       INSTITUTION: Bophelong MDR-TB Hospital
       DICOM_ISSUER_OF_PATIENT_ID: PIH_A
       POLL_INTERVAL_MINUTES: 0.25   # 15 sec — demo mode (restore to 5 for production)
@@ -274,14 +284,14 @@ services:
       # AdvaPACS gateway (host-networked on 11112)
       ADVAPACS_GW_HOST: host.docker.internal
       ADVAPACS_GW_PORT: "11112"
-      ADVAPACS_GW_AE: ADVAPACS_GW_01
+      ADVAPACS_GW_AE: ${ADVAPACS_GW_AE:-ADVAPACS_GW_01}
       # Qure.ai simulator
       QURE_HOST: imladris-qure-sim
       QURE_PORT: "5252"
       QURE_AE: QUREAI
       ENABLE_QURE: "true"
       # scp_relay SCP (receives SC from qure-sim, forwards to AdvaPACS)
-      SCP_AE: IML_CR_01
+      SCP_AE: ${LAB_CR_AET:-IML_CR_01}
       SCP_PORT: "4242"
       # Order poller (OpenMRS REST → AdvaPACS ORM^O01)
       OPENMRS_URL: http://host.docker.internal:8080/openmrs

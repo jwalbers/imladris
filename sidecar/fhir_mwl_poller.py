@@ -20,6 +20,11 @@ FHIR_POLL_SEC       30
 WL_FOLDER           /worklist
 MODALITY_AET        fallback AET when no per-modality AET is set
 CR_AET / US_AET / CT_AET / MR_AET / RF_AET
+
+Site filter: orders whose performer Device carries a station AE title that is
+not one of this site's AETs (above) are skipped, so a lab sharing the AdvaPACS
+tenant with another site only sees its own orders.  Orders with no station AE
+are kept.
 """
 
 import logging
@@ -60,13 +65,12 @@ _KNOWN_MODALITIES = frozenset(
      "RTRECORD", "RTSTRUCT", "RWV", "SEG", "SM", "SMR", "SR", "SRF", "ST",
      "STAIN", "TG", "US", "VA", "XA", "XC"}
 )
-_AET_TO_MODALITY = {
-    "IML_CR_01": "CR",
-    "IML_US_01": "US",
-    "IML_CT_01": "CT",
-    "IML_MR_01": "MR",
-    "IML_RF_01": "RF",
-}
+# Reverse map for this site's AETs; first modality wins where AETs are shared
+# (MR/RF default to the CR station).
+_AET_TO_MODALITY: dict[str, str] = {}
+for _mod in ("CR", "US", "CT", "MR", "RF"):
+    _AET_TO_MODALITY.setdefault(_MODALITY_AET_MAP[_mod], _mod)
+_SITE_AETS = frozenset(_MODALITY_AET_MAP.values())
 
 
 def _aet_for(modality: str) -> str:
@@ -211,6 +215,10 @@ def _poll_once(
         if device_ref and device_ref not in device_cache:
             device_cache[device_ref] = _fetch_resource(client, device_ref)
         station_aet = _extract_station_aet(device_cache.get(device_ref, {}))
+        if station_aet and station_aet not in _SITE_AETS:
+            log.debug(f"Skipping {accession} — station {station_aet} belongs to another site")
+            current.discard(accession)
+            continue
 
         # Procedure description — extracted early so modality can fall back to it.
         # AdvaPACS may not preserve concept.coding[0].display for externally-posted SRs.
