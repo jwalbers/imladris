@@ -125,12 +125,11 @@ _KNOWN_MODALITIES = frozenset(
      "STAIN", "TG", "US", "VA", "XA", "XC"}
 )
 
+# This site's station AETs (Oregon _01, Wisconsin _02), from the compose env.
 _AET_TO_MODALITY = {
-    "IML_CR_01": "CR",
-    "IML_US_01": "US",
-    "IML_CT_01": "CT",
-    "IML_MR_01": "MR",
-    "IML_RF_01": "RF",
+    os.getenv("CR_AET", "IML_CR_01"): "CR",
+    os.getenv("US_AET", "IML_US_01"): "US",
+    os.getenv("CT_AET", "IML_CT_01"): "CT",
 }
 
 
@@ -808,6 +807,9 @@ async def index(request: Request):
         "blocked_ips": sorted(_blocked_ips),
         "pacs":        _pacs_stats(),
         "gw_status":   _gw_status(),
+        "gw_ae":       DICOM_GW_AE,
+        "tools_ae":    DICOM_TOOLS_AE,
+        "calling_ae":  DICOM_CALLING_AE,
     })
 
 

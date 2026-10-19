@@ -7,10 +7,20 @@
  *   SAML_ADMIN_PASSWORD  (any strong password for the /simplesaml/admin UI)
  */
 
+// Serve whichever lab domain the request came in on (HAProxy keeps the Host
+// header); anything else falls back to .org.  Both domains' ACS URLs must be
+// registered as Reply URLs on the Entra enterprise app.
+$labHosts = ['imladrislab.org', 'imladrislab.net'];
+$labHost  = strtolower(explode(':', $_SERVER['HTTP_HOST'] ?? '')[0]);
+if (!in_array($labHost, $labHosts, true)) {
+    $labHost = 'imladrislab.org';
+}
+
 $config = [
 
     // ── Core ──────────────────────────────────────────────────────────────
-    'baseurlpath'        => 'https://imladrislab.org/simplesaml/',
+    'baseurlpath'        => 'https://' . $labHost . '/simplesaml/',
+    'trusted.url.domains' => $labHosts,
 
     // Required in SSP 2.x — Symfony compiled container cache.
     // /tmp is always writable; cache is rebuilt on container restart (fine for lab).

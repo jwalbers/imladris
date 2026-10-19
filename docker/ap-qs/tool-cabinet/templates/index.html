@@ -386,7 +386,7 @@
 
   <!-- ── DICOM Study Upload ────────────────────────────────────────────── -->
   <div class="section">
-    <div class="section-label">DICOM Study Upload — C-STORE to AdvaPACS Gateway (IML_TOOLS)</div>
+    <div class="section-label">DICOM Study Upload — C-STORE to AdvaPACS Gateway ({{ tools_ae }})</div>
     <div class="form-grid">
       <div class="form-group">
         <label class="form-label">Gateway Host</label>
@@ -398,11 +398,11 @@
       </div>
       <div class="form-group">
         <label class="form-label">Called AE Title</label>
-        <input class="form-input" id="upload-called-ae" value="ADVAPACS_GW_01">
+        <input class="form-input" id="upload-called-ae" value="{{ gw_ae }}">
       </div>
       <div class="form-group">
         <label class="form-label">Calling AE Title</label>
-        <input class="form-input" id="upload-calling-ae" value="IML_TOOLS">
+        <input class="form-input" id="upload-calling-ae" value="{{ tools_ae }}">
       </div>
     </div>
     <div class="form-group" style="margin-bottom:0.85rem">
@@ -429,11 +429,11 @@
       </div>
       <div class="form-group">
         <label class="form-label">Called AE Title</label>
-        <input class="form-input" id="mwl-called-ae" value="ADVAPACS_GW_01">
+        <input class="form-input" id="mwl-called-ae" value="{{ gw_ae }}">
       </div>
       <div class="form-group">
         <label class="form-label">Calling AE Title</label>
-        <input class="form-input" id="mwl-calling-ae" value="IML_CR_01">
+        <input class="form-input" id="mwl-calling-ae" value="{{ calling_ae }}">
       </div>
       <div class="form-group">
         <label class="form-label">Modality filter <small>(blank=all)</small></label>
