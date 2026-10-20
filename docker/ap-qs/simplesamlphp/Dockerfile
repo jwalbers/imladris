@@ -31,7 +31,7 @@ COPY simplesamlphp/apache-simplesamlphp.conf /etc/apache2/conf-enabled/simplesam
 # ── Landing page + assets (baked in — avoids Docker Desktop VirtioFS stale-file issues) ─
 COPY landing/index.html      /var/www/html/landing.html
 COPY landing/favicon.ico     /var/www/html/favicon.ico
-COPY landing/earendil_star.png /var/www/html/earendil_star.png
+COPY landing/*.png           /var/www/html/
 
 # ── Permissions ────────────────────────────────────────────────────────────────
 RUN chown -R www-data:www-data /var/simplesamlphp

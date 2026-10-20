@@ -169,6 +169,13 @@
     .tag-viewer   { background: #1a2a3a; color: #7ab8dd; }
     .tag-modality { background: #2a2a1a; color: #ccb84a; }
     .tag-cloud    { background: #2a1a3a; color: #aa7add; }
+    .tag-ai       { background: #13302f; color: #3fc8b8; }
+
+    .card-icon img {
+      height: 1.6rem;
+      width: auto;
+      display: block;
+    }
 
     .card-desc {
       font-size: 0.82rem;
@@ -297,7 +304,7 @@
     </div>
 
     <div class="section-label">Lab Infrastructure</div>
-    <div class="card-grid card-grid-2">
+    <div class="card-grid">
 
       <div class="card">
         <div class="card-icon">📡</div>
@@ -305,7 +312,7 @@
         <div class="card-tag tag-modality">Simulator</div>
         <div class="card-desc">
           Simulated radiology technologist console. Acquire studies for patients
-          on the worklist as IML_CR_01 (X-ray) or IML_US_01 (ultrasound).
+          on this site's worklist (X-ray, ultrasound and CT stations).
         </div>
         <a class="card-link" href="https://console.imladrislab.org" target="_blank">Open Console</a>
       </div>
@@ -319,6 +326,21 @@
           to test offline resilience and gateway queue/retry behaviour.
         </div>
         <a class="card-link" href="https://tools.imladrislab.org" target="_blank">Open Tool Cabinet</a>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">
+          <img src="/qure-logo.png" alt="Qure.ai"
+               onerror="this.replaceWith(document.createTextNode('🩻'))">
+        </div>
+        <div class="card-name">Qure.ai Field Laptop</div>
+        <div class="card-tag tag-ai">AI Field Device</div>
+        <div class="card-desc">
+          qTrack and qXR chest X-ray AI with a simulated MinXray DX detector,
+          as deployed in the field. Remote desktop via your PIH sign-in;
+          one user at a time, and sessions are recorded.
+        </div>
+        <a class="card-link" href="https://qure.imladrislab.org" target="_blank">Open Qure Laptop</a>
       </div>
 
     </div>
