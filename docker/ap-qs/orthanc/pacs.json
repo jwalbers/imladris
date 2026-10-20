@@ -21,8 +21,9 @@
     "MODALITY_SIM"   : ["MODALITY_SIM",   "orthanc-modality", 4242],
     // Simulated Qure.ai qXR DCMIO gateway
     "QUREAI"         : ["QUREAI",         "qure-sim",         5252],
-    // AdvaPACS Gateway — C-STORE SCP on BESSIE (host-networked; Local AE configured in AdvaPACS cloud admin)
-    "ADVAPACS_GW_01" : ["ADVAPACS_GW_01", "192.168.1.10",     11112]
+    // AdvaPACS Gateway — host-networked C-STORE SCP on this lab host (Local AE configured in
+    // AdvaPACS cloud admin). AE title comes from the compose env (ADVAPACS_GW_AE: _01 Oregon, _02 Wisconsin).
+    "${ADVAPACS_GW_AE}" : ["${ADVAPACS_GW_AE}", "host.docker.internal", 11112]
   },
 
   // Enable bundled plugins (Stone Web Viewer + DICOMweb)
@@ -43,29 +44,15 @@
     // Transcode frames to uncompressed on retrieval so /frames/N works
     "TranscodeDicomWebRequestsToUncompressed" : true,
 
-    // Cloud PACS peers — Orthanc forwards stable studies to these via STOW-RS
-    "Servers" : {
-      // Path 1: Direct to AdvaPACS cloud (Basic Auth)
-      "AdvaPACS" : {
-        "Url"            : "https://usa1.api.dicomweb.advapacs.com/rs",
-        "SslEnabled"     : true,
-        "SslVerifyPeers" : true,
-        "Username"       : "${ADVAPACS_KEY_ID}",
-        "Password"       : "${ADVAPACS_SECRET}",
-        "Timeout"        : 300
-      },
-      // Path 2: Via AdvaPACS Gateway (Windows 192.168.1.10, DICOMweb proxy → cloud via RabbitMQ)
-      // No auth — Gateway handles its own auth to AdvaPACS cloud internally.
-      "AdvaPACS_GW" : {
-        "Url"     : "http://192.168.1.10:8085/rs",
-        "Timeout" : 300
-      }
-    }
+    // No STOW-RS servers: Orthanc never forwards to AdvaPACS (decided 2026-10-02).
+    // Studies that should be in AdvaPACS are sent there deliberately, by hand.
+    "Servers" : {}
   },
 
-  // Auto-forward: stable studies → AdvaPACS cloud; CXR instances → Qure.ai gateway
+  // Auto-forward: lab CXR instances → Qure.ai simulator (local only).
+  // lab-guard.lua must load first: it defines IsLabStudy(), which blocks real PHI.
   "LuaScripts" : [
-    "/etc/orthanc/forward-to-advapacs.lua",
+    "/etc/orthanc/lab-guard.lua",
     "/etc/orthanc/forward-to-qure.lua"
   ],
 

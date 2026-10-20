@@ -1,6 +1,7 @@
 // OHIF Viewer — Imladris configuration
 // Currently: AdvaPACS cloud via nginx CORS proxy (port 8087 → usa1.api.dicomweb.advapacs.com/rs)
-// HAProxy frontend: advapacs-p.imladrislab.org → BESSIE:8087
+// HAProxy frontend: advapacs-p.imladrislab.{org,net} → lab host :8087
+// The domain follows the page's own host, so the same file serves either domain.
 //
 // To switch back to Orthanc PACS, replace the dataSources block with:
 //
@@ -25,6 +26,9 @@
 //
 // After editing, regenerate the compressed copy: gzip -k -f app-config.js
 
+const LAB_DOMAIN =
+  (window.location.hostname.match(/imladrislab\.(org|net)$/) || ['imladrislab.org'])[0];
+
 window.config = {
   routerBasename: '/',
   showStudyList: true,
@@ -38,9 +42,9 @@ window.config = {
       configuration: {
         friendlyName: 'AdvaPACS Cloud',
         name: 'ADVAPACS',
-        wadoUriRoot:    'https://advapacs-p.imladrislab.org',
-        qidoRoot:       'https://advapacs-p.imladrislab.org',
-        wadoRoot:       'https://advapacs-p.imladrislab.org',
+        wadoUriRoot:    'https://advapacs-p.' + LAB_DOMAIN,
+        qidoRoot:       'https://advapacs-p.' + LAB_DOMAIN,
+        wadoRoot:       'https://advapacs-p.' + LAB_DOMAIN,
         qidoSupportsIncludeField: true,
         supportsReject: false,
         imageRendering: 'wadors',

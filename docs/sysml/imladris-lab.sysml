@@ -249,12 +249,12 @@ package ImladrisLab {
     // Web-based lab utility. Provides a /dicom/upload endpoint that accepts .dcm
     // files or .zip archives containing .dcm files (nested dirs OK) and C-STOREs
     // them to the AdvaPACS gateway. Results streamed as NDJSON to the browser.
-    // Calling AE: IML_TOOLS — must be in gateway Accepted Calling AE Titles list.
+    // Calling AE: IML_TOOLS_01 (Oregon) / IML_TOOLS_02 (Wisconsin) — must be in gateway Accepted Calling AE Titles list.
     // Only proposes the transfer syntax(es) actually present in each file;
     // does not offer uncompressed alternatives it cannot deliver.
 
     part def ToolCabinet {
-        attribute aeTitle : String = "IML_TOOLS";
+        attribute aeTitle : String = "IML_TOOLS_01";
 
         // HTTP server — multipart/form-data upload, NDJSON progress stream
         port httpServer : FhirRestServer;   // placeholder: HTTP upload API (not FHIR)
@@ -382,8 +382,8 @@ package ImladrisLab {
 
         // ── Workflow 9: Tool Cabinet DICOM Upload ──────────────────────────────
         // Radiologist/engineer uploads .dcm or .zip via browser → Tool Cabinet
-        // FastAPI → C-STORE (IML_TOOLS) to AdvaPACS gateway → cloud.
-        // Calling AE IML_TOOLS must be in gateway Accepted Calling AE Titles.
+        // FastAPI → C-STORE (IML_TOOLS_0n) to AdvaPACS gateway → cloud.
+        // Calling AE IML_TOOLS_0n must be in gateway Accepted Calling AE Titles.
         // Only the file's actual transfer syntax is proposed in A-ASSOCIATE-RQ.
         connection : DicomCStoreLink connect toolCabinet.cstoreScu to advagw.cstoreScp;
 
@@ -427,7 +427,7 @@ package ImladrisLab {
     //  │    advapacs-gateway  11112:11112 · 8085:8085 (host networking)  │
     //  │    advapacs-proxy    8086:80  (nginx auth injector →            │
     //  │                     advapacs-p.imladrislab.org)                 │
-    //  │    tool-cabinet      8087:8080  (FastAPI upload / IML_TOOLS)   │
+    //  │    tool-cabinet      8087:8080  (FastAPI upload / IML_TOOLS_0n)│
     //  │    qure-sim          5252:5252                                  │
     //  │                                                                 │
     //  │  op-qs-local (docker compose) — optional Orthanc overlay       │

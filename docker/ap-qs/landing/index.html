@@ -344,10 +344,17 @@
       })
       .catch(() => {});
 
+    // Links are written for imladrislab.org; follow whichever domain served this page.
+    const LAB_DOMAIN =
+      (location.hostname.match(/imladrislab\.(org|net)$/) || ['imladrislab.org'])[0];
+    document.querySelectorAll('a[href*="imladrislab.org"]').forEach(a => {
+      a.href = a.href.replace('imladrislab.org', LAB_DOMAIN);
+    });
+
     function signOut() {
       window.location.href =
         '/simplesaml/module.php/core/logout.php'
-        + '?ReturnTo=' + encodeURIComponent('https://imladrislab.org/');
+        + '?ReturnTo=' + encodeURIComponent(location.origin + '/');
     }
   </script>
 

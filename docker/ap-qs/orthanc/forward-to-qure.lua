@@ -42,6 +42,13 @@ function OnStoredInstance(instanceId, tags, metadata, origin)
         return  -- SC already present
     end
 
+    -- lab-guard.lua: never forward real PHI
+    local instance = ParseJson(RestApiGet('/instances/' .. instanceId))
+    local series   = ParseJson(RestApiGet('/series/' .. instance['ParentSeries']))
+    if not IsLabStudy(series['ParentStudy']) then
+        return
+    end
+
     print('qure_sim: forwarding ' .. modality .. ' instance ' .. instanceId)
     SendToModality(instanceId, 'QUREAI')
 end

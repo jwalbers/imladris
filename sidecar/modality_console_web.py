@@ -58,6 +58,7 @@ from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
 import dicom_client as dc
 import acquisition_loop as _acq
+import fhir_mwl_poller as fmp
 import hl7_bridge
 
 log = logging.getLogger("console_web")
@@ -136,6 +137,7 @@ def favicon():
 def _get_worklist(modality_filter: str | None = None) -> list[dict]:
     """Return all orders: .wl files merged with _order_states, each with status."""
     entries: dict[str, dict] = {}
+    wl_accessions: set[str] = set()   # every .wl order, before the modality filter
 
     # --- Primary source: .wl files (authoritative for draft/active orders) ---
     for wl_file in sorted(WL_FOLDER.glob("*.wl")):
@@ -144,6 +146,9 @@ def _get_worklist(modality_filter: str | None = None) -> list[dict]:
         except Exception as e:
             log.debug(f"Skipping {wl_file.name}: {e}")
             continue
+
+        acc = str(getattr(ds, "AccessionNumber", ""))
+        wl_accessions.add(acc)
 
         sps_seq = getattr(ds, "ScheduledProcedureStepSequence", [])
         sps = sps_seq[0] if sps_seq else pydicom.Dataset()
@@ -160,7 +165,6 @@ def _get_worklist(modality_filter: str | None = None) -> list[dict]:
         scheduled_time = raw_time[:2] + ":" + raw_time[2:4] if len(raw_time) >= 4 else raw_time
 
         _raw_name = str(getattr(ds, "PatientName", ""))
-        acc = str(getattr(ds, "AccessionNumber", ""))
 
         # Status from webhook cache if present, otherwise assume draft
         state = _order_states.get(acc, {})
@@ -181,6 +185,7 @@ def _get_worklist(modality_filter: str | None = None) -> list[dict]:
             "scheduled_time":     scheduled_time,
             "order_created_sort": (raw_date + raw_time)[:14],
             "study_uid":          str(getattr(ds, "StudyInstanceUID", "")),
+            "acquired":           acc in _acq._sent,
             "status":             status,
             "status_label":       status_label,
             "status_color":       status_color,
@@ -188,8 +193,8 @@ def _get_worklist(modality_filter: str | None = None) -> list[dict]:
 
     # --- Secondary source: webhook state cache (completed/revoked/on-hold not in .wl) ---
     for acc, state in _order_states.items():
-        if acc in entries:
-            continue  # already covered by .wl file above
+        if acc in wl_accessions:
+            continue  # the .wl file is authoritative, even when filtered out of this tab
         if modality_filter and state.get("modality", "").upper() != modality_filter.upper():
             continue
         status = state.get("status", "unknown")
@@ -213,6 +218,7 @@ def _get_worklist(modality_filter: str | None = None) -> list[dict]:
             "scheduled_time":     scheduled_time_display,
             "order_created_sort": sort_key,
             "study_uid":          "",
+            "acquired":           acc in _acq._sent,
             "status":             status,
             "status_label":       status_label,
             "status_color":       status_color,
@@ -399,30 +405,51 @@ def _fetch_and_handle_sr(sr_id: str, event_type: str):
         status = sr.get("status", "unknown")
         log.info(f"{event_type} {sr_id}: status={status}")
 
-        # Accession number
+        # Station AE (performer Device). Orders for another site's stations are
+        # ignored: the AdvaPACS tenant and its webhooks are shared between sites.
+        station_aet = ""
+        device_ref = (sr.get("performer") or [{}])[0].get("reference", "")
+        if device_ref:
+            dr = requests.get(f"{base}/{device_ref.lstrip('/')}", headers=auth, timeout=10)
+            if dr.ok:
+                station_aet = fmp._extract_station_aet(dr.json())
+        if station_aet and station_aet not in fmp._SITE_AETS:
+            log.info(f"{event_type} {sr_id}: station {station_aet} belongs to another site — ignored")
+            return
+
+        # Accession number — ACSN-typed identifier, as in fhir_mwl_poller
         accession = next(
             (i.get("value", "") for i in sr.get("identifier", [])
-             if "accession" in i.get("system", "").lower()),
+             if any(c.get("code") == "ACSN"
+                    for c in i.get("type", {}).get("coding", []))
+             or "accession" in i.get("system", "").lower()),
             sr.get("identifier", [{}])[0].get("value", sr_id[:8])
         )
 
-        # Procedure description
+        # Procedure description — FHIR R5 puts it under code.concept (CodeableReference)
         code      = sr.get("code", {})
-        procedure = (code.get("text") or
-                     next((c.get("display","") for c in code.get("coding",[])), "") or
+        concept   = code.get("concept", {})
+        procedure = (concept.get("text") or
+                     next((c.get("display", "") for c in concept.get("coding", [])), "") or
+                     code.get("text") or
+                     next((c.get("display", "") for c in code.get("coding", [])), "") or
                      "Radiology Study")
 
-        # Modality — try orderDetail coding first, fall back to keyword guess
+        # Modality — orderDetail "modality" parameter, then the station AE, then a keyword guess
         modality = ""
         for od in sr.get("orderDetail", []):
             for param in od.get("parameter", []):
-                val = param.get("valueCoding", {})
-                code_val = val.get("code", "")
-                if code_val.upper() in {"CR","DX","CT","MR","US","RF","NM","PT","MG","XA"}:
-                    modality = code_val.upper()
+                val = (param.get("valueString") or
+                       param.get("valueCoding", {}).get("code") or
+                       next((c.get("code", "") for c in
+                             param.get("valueCodeableConcept", {}).get("coding", [])), ""))
+                if (val or "").upper() in fmp._KNOWN_MODALITIES:
+                    modality = val.upper()
                     break
+            if modality:
+                break
         if not modality:
-            modality = _guess_modality(procedure)
+            modality = fmp._AET_TO_MODALITY.get(station_aet, "") or _guess_modality(procedure)
 
         # Patient details via subject reference
         patient_id = patient_name = patient_name_dicom = dob = sex = ""
@@ -809,7 +836,9 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
           <span class="status-badge" style="color: {{ e.status_color }}">{{ e.status_label }}</span>
         </td>
         <td>
-          {% if e.status == 'active' %}
+          {% if e.acquired %}
+          <button class="btn-acquire done" id="btn-{{ e.accession }}" disabled>✓ Acquired</button>
+          {% elif e.status == 'active' %}
           <button
             class="btn-acquire"
             id="btn-{{ e.accession }}"
@@ -820,7 +849,7 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
           {% endif %}
           <button
             class="btn-remove"
-            id="rm-{{ e.accession }}"
+            id="rm-{{ e.accession }}"{% if e.acquired %} style="display:inline-block"{% endif %}
             onclick="removeEntry('{{ e.accession }}')"
           >✕ Remove</button>
           <div class="status-msg" id="msg-{{ e.accession }}"></div>

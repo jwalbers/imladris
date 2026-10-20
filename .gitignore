@@ -43,3 +43,13 @@ openmrs/*.xlsx
 # Videos (large files — store separately)
 videos/
 
+
+# phi-review holds real patient data -- never commit exports or images from it.
+docker/phi-review/**/*.pdf
+docker/phi-review/**/*.dcm
+docker/phi-review/**/*.DCM
+docker/phi-review/**/*.zip
+docker/phi-review/**/*.png
+docker/phi-review/**/*.jpg
+docker/phi-review/**/*.mp4
+docker/phi-review/**/*.csv

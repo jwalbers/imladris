@@ -159,7 +159,10 @@ services:
       # Lua forwarding scripts are intentionally NOT mounted in op-qs.
       # op-qs is local-only: studies stay on this machine and never leave.
       # To enable cloud forwarding, switch to ap-qs (docker/ap-qs/).
-      - pacs-data:/var/lib/orthanc/db
+      # Own volume, NOT shared with ap-qs (same project name "imladris"), so
+      # anything loaded here can never appear in ap-qs. Real PHI goes in
+      # docker/phi-review only, never here.
+      - pacs-data-opqs:/var/lib/orthanc/db
     environment:
       # Credentials left blank — no cloud forwarding in op-qs.
       ADVAPACS_KEY_ID: ""
@@ -308,7 +311,7 @@ services:
 
 volumes:
   mysql-data:
-  pacs-data:
+  pacs-data-opqs:
   worklist-data:    # DICOM .wl files written by fhir_mwl_poller, read by sidecar
   sidecar-data:     # order poller persistent state
 
