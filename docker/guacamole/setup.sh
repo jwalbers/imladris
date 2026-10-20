@@ -14,6 +14,7 @@ CONN_NAME="Qure laptop (MinXray / qTrack)"
 
 mkdir -p init
 [ -s init/initdb.sql ] || docker run --rm guacamole/guacamole:1.6.0 /opt/guacamole/bin/initdb.sh --postgresql > init/initdb.sql
+chmod 755 init && chmod 644 init/initdb.sql   # read by the postgres container user
 
 # Recordings: guacd (uid 1000) writes, the web app (group 1000) reads.
 docker volume create guacamole_recordings >/dev/null
