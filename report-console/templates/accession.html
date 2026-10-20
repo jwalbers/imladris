@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}{{ acc }}{% endblock %}
+{% block nav %}
+  <a href="/">← Report worklist</a>
+  <a href="/events">Events &amp; diagnostics</a>
+{% endblock %}
+{% block main %}
+  <div class="panel">
+    <h2>{{ patient or 'Unknown patient' }} <span class="muted">{{ patient_id }}</span></h2>
+    <dl class="kv">
+      <dt>Accession</dt><dd>{{ acc }}</dd>
+      <dt>Procedure</dt><dd>{{ procedure or '—' }}</dd>
+      <dt>Order</dt><dd><span class="st st-order">{{ order_label }}</span>
+        {% if order %}<span class="muted">FHIR {{ order.status }} · authored {{ (order.authoredOn or '')[:16]|replace('T',' ') }}{% if station %} · station {{ station }}{% endif %}</span>{% endif %}</dd>
+    </dl>
+    {% if order_json %}<details><summary>ServiceRequest JSON</summary><pre class="json">{{ order_json }}</pre></details>{% endif %}
+  </div>
+
+  <h3>Timeline</h3>
+  {% if events %}
+  <table>
+    <thead><tr><th>When (UTC)</th><th>Since previous</th><th>Source</th><th>Event</th><th>Detail</th></tr></thead>
+    <tbody>
+    {% for e in events %}
+      <tr>
+        <td class="muted">{{ e.ts[:19]|replace('T',' ') }}</td>
+        <td class="muted">{{ e.delta }}</td>
+        <td class="muted">{{ e.source }}</td>
+        <td>{{ e.kind }}</td>
+        <td>{{ e.detail }}
+          {% if e.raw_pretty %}<details><summary>payload</summary><pre class="json">{{ e.raw_pretty }}</pre></details>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<div class="empty">No events recorded for this accession yet.</div>{% endif %}
+
+  <h3>Report{{ 's' if reports|length > 1 }}</h3>
+  {% for r in reports %}
+  <div class="panel">
+    <dl class="kv">
+      <dt>Status</dt><dd><span class="st st-{{ r.label|lower }}">{{ r.label }}</span> <span class="muted">FHIR {{ r.status }}</span></dd>
+      <dt>Issued</dt><dd>{{ r.issued or '—' }}</dd>
+      <dt>Interpreted by</dt><dd>{{ r.interpreters|join(', ') or '—' }}</dd>
+      <dt>Verified by</dt><dd>{{ r.verifiers|join(', ') or '—' }}</dd>
+      <dt>Formats</dt><dd class="muted">{{ r.forms|join(', ') or 'none' }}</dd>
+    </dl>
+    {% if r.html %}
+    <iframe sandbox="" srcdoc="{{ r.html }}" style="width:100%; min-height:360px; margin-top:12px; border:1px solid #252d45; border-radius:4px; background:#fff;"></iframe>
+    {% else %}<div class="muted" style="margin-top:10px">No report text in the FHIR record.</div>{% endif %}
+    <details><summary>DiagnosticReport JSON</summary><pre class="json">{{ r.json }}</pre></details>
+  </div>
+  {% else %}
+  <div class="empty">No report yet.</div>
+  {% endfor %}
+
+  <h3>Images</h3>
+  {% for s in studies %}
+  <div class="panel">
+    <dl class="kv">
+      <dt>Study UID</dt><dd class="muted">{{ s.uid }}</dd>
+      <dt>Status</dt><dd>{{ s.status }} <span class="muted">started {{ s.started }}</span></dd>
+      <dt>Series</dt><dd>{% for x in s.series %}<span class="badge mod-{{ 'ai' if x.ai else (x.modality if x.modality in ['CR','DX','US','CT','MR','SC','SR','DOC'] else 'x') }}">{{ x.modality }}</span> {{ x.desc }} <span class="muted">({{ x.n }})</span><br>{% endfor %}</dd>
+    </dl>
+    {% if ohif_host and s.uid %}<div style="margin-top:8px"><a class="row-link" target="_blank" href="https://{{ ohif_host }}/viewer?StudyInstanceUIDs={{ s.uid }}">Open in OHIF ↗</a></div>{% endif %}
+    <details><summary>ImagingStudy JSON</summary><pre class="json">{{ s.json }}</pre></details>
+  </div>
+  {% else %}
+  <div class="empty">No images in AdvaPACS yet.</div>
+  {% endfor %}
+{% endblock %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Report Worklist{% endblock %}
+{% block head %}<meta http-equiv="refresh" content="30">{% endblock %}
+{% block nav %}
+  {% set q = 'site=' ~ site %}
+  <a href="/?{{ q }}&view=all" class="{{ 'active' if view == 'all' }}">All <span class="count">{{ total }}</span></a>
+  <a href="/?{{ q }}&view=awaiting" class="{{ 'active' if view == 'awaiting' }}">Awaiting report <span class="count">{{ counts['Awaiting report'] }}</span></a>
+  <a href="/?{{ q }}&view=draft" class="{{ 'active' if view == 'draft' }}">Draft <span class="count">{{ counts['Draft'] }}</span></a>
+  <a href="/?{{ q }}&view=preliminary" class="{{ 'active' if view == 'preliminary' }}">Preliminary <span class="count">{{ counts['Preliminary'] }}</span></a>
+  <a href="/?{{ q }}&view=verified" class="{{ 'active' if view == 'verified' }}">Verified <span class="count">{{ counts['Verified'] }}</span></a>
+  <span class="sep"></span>
+  <a href="/?site={{ 'all' if site == 'local' else 'local' }}&view={{ view }}">{{ 'Showing ' ~ site_name ~ ' · show all sites' if site == 'local' else 'Showing all sites · show ' ~ site_name }}</a>
+  <a href="/events">Events &amp; diagnostics</a>
+{% endblock %}
+{% block main %}
+  {% if rows %}
+  <table>
+    <thead><tr>
+      <th>Patient</th><th>ID</th><th>Procedure</th><th>Ordered</th><th>Accession</th>
+      <th>Order</th><th>Images</th><th>Report</th><th>Radiologist</th><th>Last activity</th>
+      {% if site == 'all' %}<th>Site</th>{% endif %}
+    </tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td><a class="row-link" href="/a/{{ r.accession }}">{{ r.patient or '—' }}</a></td>
+        <td class="muted">{{ r.patient_id }}</td>
+        <td>{{ r.procedure }}</td>
+        <td class="muted">{{ r.ordered }}</td>
+        <td class="muted"><a class="row-link" href="/a/{{ r.accession }}">{{ r.accession }}</a></td>
+        <td><span class="st st-order">{{ r.order_status }}</span></td>
+        <td>
+          {% for s in r.series %}<span class="badge mod-{{ 'ai' if s.ai else (s.modality if s.modality in ['CR','DX','US','CT','MR','SC','SR','DOC'] else 'x') }}" title="{{ s.desc }}">{{ s.modality }}{% if s.ai %} AI{% endif %}</span>{% else %}<span class="muted">none yet</span>{% endfor %}
+        </td>
+        <td>{% if r.report %}<span class="st st-{{ r.report|lower }}">{{ r.report }}</span>{% else %}<span class="st st-none">—</span>{% endif %}</td>
+        <td class="muted">{{ r.radiologist }}</td>
+        <td class="muted">{{ r.last }}</td>
+        {% if site == 'all' %}<td class="muted">{{ r.site }}</td>{% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">Nothing here yet. The first sync with AdvaPACS may still be running.</div>
+  {% endif %}
+{% endblock %}

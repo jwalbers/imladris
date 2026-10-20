@@ -315,10 +315,38 @@ services:
       FHIR_POLL_SEC: 30
       # AdvaPACS webhook receiver (POST /webhook/advapacs)
       WEBHOOK_SECRET: ${ADVAPACS_WEBHOOK_SECRET:-}
+      # Every webhook is also passed on to the report console as a trigger
+      REPORT_CONSOLE_URL: http://imladris-report-console:5003/trigger
     networks:
       - imladris
     profiles:
       - full   # only starts with: docker compose --profile full up
+
+  # ── Report console (reporting side of the workflow, from AdvaPACS FHIR) ──
+  # Orders, studies and reports per accession, with a timeline of changes.
+  # Fed by webhooks forwarded from the sidecar (triggers only) plus a catch-up
+  # sync every SYNC_SEC. HAProxy: reports.imladrislab.org → <lab host>:5003.
+  report-console:
+    build: ../../report-console
+    container_name: imladris-report-console
+    restart: unless-stopped
+    ports:
+      - "5003:5003"
+    volumes:
+      - report-data:/data
+    environment:
+      FHIR_KEY_ID: ${ADVAPACS_KEY_ID:-}
+      FHIR_KEY_SECRET: ${ADVAPACS_SECRET:-}
+      SYNC_SEC: "120"
+      CR_AET: ${LAB_CR_AET:-IML_CR_01}
+      US_AET: ${LAB_US_AET:-IML_US_01}
+      CT_AET: ${LAB_CT_AET:-IML_CT_01}
+      LAB_SITE_NAME: ${LAB_SITE_NAME:-this site}
+      TZ: ${LAB_TZ:-America/Los_Angeles}
+    networks:
+      - imladris
+    profiles:
+      - full
 
 volumes:
   mysql-data:
@@ -326,6 +354,7 @@ volumes:
   worklist-data:    # DICOM .wl files written by fhir_mwl_poller, read by sidecar
   advapacs-gw-data: # Gateway registration state + Derby DB — persists across --force-recreate
   sidecar-data:     # order poller persistent state
+  report-data:      # report console database (rebuilt from AdvaPACS if lost)
 
 networks:
   imladris:

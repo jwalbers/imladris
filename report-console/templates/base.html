@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Report Console{% endblock %} — Imladris</title>
+  {% block head %}{% endblock %}
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #1a1f2e; color: #e0e4ef; min-height: 100vh; }
+    header { background: #0d111d; border-bottom: 2px solid #3fc8b8; padding: 14px 24px;
+             display: flex; align-items: center; justify-content: space-between; }
+    header .title { font-size: 1.25rem; font-weight: 600; color: #fff; letter-spacing: 0.04em; }
+    header .subtitle { font-size: 0.8rem; color: #7a8aaa; margin-top: 2px; }
+    header .meta { font-size: 0.78rem; color: #7a8aaa; text-align: right; line-height: 1.5; }
+    nav { background: #141829; padding: 10px 24px; display: flex; gap: 8px; flex-wrap: wrap;
+          border-bottom: 1px solid #252d45; align-items: center; }
+    nav a, nav button { color: #7a8aaa; text-decoration: none; padding: 5px 14px; border-radius: 4px;
+          font-size: 0.85rem; border: 1px solid #252d45; background: none; cursor: pointer; font-family: inherit; }
+    nav a:hover, nav button:hover { background: #1e253a; color: #c0cce8; }
+    nav a.active { background: #133a37; color: #3fc8b8; border-color: #3fc8b8; }
+    nav .sep { flex: 1; }
+    main { padding: 20px 24px; }
+    h2 { font-size: 1rem; font-weight: 600; color: #c0cce8; margin-bottom: 12px; }
+    h3 { font-size: 0.82rem; font-weight: 600; color: #7a8aaa; text-transform: uppercase;
+         letter-spacing: 0.06em; margin: 22px 0 10px; }
+    .count { font-size: 0.75rem; color: #7a8aaa; background: #1e253a; padding: 1px 7px; border-radius: 10px; margin-left: 4px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    thead tr { background: #141829; }
+    thead th { text-align: left; padding: 9px 12px; color: #7a8aaa; font-weight: 500; font-size: 0.72rem;
+               text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #252d45; white-space: nowrap; }
+    tbody tr { border-bottom: 1px solid #1e253a; }
+    tbody tr:hover { background: #1e253a; }
+    tbody td { padding: 9px 12px; color: #c0cce8; vertical-align: middle; }
+    td.muted, .muted { color: #7a8aaa; font-size: 0.8rem; }
+    a.row-link { color: #c0cce8; text-decoration: none; }
+    a.row-link:hover { color: #3fc8b8; text-decoration: underline; }
+    .badge { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 0.72rem;
+             font-weight: 600; letter-spacing: 0.04em; margin: 1px 2px 1px 0; }
+    .mod-CR, .mod-DX { background: #162a4a; color: #5aafff; }
+    .mod-US { background: #1a3a20; color: #4dcc70; }
+    .mod-CT { background: #3a2010; color: #ffaa44; }
+    .mod-MR { background: #2a1a3a; color: #bb77ff; }
+    .mod-SC, .mod-SR, .mod-DOC, .mod-ai { background: #133a37; color: #3fc8b8; }
+    .mod-x { background: #252d45; color: #a0aac8; }
+    .st { display: inline-block; padding: 2px 9px; border-radius: 3px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; }
+    .st-none        { background: #252d45; color: #7a8aaa; }
+    .st-draft       { background: #3a3010; color: #e6c34a; }
+    .st-preliminary { background: #3a2010; color: #ffaa44; }
+    .st-final, .st-verified { background: #1a3a20; color: #4dcc70; }
+    .st-amended     { background: #2a1a3a; color: #bb77ff; }
+    .st-cancelled, .st-entered-in-error { background: #3a1414; color: #ff7070; }
+    .st-order       { background: rgba(255,255,255,0.06); color: #a0b8d8; }
+    .panel { background: #141829; border: 1px solid #252d45; border-radius: 6px; padding: 14px 16px; margin-bottom: 14px; }
+    .kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; font-size: 0.85rem; }
+    .kv dt { color: #7a8aaa; }
+    details { margin-top: 8px; }
+    summary { cursor: pointer; color: #5aafff; font-size: 0.8rem; }
+    pre.json { background: #0d111d; border: 1px solid #252d45; border-radius: 4px; padding: 10px; margin-top: 6px;
+               font-size: 0.75rem; color: #a0b8d8; overflow-x: auto; max-height: 420px; }
+    .empty { color: #7a8aaa; padding: 30px; text-align: center; font-size: 0.9rem; }
+    footer { padding: 14px 24px; font-size: 0.75rem; color: #4a5570; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="title">Bophelong Hospital — Report Console</div>
+      <div class="subtitle">Imladris Virtual Integration Lab · reporting workflow as seen in AdvaPACS · {{ site_name }}</div>
+    </div>
+    <div class="meta">
+      {% if stats %}last sync {{ (stats.last_sync or '—')[11:19] }} UTC · last webhook {{ (stats.last_webhook or '—')[11:19] }}{% endif %}
+    </div>
+  </header>
+  <nav>{% block nav %}{% endblock %}</nav>
+  <main>{% block main %}{% endblock %}</main>
+  <footer>Webhooks are triggers only: every change shown here was read back from the AdvaPACS FHIR API.</footer>
+</body>
+</html>

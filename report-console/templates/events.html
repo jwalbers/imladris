@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Events{% endblock %}
+{% block head %}<meta http-equiv="refresh" content="30">{% endblock %}
+{% block nav %}
+  <a href="/">← Report worklist</a>
+  <a href="/events" class="active">Events &amp; diagnostics</a>
+  <span class="sep"></span>
+  <button onclick="fetch('/sync',{method:'POST'}).then(()=>setTimeout(()=>location.reload(),3000))">Sync with AdvaPACS now</button>
+{% endblock %}
+{% block main %}
+  <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">
+    <div class="panel">
+      <h3 style="margin-top:0">Webhooks received</h3>
+      <dl class="kv">
+        {% for k, v in stats.webhooks|dictsort %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% else %}<dt>none since start</dt><dd></dd>{% endfor %}
+        <dt>Last</dt><dd>{{ stats.last_webhook or '—' }}</dd>
+        <dt>Lag</dt><dd>{% if lag.n %}median {{ lag.median }} s, max {{ lag.max }} s <span class="muted">(AdvaPACS change → our read, {{ lag.n }} webhooks)</span>{% else %}—{% endif %}</dd>
+      </dl>
+    </div>
+    <div class="panel">
+      <h3 style="margin-top:0">Catch-up sync</h3>
+      <dl class="kv">
+        <dt>Interval</dt><dd>{{ sync_sec }} s</dd>
+        <dt>Runs</dt><dd>{{ stats.syncs }}</dd>
+        <dt>Last</dt><dd>{{ stats.last_sync or '—' }} <span class="muted">{{ stats.last_sync_secs }} s, {{ stats.last_sync_changes }} change(s)</span></dd>
+        <dt>FHIR errors</dt><dd>{{ stats.fhir_errors }}</dd>
+      </dl>
+    </div>
+    <div class="panel">
+      <h3 style="margin-top:0">Tracked in AdvaPACS</h3>
+      <dl class="kv">
+        {% for k, v in counts|dictsort %}<dt>{{ k }}</dt><dd>{{ v }}</dd>{% endfor %}
+        <dt>This site</dt><dd>{{ site_name }} · {{ site_aets|join(', ') }}</dd>
+        <dt>FHIR</dt><dd class="muted">{{ fhir_base }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  {% if errors %}
+  <h3>Recent errors</h3>
+  <div class="panel"><pre class="json" style="margin:0">{{ errors|join('\n') }}</pre></div>
+  {% endif %}
+
+  <h3>Event log <span class="count">latest {{ events|length }}</span></h3>
+  <table>
+    <thead><tr><th>When (UTC)</th><th>Source</th><th>Event</th><th>Resource</th><th>Accession</th><th>Detail</th></tr></thead>
+    <tbody>
+    {% for e in events %}
+      <tr>
+        <td class="muted">{{ e.ts[:19]|replace('T',' ') }}</td>
+        <td class="muted">{{ e.source }}</td>
+        <td>{{ e.kind }}</td>
+        <td class="muted">{{ e.rtype }}/{{ e.rid[:8] }}</td>
+        <td class="muted">{% for a in (e.accession or '').split(',') if a %}<a class="row-link" href="/a/{{ a }}">{{ a }}</a> {% endfor %}</td>
+        <td>{{ e.detail }}{% if e.raw_pretty %}<details><summary>payload</summary><pre class="json">{{ e.raw_pretty }}</pre></details>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

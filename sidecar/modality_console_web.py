@@ -75,6 +75,7 @@ CT_AET       = os.getenv("CT_AET",            "IML_CT_01")
 mwl = MwlManager(str(WL_FOLDER))
 
 WEBHOOK_SECRET  = os.getenv("WEBHOOK_SECRET", "")
+REPORT_CONSOLE_URL = os.getenv("REPORT_CONSOLE_URL", "")   # e.g. http://report-console:5003/trigger
 FHIR_BASE_URL   = os.getenv("FHIR_BASE_URL",   "https://usa1.api.integration.advapacs.com/fhir/R5")
 FHIR_KEY_ID     = os.getenv("FHIR_KEY_ID",     "")
 FHIR_KEY_SECRET = os.getenv("FHIR_KEY_SECRET", "")
@@ -551,7 +552,19 @@ def webhook_advapacs():
     if event_type in ("ORDER_CREATED", "ORDER_UPDATED"):
         _handle_order_event(event_type, payload)
 
+    # Every event (order, study, patient, report) also goes to the report console,
+    # which treats it as a trigger and reads the resource back from AdvaPACS itself.
+    if REPORT_CONSOLE_URL:
+        threading.Thread(target=_forward_to_report_console, args=(payload,), daemon=True).start()
+
     return jsonify({"ok": True}), 200
+
+
+def _forward_to_report_console(payload: dict):
+    try:
+        requests.post(REPORT_CONSOLE_URL, json=payload, timeout=3)
+    except Exception as e:
+        log.warning(f"Report console forward failed: {e}")
 
 
 @app.route("/events/json")
