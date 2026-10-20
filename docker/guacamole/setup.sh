@@ -36,6 +36,10 @@ if [ -z "$T" ] || [ "$T" = null ]; then
 fi
 D="$API/session/data/postgresql"
 
+# Windows allows one interactive session, and a new RDP login takes it over from
+# the old one. So: no per-user limit (a new tab or device takes over from a stale
+# one instead of being refused; 0 = unlimited, blank would mean Guacamole's default
+# of 1), and at most 2 connections in total so a takeover can happen.
 conn=$(jq -nc --arg name "$CONN_NAME" --arg h "$QURE_RDP_HOST" --arg u "$QURE_RDP_USER" --arg p "$QURE_RDP_PASSWORD" '{
   parentIdentifier: "ROOT", name: $name, protocol: "rdp",
   parameters: {
@@ -46,7 +50,7 @@ conn=$(jq -nc --arg name "$CONN_NAME" --arg h "$QURE_RDP_HOST" --arg u "$QURE_RD
     "recording-path": "/recordings", "create-recording-path": "true",
     "recording-name": "${GUAC_DATE}-${GUAC_TIME}-${GUAC_USERNAME}-qure"
   },
-  attributes: { "max-connections": "1", "max-connections-per-user": "1" }
+  attributes: { "max-connections": "2", "max-connections-per-user": "0" }
 }')
 id=$(curl -sf "$D/connections?token=$T" | jq -r --arg n "$CONN_NAME" 'to_entries[] | select(.value.name==$n) | .key' | head -1)
 if [ -n "$id" ]; then
