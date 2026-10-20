@@ -53,7 +53,7 @@ services:
       SKIP_PATIENT_PREFIXES: E2ETEST          # the installer's stuck test entries
       NEW_PATIENT_LABEL: random               # non-census patients: Normal | Tuberculosis | random
       TB_FRACTION: "0.3"
-      CENSUS_CSV: /census/bophelong_census.csv
+      CENSUS_CSV: /census/bophelong_census.csv,/census/bophelong_prospective.csv
       STATE_FILE: /state/acquired.json
     volumes:
       - ${LIBRARY_HOST:-./library}:/library:ro

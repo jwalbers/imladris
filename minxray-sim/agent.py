@@ -27,7 +27,7 @@ Environment (in addition to minxray_sim.py's):
   MAX_ITEM_AGE_DAYS      ignore items scheduled more than N days ago (default 2; 0 = no limit)
   MAX_ATTEMPTS           failed captures retried up to N times (default 3)
   STATE_FILE             /state/acquired.json
-  CENSUS_CSV             Bophelong census (optional)
+  CENSUS_CSV             census file(s), comma-separated (optional)
   NEW_PATIENT_LABEL      random
   TB_FRACTION            0.3
 """
@@ -86,15 +86,18 @@ def save_state(state: dict) -> None:
 # ---------------------------------------------------------------- image choice
 
 def load_census() -> dict[str, str]:
-    """PatientID -> '<label>/<file>' from the census CR_raw column."""
-    if not CENSUS_CSV or not Path(CENSUS_CSV).is_file():
-        if CENSUS_CSV:
-            log.warning("CENSUS_CSV %s not found; all patients treated as new", CENSUS_CSV)
-        return {}
-    with open(CENSUS_CSV, newline="", encoding="utf-8-sig") as f:
-        rows = csv.DictReader(f)
-        return {r["Patient_ID"].strip(): "/".join(r["CR_raw"].strip().split("/")[-2:])
-                for r in rows if r.get("Patient_ID") and r.get("CR_raw")}
+    """PatientID -> '<label>/<file>' from the CR_raw column of each CENSUS_CSV file
+    (comma-separated, e.g. the Bophelong census and the prospective population)."""
+    mapping: dict[str, str] = {}
+    for path in filter(None, (p.strip() for p in CENSUS_CSV.split(","))):
+        if not Path(path).is_file():
+            log.warning("Census file %s not found; skipping", path)
+            continue
+        with open(path, newline="", encoding="utf-8-sig") as f:
+            rows = [r for r in csv.DictReader(f) if r.get("Patient_ID") and r.get("CR_raw")]
+        mapping.update({r["Patient_ID"].strip(): "/".join(r["CR_raw"].strip().split("/")[-2:]) for r in rows})
+        log.info("Loaded %d patients from %s", len(rows), path)
+    return mapping
 
 
 def _library(label: str) -> list[Path]:
