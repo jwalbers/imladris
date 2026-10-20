@@ -59,7 +59,7 @@ for u in ${GUAC_USERS:-}; do
   if curl -sf -o /dev/null "$D/users/$u?token=$T"; then
     echo "user $u exists"
   else
-    pw=$(openssl rand -base64 12)
+    pw=$(head -c 64 /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
     curl -sf -X POST "$D/users?token=$T" -H 'Content-Type: application/json' \
       -d "$(jq -nc --arg u "$u" --arg p "$pw" '{username:$u, password:$p, attributes:{}}')" >/dev/null
     echo "user $u created, initial password: $pw   (shown once; change it after first sign-in)"
