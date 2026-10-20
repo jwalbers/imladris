@@ -55,6 +55,9 @@ $config = [
     'session.cookie.secure'   => true,
     'session.cookie.samesite' => 'None',
     'session.cookie.httponly' => true,
+    // Valid on every lab subdomain, so other lab sites (Guacamole via nginx
+    // auth_request -> /auth-check.php) can see the same sign-in.
+    'session.cookie.domain'   => '.' . $labHost,
     'store.type'              => 'phpsession',
 
     // ── Metadata ──────────────────────────────────────────────────────────

@@ -65,6 +65,8 @@ services:
       - ./simplesamlphp/www/index.php:/var/www/html/index.php:ro
       - ./simplesamlphp/www/user-info.php:/var/www/html/user-info.php:ro
       - ./simplesamlphp/www/logout.php:/var/www/html/logout.php:ro
+      - ./simplesamlphp/www/auth-check.php:/var/www/html/auth-check.php:ro   # SSO check for other lab sites
+      - ./simplesamlphp/www/sso-login.php:/var/www/html/sso-login.php:ro     # sign in, then return to a lab site
       # landing/index.html is baked into the image (see Dockerfile COPY).
       # To update: edit landing/index.html then: docker compose up -d --build simplesamlphp
     environment:

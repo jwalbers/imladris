@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
 # One-time (and re-runnable) Guacamole setup for the lab. Reads .env.
 #   1. writes init/initdb.sql (PostgreSQL schema) if missing
-#   2. starts the stack with TOTP off (API logins can't do TOTP)
+#   2. starts the stack
 #   3. sets the guacadmin password, creates/updates the Qure laptop connection,
-#      creates GUAC_USERS with READ on it (new users: random password, printed once)
-#   4. restarts with TOTP on: every user, guacadmin included, enrolls at first sign-in
+#      creates GUAC_USERS (optional local logins; random password, printed once)
+#   4. applies sso-group.sql: every account, incl. SSO users created at first
+#      sign-in, joins "qure-laptop-users" with READ on the connection
 set -euo pipefail
 cd "$(dirname "$0")"
 [ -f .env ] || { echo "create .env from .env.example first" >&2; exit 1; }
 set -a; . ./.env; set +a
-API=http://localhost:8095/api
+API=http://localhost:8096/api   # direct to Guacamole, bypassing sso-gate
 CONN_NAME="Qure laptop (MinXray / qTrack)"
 
 mkdir -p init
@@ -20,7 +21,7 @@ chmod 755 init && chmod 644 init/initdb.sql   # read by the postgres container u
 docker volume create guacamole_recordings >/dev/null
 docker run --rm -v guacamole_recordings:/r alpine sh -c 'chown 1000:1000 /r && chmod 2750 /r'
 
-GUAC_TOTP=false docker compose up -d
+docker compose up -d
 echo -n "Waiting for Guacamole"
 until curl -sf -o /dev/null $API/languages; do echo -n .; sleep 3; done; echo
 
@@ -70,5 +71,7 @@ for u in ${GUAC_USERS:-}; do
 done
 
 curl -sf -X DELETE "$API/tokens/$T" >/dev/null || true
-docker compose up -d     # TOTP back on (compose default)
-echo "Done. Guacamole: http://<this host>:8095/  (TOTP enrollment at first sign-in)"
+
+docker exec -i guacamole-db psql -q -v ON_ERROR_STOP=1 -U guacamole -d guacamole_db < sso-group.sql
+echo "SSO group applied"
+echo "Done. Users: https://qure.imladrislab.org/ (PIH sign-in). Admin: ssh -L 8096:localhost:8096, then http://localhost:8096/"

@@ -1,10 +1,15 @@
 # Apache Guacamole — browser RDP to lab resources (first: the Qure.ai laptop).
 #
 # HAProxy: qure.imladrislab.org → <lab host>:8095 (websocket; long tunnel timeout).
-# Users sign in to Guacamole (TOTP required); the Windows credentials live only in
+# Sign-in is the lab's PIH Entra SSO: nginx (sso-gate) checks the landing site's
+# SimpleSAMLphp session and passes the email to Guacamole (header auth). Accounts
+# are created at first sign-in and join "qure-laptop-users" (sso-group.sql), so
+# they open straight onto the Qure laptop. The Windows credentials live only in
 # the connection definition, which setup.sh creates from .env.
+# Admin fallback (no SSO): ssh -L 8096:localhost:8096 <lab host>, then
+# http://localhost:8096/ as guacadmin.
 #
-#   ./setup.sh            # first time: schema, start, admin password, connection, users
+#   ./setup.sh            # first time: schema, start, admin password, connection, group
 #   docker compose up -d  # afterwards
 #
 # Session recordings: volume guacamole-recordings (viewable in Guacamole's history).
@@ -32,20 +37,36 @@ services:
       - db:/var/lib/postgresql/data
     networks: [guac]
 
+  sso-gate:
+    image: nginx:1.27-alpine
+    container_name: guacamole-sso-gate
+    restart: unless-stopped
+    depends_on: [guacamole]
+    ports:
+      - "8095:80"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # the landing site's SimpleSAMLphp on :8091
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro,z
+    networks: [guac]
+
   guacamole:
     image: guacamole/guacamole:1.6.0
     container_name: guacamole-web
     restart: unless-stopped
     depends_on: [guacd, postgres]
     ports:
-      - "8095:8080"
+      - "127.0.0.1:8096:8080"               # admin fallback only; users come through sso-gate
     environment:
       GUACD_HOSTNAME: guacd
       POSTGRESQL_HOSTNAME: postgres
       POSTGRESQL_DATABASE: guacamole_db
       POSTGRESQL_USERNAME: guacamole
       POSTGRESQL_PASSWORD: ${GUAC_DB_PASSWORD}
-      TOTP_ENABLED: "${GUAC_TOTP:-true}"     # setup.sh runs with false while it configures via the API
+      HEADER_ENABLED: "true"                # identity from sso-gate
+      HTTP_AUTH_HEADER: X-Remote-User
+      POSTGRESQL_AUTO_CREATE_ACCOUNTS: "true"
+      TOTP_ENABLED: "false"                 # Entra does MFA
       RECORDING_SEARCH_PATH: /recordings
       WEBAPP_CONTEXT: ROOT                 # serve at / rather than /guacamole
       REMOTE_IP_VALVE_ENABLED: "true"      # trust X-Forwarded-For from HAProxy for history/logs
