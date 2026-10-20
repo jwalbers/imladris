@@ -219,7 +219,7 @@ def station_aet(sr: dict) -> str:
 
 def site_label(aet: str) -> str:
     if not aet:
-        return ""
+        return "unassigned"
     if aet in SITE_AETS:
         return SITE_NAME
     return {"_01": "Oregon", "_02": "Wisconsin"}.get(aet[-3:], aet)
@@ -389,8 +389,14 @@ def series_summary(study: dict) -> list[dict]:
               next((c.get("code") for c in (s.get("modality") or {}).get("coding", [])), "")
         out.append({"modality": mod, "n": s.get("numberOfInstances"),
                     "desc": s.get("description", ""),
-                    "ai": "qxr" in (s.get("description", "") or "").lower() or mod in ("SR", "DOC") })
+                    "ai": is_ai_series(mod, s.get("description", "") or "")})
     return out
+
+
+def is_ai_series(mod: str, desc: str) -> bool:
+    # qXR results: SR report, encapsulated PDF, and the secondary-capture / OT overlay
+    d = desc.lower()
+    return mod in ("SR", "DOC") or "qxr" in d or (mod in ("SC", "OT") and ("overlay" in d or " ai" in f" {d}"))
 
 
 def build_rows() -> list[dict]:
@@ -420,12 +426,13 @@ def row_for(acc, sr, pat, aet, studies, reports, last_ts) -> dict:
     n = (pat.get("name") or [{}])[0]
     dr = max(reports, key=lambda r: r.get("meta", {}).get("lastUpdated", ""), default=None)
     series = [s for st in studies for s in series_summary(st)]
-    when = (sr or {}).get("authoredOn") or (studies[0].get("started") if studies else "") or ""
+    when = ((sr or {}).get("authoredOn") or (sr or {}).get("occurrenceDateTime")
+            or (studies[0].get("started") if studies else "") or "")
     return {
         "accession": acc,
         "patient": f"{n.get('family', '')}, {' '.join(n.get('given', []))}".strip(", "),
         "patient_id": next((i.get("value") for i in pat.get("identifier", [])), ""),
-        "procedure": concept_text(sr.get("code")) if sr else (studies[0].get("description", "") if studies else ""),
+        "procedure": (concept_text(sr.get("code")) if sr else "") or (studies[0].get("description", "") if studies else ""),
         "station": aet, "site": site_label(aet),
         "order_status": ORDER_STATUS.get(sr.get("status"), sr.get("status")) if sr else "No order",
         "order_raw": sr.get("status") if sr else "",
@@ -435,7 +442,9 @@ def row_for(acc, sr, pat, aet, studies, reports, last_ts) -> dict:
         "radiologist": person_name("Practitioner", (dr.get("resultsInterpreter") or [{}])[0].get("reference", "")) if dr else "",
         "last": last_ts[:16].replace("T", " "),
         "sort": max(when, last_ts),
-        "local": (not aet and not sr) or aet in SITE_AETS,
+        # No station AE: an order AdvaPACS made itself for a study that arrived
+        # without one (e.g. Qure laptop pushes). Can't tell the site, so show it here.
+        "local": not aet or aet in SITE_AETS,
     }
 
 
@@ -512,7 +521,7 @@ def accession_view(acc):
         "accession.html", acc=acc, events=events, reports=report_views, studies=study_views,
         order=sr, order_json=json.dumps(sr, indent=2) if sr else "",
         order_label=ORDER_STATUS.get((sr or {}).get("status"), (sr or {}).get("status", "No order")),
-        procedure=concept_text(sr.get("code")) if sr else "",
+        procedure=(concept_text(sr.get("code")) if sr else "") or (studies[0].get("description", "") if studies else ""),
         station=station_aet(sr) if sr else "",
         patient=f"{n.get('family', '')}, {' '.join(n.get('given', []))}".strip(", "),
         patient_id=next((i.get("value") for i in pat.get("identifier", [])), ""),

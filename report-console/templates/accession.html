@@ -11,7 +11,7 @@
       <dt>Accession</dt><dd>{{ acc }}</dd>
       <dt>Procedure</dt><dd>{{ procedure or '—' }}</dd>
       <dt>Order</dt><dd><span class="st st-order">{{ order_label }}</span>
-        {% if order %}<span class="muted">FHIR {{ order.status }} · authored {{ (order.authoredOn or '')[:16]|replace('T',' ') }}{% if station %} · station {{ station }}{% endif %}</span>{% endif %}</dd>
+        {% if order %}<span class="muted">FHIR {{ order.status }} · {{ 'authored' if order.authoredOn else 'scheduled' }} {{ (order.authoredOn or order.occurrenceDateTime or '')[:16]|replace('T',' ') }} · {{ ('station ' ~ station) if station else 'no station (order created by AdvaPACS)' }}</span>{% endif %}</dd>
     </dl>
     {% if order_json %}<details><summary>ServiceRequest JSON</summary><pre class="json">{{ order_json }}</pre></details>{% endif %}
   </div>
