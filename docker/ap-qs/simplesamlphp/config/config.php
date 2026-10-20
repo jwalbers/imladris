@@ -20,7 +20,10 @@ $config = [
 
     // ── Core ──────────────────────────────────────────────────────────────
     'baseurlpath'        => 'https://' . $labHost . '/simplesaml/',
-    'trusted.url.domains' => $labHosts,
+    // Redirect targets after sign-in: the lab domains and their subdomains
+    // (qure.imladrislab.org for Guacamole, ...). Patterns are anchored by SSP.
+    'trusted.url.regex'   => true,
+    'trusted.url.domains' => ['([a-z0-9-]+\\.)?imladrislab\\.(org|net)'],
 
     // Required in SSP 2.x — Symfony compiled container cache.
     // /tmp is always writable; cache is rebuilt on container restart (fine for lab).
@@ -58,6 +61,10 @@ $config = [
     // Valid on every lab subdomain, so other lab sites (Guacamole via nginx
     // auth_request -> /auth-check.php) can see the same sign-in.
     'session.cookie.domain'   => '.' . $labHost,
+    // Renamed when the domain changed (2026-10-19): older host-only cookies
+    // under the default names are ignored instead of shadowing the shared ones.
+    'session.phpsession.cookiename' => 'IMLADRIS_SSP_SESSION',
+    'session.authtoken.cookiename'  => 'IMLADRIS_SSP_AUTHTOKEN',
     'store.type'              => 'phpsession',
 
     // ── Metadata ──────────────────────────────────────────────────────────
