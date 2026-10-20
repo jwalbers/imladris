@@ -125,6 +125,12 @@
     .card-grid-4 {
       grid-template-columns: repeat(4, 1fr);
     }
+    @media (max-width: 900px) {
+      .card-grid, .card-grid-4 { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 560px) {
+      .card-grid, .card-grid-2, .card-grid-4 { grid-template-columns: 1fr; }
+    }
     .card-grid-2 {
       grid-template-columns: repeat(2, 1fr);
     }
@@ -304,7 +310,7 @@
     </div>
 
     <div class="section-label">Lab Infrastructure</div>
-    <div class="card-grid">
+    <div class="card-grid card-grid-4">
 
       <div class="card">
         <div class="card-icon">📡</div>
@@ -315,6 +321,18 @@
           on this site's worklist (X-ray, ultrasound and CT stations).
         </div>
         <a class="card-link" href="https://console.imladrislab.org" target="_blank">Open Console</a>
+      </div>
+
+      <div class="card">
+        <div class="card-icon">📋</div>
+        <div class="card-name">Report Console</div>
+        <div class="card-tag tag-viewer">Reporting</div>
+        <div class="card-desc">
+          The reporting side of the workflow as seen in AdvaPACS: orders, images
+          and radiologist reports, with a timeline of every status change.
+          PIH sign-in required.
+        </div>
+        <a class="card-link" href="https://reports.imladrislab.org" target="_blank">Open Report Console</a>
       </div>
 
       <div class="card">

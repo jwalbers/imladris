@@ -1,0 +1,45 @@
+# PIH SSO gate for a lab web app (same design as docker/guacamole/nginx.conf).
+# Every request is checked against the landing site's SimpleSAMLphp session
+# (cookie on .imladrislab.org/.net). Signed in: the app gets the email in
+# X-Remote-User. Not signed in: off to sso-login.php and back.
+# The nginx image fills in ${SSO_UPSTREAM} (e.g. imladris-report-console:5003)
+# at start; nginx's own $variables are left alone.
+
+map $http_upgrade $connection_upgrade { default upgrade; '' close; }
+
+map $host $lab_apex {
+    ~^(?:[^.]+\.)?(?<apex>imladrislab\.(?:org|net))$  $apex;
+    default                                           imladrislab.org;
+}
+
+server {
+    listen 80;
+
+    location = /_sso_check {
+        internal;
+        proxy_pass http://imladris-saml-sp/auth-check.php;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header Host $lab_apex;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Cookie $http_cookie;
+    }
+
+    location @sso_login {
+        return 302 https://$lab_apex/sso-login.php?return=https%3A%2F%2F$host%2F;
+    }
+
+    location / {
+        auth_request /_sso_check;
+        auth_request_set $sso_user $upstream_http_x_auth_user;
+        error_page 401 = @sso_login;
+
+        proxy_pass http://${SSO_UPSTREAM};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header X-Remote-User $sso_user;   # always overwritten: a client can't supply it
+    }
+}

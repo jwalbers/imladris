@@ -69,6 +69,7 @@
       <div class="subtitle">Imladris Virtual Integration Lab · reporting workflow as seen in AdvaPACS · {{ site_name }}</div>
     </div>
     <div class="meta">
+      {% if signed_in %}<div>{{ signed_in }}</div>{% endif %}
       {% if stats %}last sync {{ (stats.last_sync or '—')[11:19] }} UTC · last webhook {{ (stats.last_webhook or '—')[11:19] }}{% endif %}
     </div>
   </header>

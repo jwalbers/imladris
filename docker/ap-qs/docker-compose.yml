@@ -325,13 +325,14 @@ services:
   # ── Report console (reporting side of the workflow, from AdvaPACS FHIR) ──
   # Orders, studies and reports per accession, with a timeline of changes.
   # Fed by webhooks forwarded from the sidecar (triggers only) plus a catch-up
-  # sync every SYNC_SEC. HAProxy: reports.imladrislab.org → <lab host>:5003.
+  # sync every SYNC_SEC. Users reach it only through report-sso-gate (PIH
+  # sign-in); 5003 is published on localhost for the lab health check.
   report-console:
     build: ../../report-console
     container_name: imladris-report-console
     restart: unless-stopped
     ports:
-      - "5003:5003"
+      - "127.0.0.1:5003:5003"
     volumes:
       - report-data:/data
     environment:
@@ -343,6 +344,24 @@ services:
       CT_AET: ${LAB_CT_AET:-IML_CT_01}
       LAB_SITE_NAME: ${LAB_SITE_NAME:-this site}
       TZ: ${LAB_TZ:-America/Los_Angeles}
+    networks:
+      - imladris
+    profiles:
+      - full
+
+  # PIH sign-in in front of the report console.
+  # HAProxy: reports.imladrislab.org → <lab host>:5004.
+  report-sso-gate:
+    image: nginx:1.27-alpine
+    container_name: imladris-report-sso-gate
+    restart: unless-stopped
+    depends_on: [report-console, simplesamlphp]
+    ports:
+      - "5004:80"
+    environment:
+      SSO_UPSTREAM: imladris-report-console:5003
+    volumes:
+      - ./sso-gate/sso-gate.conf.template:/etc/nginx/templates/default.conf.template:ro,z
     networks:
       - imladris
     profiles:

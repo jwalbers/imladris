@@ -439,6 +439,12 @@ def row_for(acc, sr, pat, aet, studies, reports, last_ts) -> dict:
     }
 
 
+@app.context_processor
+def signed_in_user():
+    # Set by the SSO gate (nginx in front of this app); empty on localhost:5003.
+    return {"signed_in": request.headers.get("X-Remote-User", "")}
+
+
 @app.route("/")
 def index():
     site = request.args.get("site", "local")
