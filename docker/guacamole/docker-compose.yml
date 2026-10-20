@@ -1,0 +1,62 @@
+# Apache Guacamole — browser RDP to lab resources (first: the Qure.ai laptop).
+#
+# HAProxy: qure.imladrislab.org → <lab host>:8095 (websocket; long tunnel timeout).
+# Users sign in to Guacamole (TOTP required); the Windows credentials live only in
+# the connection definition, which setup.sh creates from .env.
+#
+#   ./setup.sh            # first time: schema, start, admin password, connection, users
+#   docker compose up -d  # afterwards
+#
+# Session recordings: volume guacamole-recordings (viewable in Guacamole's history).
+name: guacamole
+
+services:
+  guacd:
+    image: guacamole/guacd:1.6.0
+    container_name: guacamole-guacd
+    restart: unless-stopped
+    volumes:
+      - recordings:/recordings
+    networks: [guac]
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: guacamole-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: guacamole_db
+      POSTGRES_USER: guacamole
+      POSTGRES_PASSWORD: ${GUAC_DB_PASSWORD:?set in .env}
+    volumes:
+      - ./init:/docker-entrypoint-initdb.d:ro,z   # initdb.sql, written by setup.sh
+      - db:/var/lib/postgresql/data
+    networks: [guac]
+
+  guacamole:
+    image: guacamole/guacamole:1.6.0
+    container_name: guacamole-web
+    restart: unless-stopped
+    depends_on: [guacd, postgres]
+    ports:
+      - "8095:8080"
+    environment:
+      GUACD_HOSTNAME: guacd
+      POSTGRESQL_HOSTNAME: postgres
+      POSTGRESQL_DATABASE: guacamole_db
+      POSTGRESQL_USERNAME: guacamole
+      POSTGRESQL_PASSWORD: ${GUAC_DB_PASSWORD}
+      TOTP_ENABLED: "${GUAC_TOTP:-true}"     # setup.sh runs with false while it configures via the API
+      RECORDING_SEARCH_PATH: /recordings
+      WEBAPP_CONTEXT: ROOT                 # serve at / rather than /guacamole
+      REMOTE_IP_VALVE_ENABLED: "true"      # trust X-Forwarded-For from HAProxy for history/logs
+    group_add: ["1000"]                    # guacd's group: recordings are written 0640 by uid 1000
+    volumes:
+      - recordings:/recordings:ro
+    networks: [guac]
+
+volumes:
+  db:
+  recordings:
+
+networks:
+  guac:
