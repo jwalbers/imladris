@@ -28,6 +28,12 @@
 		},
 		{
 			"path": "../lesotho-emr"
+		},
+		{
+			"path": "../imladris-data"
 		}
-	]
+	],
+	"settings": {
+		"java.compile.nullAnalysis.mode": "automatic"
+	}
 }
