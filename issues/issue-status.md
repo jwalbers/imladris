@@ -50,3 +50,20 @@ Tue Jul  7 12:37:43 PDT 2026 - https://pihemr.atlassian.net/browse/UHM-9385
 ## advaview-pdf-viewport-blocked-by-csp-frame-src.md
 
 Thu Oct  1 2026 - drafted; to file with Adva Health service desk (portal/2)
+
+Wed Sep 30 20:57:36 CDT 2026 - submitted via https://advahealthsolutions.atlassian.net/servicedesk/customer/portal/2/ADPS-1851
+
+## DOB-timezone-reporting.md
+
+July 8, 2026 at 3:14 AM - https://pihemr.atlassian.net/browse/UHM-9387
+
+
+## advapacs-study-time-shift-no-dicom-timezone.md
+
+
+https://advahealthsolutions.atlassian.net/servicedesk/customer/portal/2/ADPS-1917
+
+
+## advapacs-report-dialog-cancel-cancels-report.md
+
+https://advahealthsolutions.atlassian.net/servicedesk/customer/portal/2/ADPS-1916
