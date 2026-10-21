@@ -347,7 +347,7 @@ def _complete_order(accession: str) -> bool:
     try:
         sr_id = _find_sr_id(accession)
         if not sr_id:
-            log.warning(f"Complete-before-send: no AdvaPACS order found for {accession}")
+            log.warning(f"Complete order: no AdvaPACS order found for {accession}")
             return False
         r = requests.patch(
             f"{FHIR_BASE_URL.rstrip('/')}/ServiceRequest/{sr_id}",
@@ -355,10 +355,10 @@ def _complete_order(accession: str) -> bool:
             headers={**_fhir_auth(), "Content-Type": "application/json-patch+json"},
             timeout=15)
         ok = r.status_code in (200, 201)
-        log.info(f"Complete-before-send: order {accession} ({sr_id}) → completed: HTTP {r.status_code}")
+        log.info(f"Complete order: {accession} ({sr_id}) → completed in AdvaPACS: HTTP {r.status_code}")
         return ok
     except Exception as e:
-        log.warning(f"Complete-before-send failed for {accession}: {e}")
+        log.warning(f"Complete order failed for {accession}: {e}")
         return False
 
 
