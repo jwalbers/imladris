@@ -15,6 +15,9 @@ records and the console code):
 Options: --status draft|active|completed   --patient WCELUK   --modality CR
          --no-performer  (omit the station Device, like orders from the PIH OpenMRS integration)
          --complete      (complete the order after imaging, as the console's Complete Order does)
+         --mark-dicom    (send the image with EMPTY top-level PatientID / AccessionNumber, the values
+                          only in OtherPatientIDsSequence / RequestAttributesSequence, as the PIH
+                          OpenMRS integration's sender did; qure-sim copy off)
 """
 
 import argparse
@@ -37,6 +40,7 @@ ap.add_argument("--modality", default="CR")
 ap.add_argument("--procedure", default="Chest, 1 view (X-ray)")
 ap.add_argument("--no-performer", action="store_true")
 ap.add_argument("--complete", action="store_true")
+ap.add_argument("--mark-dicom", action="store_true")
 a = ap.parse_args()
 
 client = httpx.Client(headers=op._fhir_headers())
@@ -94,6 +98,37 @@ entry = {
     "study_uid": study_uid,
     "scheduled": datetime.now().strftime("%Y-%m-%d"),
 }
+if a.mark_dicom:
+    from pydicom.dataset import Dataset
+    from pydicom.sequence import Sequence
+    import dicom_client as dc
+    dc.ENABLE_QURE = False
+    _send = dc.cstore_to
+
+    def _issuer(ns):
+        i = Dataset(); i.LocalNamespaceEntityID = ns; return i
+
+    def mark_style(datasets, *args, **kw):
+        for ds in datasets:
+            other = Dataset()
+            other.PatientID = ds.PatientID
+            other.IssuerOfPatientID = ds.get("IssuerOfPatientID", "PIH_A")
+            ds.OtherPatientIDsSequence = Sequence([other])
+            req = Dataset()
+            req.AccessionNumber = ds.AccessionNumber
+            req.IssuerOfAccessionNumberSequence = Sequence([_issuer("PIH_A")])
+            req.RequestedProcedureDescription = a.procedure
+            ds.RequestAttributesSequence = Sequence([req])
+            ds.IssuerOfAccessionNumberSequence = Sequence([_issuer("PIH_A")])
+            ds.PatientID = ""
+            ds.AccessionNumber = ""
+            if "IssuerOfPatientID" in ds:
+                del ds.IssuerOfPatientID
+        return _send(datasets, *args, **kw)
+
+    dc.cstore_to = mark_style
+    print("DICOM: top-level PatientID and AccessionNumber EMPTY; values only in sequences")
+
 res = mcw._acquire_and_send(entry)
 print(f"Acquired: {res}")
 if a.complete:
