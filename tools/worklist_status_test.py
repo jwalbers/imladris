@@ -13,6 +13,8 @@ records and the console code):
   docker exec -i imladris-sidecar python - --status active < tools/worklist_status_test.py
 
 Options: --status draft|active|completed   --patient WCELUK   --modality CR
+         --no-performer  (omit the station Device, like orders from the PIH OpenMRS integration)
+         --complete      (complete the order after imaging, as the console's Complete Order does)
 """
 
 import argparse
@@ -33,6 +35,8 @@ ap.add_argument("--status", default="active", choices=["draft", "active", "compl
 ap.add_argument("--patient", default="WCELUK")
 ap.add_argument("--modality", default="CR")
 ap.add_argument("--procedure", default="Chest, 1 view (X-ray)")
+ap.add_argument("--no-performer", action="store_true")
+ap.add_argument("--complete", action="store_true")
 a = ap.parse_args()
 
 client = httpx.Client(headers=op._fhir_headers())
@@ -70,7 +74,7 @@ sr = {
         {"system": "urn:dicom:uid", "value": f"urn:oid:{study_uid}"},
     ],
 }
-if device:
+if device and not a.no_performer:
     sr["performer"] = [{"reference": f"Device/{device}"}]
 
 r = client.post(f"{base}/ServiceRequest", json=sr, timeout=15)
@@ -92,5 +96,9 @@ entry = {
 }
 res = mcw._acquire_and_send(entry)
 print(f"Acquired: {res}")
+if a.complete:
+    time.sleep(20)   # let the study arrive and link, like a tech doing QA
+    mcw._order_states.setdefault(accession, {})["sr_id"] = r.json()["id"]
+    print(f"Order completed: {mcw._complete_order(accession)}")
 print(f"\nAccession {accession}: check the AdvaPACS boards (Unread / Drafts / ...) and "
       f"https://reports.imladrislab.org/a/{accession}")
