@@ -408,6 +408,22 @@ def acquire(accession: str):
     return jsonify(result)
 
 
+@app.route("/complete/<accession>", methods=["POST"])
+def complete(accession: str):
+    """Rad tech's "exam done" after imaging and QA: set the AdvaPACS order to
+    completed, which is what puts the study on the reporting worklist."""
+    if accession not in _acq._sent:
+        return jsonify({"ok": False, "error": "Image the patient before completing the order"}), 409
+    if not _complete_order(accession):
+        return jsonify({"ok": False, "error": "AdvaPACS did not accept the completion (see sidecar log)"}), 502
+    now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    state = _order_states.setdefault(accession, {"accession": accession, "created_at": now_iso})
+    state.update(status="completed", updated_at=now_iso, completed_by="modality console")
+    _persist_order_states()
+    log.info(f"Order completed from the console: {accession}")
+    return jsonify({"ok": True})
+
+
 @app.route("/remove/<accession>", methods=["POST"])
 def remove(accession: str):
     ok = mwl.dismiss(accession)
@@ -790,6 +806,16 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
     .btn-acquire.working { background: #1a3a6a; color: #5aafff; border-color: #2a5a9a; }
     .btn-acquire.done    { background: #0d2a10; color: #2a8a3a; border-color: #1a5a25; }
     .btn-acquire.error   { background: #3a1010; color: #ff6666; border-color: #7a2020; }
+    .btn-complete {
+      margin-left: 6px; padding: 6px 14px; border-radius: 4px; cursor: pointer;
+      font-size: 0.8rem; font-weight: 600;
+      background: #13305a; color: #8cc4ff; border: 1px solid #2a5a9a;
+    }
+    .btn-complete:hover:not(:disabled) { background: #1a3f75; }
+    .btn-complete:disabled { cursor: default; }
+    .btn-complete.working { opacity: 0.7; }
+    .btn-complete.done  { background: #1e253a; color: #7a8aaa; border-color: #2a3350; }
+    .btn-complete.error { background: #3a1010; color: #ff6666; border-color: #7a2020; }
     .btn-remove {
       font-size: 0.72rem; padding: 4px 10px; border-radius: 4px; cursor: pointer;
       background: #2a1010; color: #cc6666; border: 1px solid #7a2020;
@@ -904,12 +930,20 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
         <td>
           {% if e.acquired %}
           <button class="btn-acquire done" id="btn-{{ e.accession }}" disabled>✓ Acquired</button>
+          {% if e.status == 'completed' %}
+          <button class="btn-complete done" id="cmp-{{ e.accession }}" disabled>✓ Completed</button>
+          {% elif e.status == 'active' %}
+          <button class="btn-complete" id="cmp-{{ e.accession }}"
+                  onclick="completeOrder('{{ e.accession }}')">Complete Order</button>
+          {% endif %}
           {% elif e.status == 'active' %}
           <button
             class="btn-acquire"
             id="btn-{{ e.accession }}"
             onclick="acquire('{{ e.accession }}', '{{ e.modality }}')"
           >Image Patient</button>
+          <button class="btn-complete" id="cmp-{{ e.accession }}" style="display:none"
+                  onclick="completeOrder('{{ e.accession }}')">Complete Order</button>
           {% else %}
           <button class="btn-acquire" id="btn-{{ e.accession }}" disabled>Image Patient</button>
           {% endif %}
@@ -1022,6 +1056,36 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
     if (row) row.style.display = 'none';
   }
 
+  async function completeOrder(accession) {
+    const btn = document.getElementById('cmp-' + accession);
+    const msg = document.getElementById('msg-' + accession);
+    btn.disabled = true;
+    btn.className = 'btn-complete working';
+    btn.textContent = 'Completing…';
+    log('Completing order ' + accession + ' in AdvaPACS…');
+    try {
+      const resp = await fetch('/complete/' + accession, { method: 'POST' });
+      const data = await resp.json();
+      if (data.ok) {
+        btn.className = 'btn-complete done';
+        btn.textContent = '✓ Completed';
+        if (msg) { msg.className = 'status-msg ok'; msg.textContent = 'sent to the reporting worklist'; }
+        log('✓ ' + accession + ' order completed: study goes to the reporting worklist', 'ok');
+      } else {
+        btn.className = 'btn-complete error';
+        btn.textContent = 'Complete Order';
+        btn.disabled = false;
+        if (msg) { msg.className = 'status-msg error'; msg.textContent = data.error; }
+        log('✗ ' + accession + ': ' + data.error, 'error');
+      }
+    } catch (err) {
+      btn.className = 'btn-complete error';
+      btn.textContent = 'Complete Order';
+      btn.disabled = false;
+      log('✗ ' + accession + ': ' + err, 'error');
+    }
+  }
+
   function markAcquired(accession, label) {
     const acquired = getAcquired();
     acquired[accession] = label;
@@ -1091,6 +1155,8 @@ _HTML_TEMPLATE = """<!DOCTYPE html>
         markAcquired(accession, label);
         const rm = document.getElementById('rm-' + accession);
         if (rm) rm.style.display = 'inline-block';
+        const cmp = document.getElementById('cmp-' + accession);
+        if (cmp) cmp.style.display = 'inline-block';   // rad tech completes after QA
         log('✓ ' + accession + ' sent  instances=' + data.instances + '  study=' + (data.study_uid || '').slice(0,24), 'ok');
       } else {
         btn.className = 'btn-acquire error';
