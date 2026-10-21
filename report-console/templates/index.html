@@ -16,13 +16,17 @@
   {% if rows %}
   <table>
     <thead><tr>
-      <th>Patient</th><th>ID</th><th>Procedure</th><th>Ordered</th><th>Accession</th>
+      <th class="sortable" data-key="patient">Patient<i class="sort-icon"></i></th>
+      <th class="sortable" data-key="pid">ID<i class="sort-icon"></i></th>
+      <th>Procedure</th>
+      <th class="sortable" data-key="ordered">Ordered<i class="sort-icon"></i></th>
+      <th class="sortable" data-key="acc">Accession<i class="sort-icon"></i></th>
       <th>Order</th><th>Images</th><th>Report</th><th>Radiologist</th><th>Last activity</th>
       {% if site == 'all' %}<th>Site</th>{% endif %}
     </tr></thead>
-    <tbody>
+    <tbody id="worklist">
     {% for r in rows %}
-      <tr>
+      <tr data-patient="{{ r.patient|lower }}" data-pid="{{ r.patient_id }}" data-ordered="{{ r.ordered }}" data-acc="{{ r.accession }}">
         <td><a class="row-link" href="/a/{{ r.accession }}">{{ r.patient or '—' }}</a></td>
         <td class="muted">{{ r.patient_id }}</td>
         <td>{{ r.procedure }}</td>
@@ -40,6 +44,45 @@
     {% endfor %}
     </tbody>
   </table>
+  <script>
+    // Column sort; remembered for this tab so the 30 s refresh keeps it.
+    (function () {
+      const KEY = 'reportConsoleSort';
+      const tbody = document.getElementById('worklist');
+      const heads = document.querySelectorAll('th.sortable');
+      const original = Array.from(tbody.rows);   // server order: most recent activity first
+
+      function apply(key, dir) {
+        heads.forEach(h => h.classList.remove('asc', 'desc'));
+        let rows = original.slice();
+        if (key && dir) {
+          const h = document.querySelector(`th[data-key="${key}"]`);
+          if (h) h.classList.add(dir);
+          rows.sort((a, b) => {
+            const x = a.dataset[key] || '', y = b.dataset[key] || '';
+            if (!x && y) return 1;          // blanks last either way
+            if (x && !y) return -1;
+            const c = x.localeCompare(y, undefined, { numeric: true });
+            return dir === 'asc' ? c : -c;
+          });
+        }
+        rows.forEach(r => tbody.appendChild(r));
+      }
+
+      heads.forEach(h => h.addEventListener('click', () => {
+        const key = h.dataset.key;
+        // asc → desc → back to the server's order
+        const dir = h.classList.contains('asc') ? 'desc' : h.classList.contains('desc') ? '' : 'asc';
+        try { sessionStorage.setItem(KEY, JSON.stringify(dir ? { key, dir } : {})); } catch (e) {}
+        apply(key, dir);
+      }));
+
+      try {
+        const saved = JSON.parse(sessionStorage.getItem(KEY) || '{}');
+        if (saved.key) apply(saved.key, saved.dir);
+      } catch (e) {}
+    })();
+  </script>
   {% else %}
   <div class="empty">Nothing here yet. The first sync with AdvaPACS may still be running.</div>
   {% endif %}

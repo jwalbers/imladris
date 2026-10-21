@@ -29,6 +29,13 @@
     thead tr { background: #141829; }
     thead th { text-align: left; padding: 9px 12px; color: #7a8aaa; font-weight: 500; font-size: 0.72rem;
                text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid #252d45; white-space: nowrap; }
+    thead th.sortable { cursor: pointer; user-select: none; }
+    thead th.sortable:hover { color: #c0cce8; }
+    thead th .sort-icon { margin-left: 4px; opacity: 0.4; font-style: normal; }
+    thead th.asc  .sort-icon::after { content: '▲'; }
+    thead th.desc .sort-icon::after { content: '▼'; }
+    thead th.asc .sort-icon, thead th.desc .sort-icon { opacity: 1; color: #3fc8b8; }
+    thead th.sortable:not(.asc):not(.desc) .sort-icon::after { content: '⇅'; }
     tbody tr { border-bottom: 1px solid #1e253a; }
     tbody tr:hover { background: #1e253a; }
     tbody td { padding: 9px 12px; color: #c0cce8; vertical-align: middle; }
