@@ -284,6 +284,10 @@ services:
       # makes the sidecar image every worklist entry itself (unattended runs only;
       # it races the console's Image Patient button).
       AUTO_ACQUIRE: ${AUTO_ACQUIRE:-false}
+      # Experiment (2026-10-21): mark the AdvaPACS order completed before sending the
+      # images, to test whether matched studies then reach the Unread board. Revert
+      # (false) once AdvaHealth confirms how ordered studies get to Ready to Read.
+      COMPLETE_ORDER_BEFORE_SEND: ${COMPLETE_ORDER_BEFORE_SEND:-true}
       POLL_INTERVAL_MINUTES: 0.25   # auto mode only: 15 sec
       WL_FOLDER: /worklist
       HOSPITAL_RECORDS: /hospital-records

@@ -45,6 +45,7 @@ import json
 import logging
 import os
 import threading
+import time
 from collections import deque
 from datetime import datetime
 from pathlib import Path
@@ -76,6 +77,8 @@ mwl = MwlManager(str(WL_FOLDER))
 
 WEBHOOK_SECRET  = os.getenv("WEBHOOK_SECRET", "")
 REPORT_CONSOLE_URL = os.getenv("REPORT_CONSOLE_URL", "")   # e.g. http://report-console:5003/trigger
+# Experiment: mark the AdvaPACS order completed before sending the images (see _acquire_and_send)
+COMPLETE_ORDER_BEFORE_SEND = os.getenv("COMPLETE_ORDER_BEFORE_SEND", "false").lower() in ("1", "true", "yes", "on")
 FHIR_BASE_URL   = os.getenv("FHIR_BASE_URL",   "https://usa1.api.integration.advapacs.com/fhir/R5")
 FHIR_KEY_ID     = os.getenv("FHIR_KEY_ID",     "")
 FHIR_KEY_SECRET = os.getenv("FHIR_KEY_SECRET", "")
@@ -287,6 +290,17 @@ def _acquire_and_send(entry: dict) -> dict:
 
     calling_ae = _aet_for(modality)
 
+    # Experiment (2026-10-21): AdvaPACS's "incoming study -> Ready to Read" rule
+    # puts ad-hoc studies (no prior order) on the Unread board, but not studies
+    # that match an existing order, and completing the order afterwards doesn't
+    # re-trigger it. Completing the order *before* the images arrive tests
+    # whether the rule needs a completed order at ingest time.
+    order_completed = None
+    if COMPLETE_ORDER_BEFORE_SEND:
+        order_completed = _complete_order(entry.get("accession", ""))
+        if order_completed:
+            time.sleep(2)   # let AdvaPACS settle the status before the images land
+
     # Send primary to AdvaPACS gateway
     sent = dc.cstore_to(patched, dc.ADVAPACS_GW_HOST, dc.ADVAPACS_GW_PORT,
                         dc.ADVAPACS_GW_AE, calling_ae)
@@ -306,7 +320,46 @@ def _acquire_and_send(entry: dict) -> dict:
         "fallback": fallback,
         "study_uid": study_uid,
         "instances": sent,
+        "order_completed": order_completed,
     }
+
+
+def _find_sr_id(accession: str) -> str:
+    """AdvaPACS ServiceRequest id for an accession. AdvaPACS rejects
+    ?identifier= searches, so use the webhook cache, else scan active orders."""
+    sr_id = _order_states.get(accession, {}).get("sr_id", "")
+    if sr_id:
+        return sr_id
+    r = requests.get(f"{FHIR_BASE_URL.rstrip('/')}/ServiceRequest", headers=_fhir_auth(),
+                     params={"status": "active", "_count": "200"}, timeout=15)
+    r.raise_for_status()
+    for e in r.json().get("entry", []):
+        sr = e.get("resource", {})
+        for i in sr.get("identifier", []):
+            if i.get("value") == accession and any(
+                    c.get("code") == "ACSN" for c in (i.get("type") or {}).get("coding", [])):
+                return sr.get("id", "")
+    return ""
+
+
+def _complete_order(accession: str) -> bool:
+    """Set the order (ServiceRequest) to completed in AdvaPACS. Never blocks imaging."""
+    try:
+        sr_id = _find_sr_id(accession)
+        if not sr_id:
+            log.warning(f"Complete-before-send: no AdvaPACS order found for {accession}")
+            return False
+        r = requests.patch(
+            f"{FHIR_BASE_URL.rstrip('/')}/ServiceRequest/{sr_id}",
+            data=json.dumps([{"op": "replace", "path": "/status", "value": "completed"}]),
+            headers={**_fhir_auth(), "Content-Type": "application/json-patch+json"},
+            timeout=15)
+        ok = r.status_code in (200, 201)
+        log.info(f"Complete-before-send: order {accession} ({sr_id}) → completed: HTTP {r.status_code}")
+        return ok
+    except Exception as e:
+        log.warning(f"Complete-before-send failed for {accession}: {e}")
+        return False
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
