@@ -40,7 +40,7 @@ from collections import Counter, deque
 from datetime import datetime, timedelta, timezone
 
 import requests
-from flask import Flask, abort, jsonify, render_template, request
+from flask import Flask, abort, jsonify, render_template, request, send_file
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)-8s  %(message)s")
 log = logging.getLogger("report-console")
@@ -553,6 +553,13 @@ def events_view():
     return render_template("events.html", events=events, stats=_stats, errors=list(_errors),
                            counts=counts, lag=lag, sync_sec=SYNC_SEC, fhir_base=FHIR_BASE,
                            site_aets=sorted(SITE_AETS), site_name=SITE_NAME)
+
+
+@app.route("/favicon.ico")
+def favicon():
+    # Eärendil's Star, same icon as the landing page and modality console
+    return send_file(os.path.join(os.path.dirname(os.path.abspath(__file__)), "favicon.ico"),
+                     mimetype="image/vnd.microsoft.icon", max_age=86400)
 
 
 @app.route("/trigger", methods=["POST"])
