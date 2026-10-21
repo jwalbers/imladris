@@ -98,6 +98,10 @@ def init_db():
         CREATE INDEX IF NOT EXISTS events_acc ON events (accession);
         CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
         """)
+        # Repair: webhook rows recorded before their resource was known had no accession.
+        for r in c.execute("SELECT DISTINCT rtype, rid FROM events "
+                           "WHERE source='webhook' AND accession='' AND rid<>''").fetchall():
+            fill_accession(c, r["rtype"], r["rid"])
 
 
 def now_iso() -> str:
@@ -296,6 +300,7 @@ def handle_trigger(payload: dict):
                        c.execute("SELECT accession FROM links WHERE rtype=? AND rid=?", (rtype or "", rid)))
         add_event(c, "webhook", etype, rtype or data.get("type", ""), rid, acc,
                   f"webhook {etype}", raw=payload)
+        webhook_event_id = c.execute("SELECT last_insert_rowid()").fetchone()[0]
     if not rtype or not rid:
         return
     if rtype == "Patient":
@@ -317,6 +322,20 @@ def handle_trigger(payload: dict):
         except ValueError:
             pass
     ingest(res, "webhook")
+    if not acc:   # first we heard of it: give the webhook row the accession found on reading it
+        with _lock, db() as c:
+            fill_accession(c, rtype, rid, webhook_event_id)
+
+
+def fill_accession(c, rtype: str, rid: str, event_id=None):
+    accs = ",".join(r["accession"] for r in
+                    c.execute("SELECT accession FROM links WHERE rtype=? AND rid=?", (rtype, rid)))
+    if not accs:
+        return
+    if event_id is not None:
+        c.execute("UPDATE events SET accession=? WHERE id=? AND accession=''", (accs, event_id))
+    else:
+        c.execute("UPDATE events SET accession=? WHERE rtype=? AND rid=? AND accession=''", (accs, rtype, rid))
 
 
 def sync(initial=False):
