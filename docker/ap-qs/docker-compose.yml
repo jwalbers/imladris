@@ -280,7 +280,11 @@ services:
       CT_AET: ${LAB_CT_AET:-IML_CT_01}
       INSTITUTION: Bophelong MDR-TB Hospital
       DICOM_ISSUER_OF_PATIENT_ID: PIH_A
-      POLL_INTERVAL_MINUTES: 0.25   # 15 sec — demo mode (restore to 5 for production)
+      # Patients are imaged by hand from the modality console. AUTO_ACQUIRE=true
+      # makes the sidecar image every worklist entry itself (unattended runs only;
+      # it races the console's Image Patient button).
+      AUTO_ACQUIRE: ${AUTO_ACQUIRE:-false}
+      POLL_INTERVAL_MINUTES: 0.25   # auto mode only: 15 sec
       WL_FOLDER: /worklist
       HOSPITAL_RECORDS: /hospital-records
       # AdvaPACS gateway (host-networked on 11112)

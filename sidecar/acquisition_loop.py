@@ -25,6 +25,10 @@ logging.basicConfig(
 log = logging.getLogger("acquisition_loop")
 
 POLL_MINUTES      = float(os.getenv("POLL_INTERVAL_MINUTES", "5"))
+# Off by default: the technologist images each patient from the modality console
+# ("Image Patient"). On, this loop images every worklist entry by itself, which
+# races the console. Use it only for unattended pipeline runs.
+AUTO_ACQUIRE      = os.getenv("AUTO_ACQUIRE", "false").lower() in ("1", "true", "yes", "on")
 INSTITUTION       = os.getenv("INSTITUTION", "Bophelong MDR-TB Hospital")
 ISSUER_OF_PATIENT = os.getenv("DICOM_ISSUER_OF_PATIENT_ID", "")
 CR_AET            = os.getenv("CR_AET", "IML_CR_01")
@@ -147,6 +151,10 @@ def run_cycle():
 
 
 def main():
+    if not AUTO_ACQUIRE:
+        log.info("Automatic acquisition off (AUTO_ACQUIRE=false): patients are imaged "
+                 "from the modality console")
+        return
     log.info(
         f"Imladris acquisition loop starting  "
         f"(poll every {POLL_MINUTES} min, "
