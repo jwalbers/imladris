@@ -83,3 +83,12 @@ filtering on a separate reason code rather than the state itself.
 | amended (in progress) | `amended` |
 | rejected / cancelled | `cancelled` |
 | archived | *(operational; no FHIR equivalent)* |
+
+---
+
+## See also
+
+- [AdvaPACS report status enumeration](advapacs-report-status-enumeration.md): the status
+  values AdvaPACS boards and transition buttons are built on, mapped to HL7 v2 table 0123 and
+  FHIR `DiagnosticReport.status`, with what the lab has observed (2026-10-22). Note: AdvaPACS
+  calls the `readyToRead` state **Ready to Report**.
