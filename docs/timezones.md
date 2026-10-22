@@ -25,7 +25,7 @@ e.g. [AdvaPACS shifting qTrack studies by +4 h](../issues/advapacs-study-time-sh
 | qure-sim (lab AI stand-in) | `LAB_TZ` | copies the study's date, time and 0008,0201 into its SC | (via AdvaPACS) |
 | Report Console | `LAB_TZ` | stores UTC | lab-local, UTC on hover; sorted by UTC |
 | Lab AdvaPACS gateway | `LAB_TZ` | passes DICOM through unchanged | |
-| Qure laptop, MinXray sim, qTrack | Africa/Maseru | **To confirm:** qTrack's StudyTime looked like UTC (CXR8455). The PACS adapter should add 0008,0201 matching what qTrack actually writes | qTrack: Maseru |
+| Qure laptop, MinXray sim, qTrack | Africa/Maseru | **UTC** in StudyDate/StudyTime, whatever the laptop's zone (confirmed CXR5319, 2026-10-22: 20:45:29 written, arrived 20:47 UTC). The PACS adapter adds 0008,0201 = `+0000` | qTrack UI: Maseru |
 | PIH OpenMRS integration (Mark) | his server | should add 0008,0201 (with the top-level Accession/Patient ID fix) | |
 | AdvaPACS | cloud, UTC | | per-user timezone setting |
 
@@ -38,9 +38,10 @@ the DST-correct offset.
 - **Remote AE timezone** = the zone of the clock the sender **writes**, not where the machine
   sits. It's the fallback for senders that omit 0008,0201:
   `IML_*_02`, `IML_TOOLS_02` → America/Chicago; `IML_*_01`, `IML_TOOLS_01` →
-  America/Los_Angeles; `QURE01_*` → **UTC until confirmed** (see above), then Africa/Maseru
-  once the adapter writes local time with an offset; PIH's AE → its server's zone.
-- **User display timezone** → America/Chicago for the Wisconsin team.
+  America/Los_Angeles; `QURE01_*` → **UTC** (qTrack writes UTC; the zone the laptop sits in
+  doesn't matter); PIH's AE → its server's zone.
+- **Display timezone:** AdvaPACS lists use the viewing computer's timezone (no per-user setting).
+  AdvaView's image overlay shows the DICOM time as written, without conversion (for qTrack: UTC).
 - **Inbound HL7 service "Default Timezone"** → the sending site's zone (gw-02: America/Chicago).
 
 ## Lesotho deployment notes
