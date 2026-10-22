@@ -296,7 +296,7 @@ def _acquire_and_send(entry: dict) -> dict:
 
     calling_ae = _aet_for(modality)
 
-    # Experiment (2026-10-21): AdvaPACS's "incoming study -> Ready to Read" rule
+    # Experiment (2026-10-21): AdvaPACS's "incoming study -> Ready to Report" rule
     # puts ad-hoc studies (no prior order) on the Unread board, but not studies
     # that match an existing order, and completing the order afterwards doesn't
     # re-trigger it. Completing the order *before* the images arrive tests

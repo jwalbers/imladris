@@ -36,7 +36,7 @@ Workflow: register in qTrack → the simulator images the patient → qXR runs o
 laptop → results in qTrack → qTrack cloud sync, and the PACS adapter sends the
 study to AdvaPACS through the laptop gateway. In AdvaPACS these studies arrive
 without a prior order, so AdvaPACS creates the order and puts the study on the
-**Unread** board as **Ready to Read**.
+**Unread** board as **Ready to Report**.
 
 ## Remote access (team)
 

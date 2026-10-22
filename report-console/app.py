@@ -16,7 +16,7 @@ How it learns about changes
 
 FHIR R5 resources used: ServiceRequest (order), ImagingStudy (images),
 DiagnosticReport (report), Patient, Practitioner, Device (station AE -> site).
-The AdvaPACS worklist state itself ("Ready to Read", assignment) is not exposed
+The AdvaPACS worklist state itself ("Ready to Report", assignment) is not exposed
 through FHIR, so it shows only as webhook arrivals.
 
 Environment

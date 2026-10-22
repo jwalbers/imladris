@@ -289,7 +289,7 @@ services:
       AUTO_ACQUIRE: ${AUTO_ACQUIRE:-false}
       # Experiment (2026-10-21, off: made no difference): mark the AdvaPACS order completed before sending the
       # images, to test whether matched studies then reach the Unread board. Revert
-      # (false) once AdvaHealth confirms how ordered studies get to Ready to Read.
+      # (false) once AdvaHealth confirms how ordered studies get to Ready to Report.
       COMPLETE_ORDER_BEFORE_SEND: ${COMPLETE_ORDER_BEFORE_SEND:-false}
       POLL_INTERVAL_MINUTES: 0.25   # auto mode only: 15 sec
       WL_FOLDER: /worklist
