@@ -38,3 +38,23 @@ Our modality console now has a **Complete Order** step, used by the radiology te
 > For orders created through the FHIR API (`ServiceRequest`), completion creates the Reporting Worklist entry as **Draft**. Our "incoming study → Ready to Read" rule applies only to orders AdvaPACS creates for unordered studies. How should completed FHIR orders enter the worklist as **Ready to Read** (Unread board)? Is there a rule condition, a setting on the API client, or an order field? The HL7 inbound service has an "AdvaPACS Worklist Status" setting; is there a FHIR equivalent?
 
 Meanwhile, a Draft → Ready to Read transition button on the Drafts board moves these studies to Unread by hand.
+
+### Update 2026-10-22: HL7-created orders reach the Unread board
+
+Same test with the order created by **HL7 ORM^O01** through the gateway's Inbound HL7 Service
+(gw-02, "AdvaPACS Worklist Status" = Ready to Report), accession `HL7d5d5d4adb84f`:
+
+- Order created as **draft** (ORC-5 `SC` doesn't make it active); study linked on arrival; on **no
+  board** until completed.
+- Completed with ORM^O01 `XO` / `CM` (AdvaPACS Procedure Update): the study appeared on the
+  **Unread** board as **Ready to Report**.
+
+So the initial worklist status comes from the order's source: HL7 service setting → Ready to
+Report; FHIR API → Draft; no prior order → incoming-study rule. **The FHIR question stands:** how do
+FHIR-created orders get the equivalent of the HL7 service's Worklist Status?
+
+Also found:
+- **Orders created via HL7 can't be updated via FHIR:** PATCH/PUT returns 422 "Identifier system
+  required". AdvaPACS stores the HL7 placer/filler (and two plain accession) identifiers without a
+  `system`, then rejects FHIR writes to its own record. An HL7-ordering system must do all updates
+  (complete, cancel) over HL7.
