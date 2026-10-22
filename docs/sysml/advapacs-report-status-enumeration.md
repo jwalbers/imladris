@@ -25,6 +25,25 @@ are built on them.
 
 The list looks like a union of two standard code sets (below).
 
+## Two layers: worklist state vs report status
+
+AdvaPACS transition definitions use two different state variables (as seen in the admin UI, 2026-10-22):
+
+| Layer | Values | Where |
+|---|---|---|
+| **Worklist state** | Ready to Report, Draft, Preliminary, Verified, Archived, Cancelled (the lab's defined states) | transition *from* / *to*; board filters |
+| **Report status** | the 13 values above (HL7 v2 table 0123 ∪ FHIR DiagnosticReport.status), single-select | the transition's "Report Status" property; per the AdvaPACS docs, "the status of the generated report after clicking the button" |
+
+Working interpretation: firing a transition moves the study between worklist states **and** stamps the
+report with one result status, which is what downstream systems receive (FHIR
+`DiagnosticReport.status`, HL7 ORU OBR-25). E.g. Preliminary → Verified with report status Final.
+
+**To confirm empirically:** fire each transition on a test study and read the resulting
+`DiagnosticReport.status` in the report console's timeline. Record the results here as a
+transition → report-status table; it is also the evidence for a product-improvement proposal
+(the UI mixes a closed workflow list with an open standards code list without saying which system
+consumes the second).
+
 ## Mapping to the standards
 
 | AdvaPACS label | HL7 v2 result status (table 0123, OBR-25) | FHIR `DiagnosticReport.status` | Notes |
