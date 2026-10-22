@@ -27,7 +27,7 @@ e.g. [AdvaPACS shifting qTrack studies by +4 h](../issues/advapacs-study-time-sh
 | Lab AdvaPACS gateway | `LAB_TZ` | passes DICOM through unchanged | |
 | Qure laptop, MinXray sim, qTrack | Africa/Maseru | **UTC** in StudyDate/StudyTime, whatever the laptop's zone (confirmed CXR5319, 2026-10-22: 20:45:29 written, arrived 20:47 UTC). The PACS adapter adds 0008,0201 = `+0000` | qTrack UI: Maseru |
 | PIH OpenMRS integration (Mark) | his server | should add 0008,0201 (with the top-level Accession/Patient ID fix) | |
-| AdvaPACS | cloud, UTC | | per-user timezone setting |
+| AdvaPACS | cloud, UTC | | lists: the viewing computer's timezone; AdvaView overlay: DICOM time as written |
 
 Container TZ comes from `LAB_TZ` in `docker/ap-qs/.env` (`America/Chicago` in Wisconsin,
 default `America/Los_Angeles` for Oregon). Python's `datetime.now().astimezone()` then gives
