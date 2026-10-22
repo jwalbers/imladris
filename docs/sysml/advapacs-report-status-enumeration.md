@@ -17,18 +17,13 @@ are built on them.
 6. Modified
 7. Final
 8. Amended
-9. Modified
-10. Final
-11. Amended
-12. Corrected
-13. Appended
-14. Cancelled
-15. Entered In Error
-16. Unknown
+9. Corrected
+10. Appended
+11. Cancelled
+12. Entered In Error
+13. Unknown
 
-"Modified", "Final" and "Amended" appear twice. The list looks like a union of two
-standard code sets (below), with these three present in both. Which entry a board uses
-is worth checking in the transition definitions before relying on the duplicates.
+The list looks like a union of two standard code sets (below).
 
 ## Mapping to the standards
 
@@ -39,9 +34,9 @@ is worth checking in the transition definitions before relying on the duplicates
 | Partial Results | `S`: partial | `partial` | |
 | Results Entered - Not Verified | `R`: results stored, not yet verified | `partial` (closest) | AdvaPACS-side "draft" report? to confirm |
 | Preliminary | `P` | `preliminary` | |
-| Modified | | `modified` (R5) | listed twice |
-| Final | `F` | `final` | listed twice; AdvaPACS shows "Verified" when a verifier (performer function `VRF`) is present |
-| Amended | | `amended` | listed twice |
+| Modified | | `modified` (R5) | |
+| Final | `F` | `final` | AdvaPACS shows "Verified" when a verifier (performer function `VRF`) is present |
+| Amended | | `amended` | |
 | Corrected | `C` | `corrected` | |
 | Appended | | `appended` | |
 | Cancelled | `X`: cannot obtain / cancelled | `cancelled` | set by the report editor's **Cancel** button ([issue](../../issues/advapacs-report-dialog-cancel-cancels-report.md)) |
