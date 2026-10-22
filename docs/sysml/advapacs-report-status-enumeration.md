@@ -65,6 +65,19 @@ consumes the second).
 The HL7 and FHIR columns are our inference from the labels; AdvaHealth hasn't published the
 mapping. Confirm before the state machine depends on it.
 
+By standard:
+
+- **In both** (HL7 / FHIR): Partial Results (`S` / `partial`), Preliminary (`P` / `preliminary`),
+  Final (`F` / `final`), Corrected (`C` / `corrected`), Cancelled (`X` / `cancelled`).
+- **HL7 only:** No Result (`O`), In Lab - Results Pending (`I`), Results Entered - Not Verified
+  (`R`). FHIR `DiagnosticReport.status` has no equivalent (and no `draft`), so AdvaPACS must
+  translate these on the FHIR side, probably to `registered`, `partial` or `unknown`. To confirm.
+- **FHIR only:** Modified, Amended, Appended, Entered In Error, Unknown.
+
+FHIR R5 `DiagnosticReport.status` allows exactly 11 codes: registered, partial, preliminary,
+modified, final, amended, corrected, appended, cancelled, entered-in-error, unknown. Design report
+states around these, since that is what FHIR consumers (OpenMRS) receive.
+
 ## Observed so far (lab, FHIR `DiagnosticReport.status` via the report console)
 
 | Situation | FHIR status seen | Worklist board / label |
