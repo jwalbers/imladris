@@ -13,6 +13,8 @@ Study Instance UID ZDS-1, modality OBR-24, ORC-1 NW, ORC-5 SC, time ORC-7.4.
 Run inside the sidecar container:
   docker exec -i imladris-sidecar python - < tools/hl7_order_test.py
 Options: --host host.docker.internal --port 2576 --patient WCELUK --modality CR --no-image
+         --complete-accession ACC --study-uid UID   (send ORM^O01 XO/CM: mark that order
+                                                     completed; AdvaPACS finds it by ZDS-1)
 """
 
 import argparse
@@ -37,7 +39,11 @@ ap.add_argument("--issuer", default="PIH_A")
 ap.add_argument("--modality", default="CR")
 ap.add_argument("--procedure", default="Chest, 1 view (X-ray)")
 ap.add_argument("--no-image", action="store_true", help="send the order only")
+ap.add_argument("--complete-accession", help="complete an order created by this script (XO/CM)")
+ap.add_argument("--study-uid", help="its Study Instance UID (ZDS-1), required with --complete-accession")
 a = ap.parse_args()
+if a.complete_accession and not a.study_uid:
+    sys.exit("--complete-accession needs --study-uid")
 
 # Demographics from the AdvaPACS Patient (same patient the images will carry)
 client = httpx.Client(headers=op._fhir_headers())
@@ -54,16 +60,17 @@ sex = {"male": "M", "female": "F"}.get(pat.get("gender", ""), "U")
 
 now = datetime.now()
 ts = now.strftime("%Y%m%d%H%M%S")
-accession = "HL7" + secrets.token_hex(6)          # 15 chars, marks it as a test
+accession = a.complete_accession or ("HL7" + secrets.token_hex(6))   # 15 chars, marks it as a test
 placer, filler = "P" + accession, "F" + accession
-study_uid = generate_uid()
+study_uid = a.study_uid or generate_uid()
+control, status = ("XO", "CM") if a.complete_accession else ("NW", "SC")
 code = a.procedure.replace(" ", "_").upper()[:20]
 
 segs = [
     f"MSH|^~\\&|IMLADRIS|BOPHELONG|ADVAPACS|ADVAPACS|{ts}||ORM^O01|{secrets.token_hex(8)}|P|2.5.1",
     f"PID|1||{a.patient}^^^{a.issuer}||{family}^{given}||{dob}|{sex}",
     "PV1|1|O",
-    f"ORC|NW|{placer}|{filler}||SC||^^^{ts}|||||",
+    f"ORC|{control}|{placer}|{filler}||{status}||^^^{ts}|||||",
     f"OBR|1|{placer}|{filler}|{code}^{a.procedure}^L|||{ts}|||||||||||{accession}|{accession}|{accession}||||{a.modality}|||^^^{ts}",
     f"ZDS|{study_uid}^^Application^DICOM",
 ]
@@ -76,7 +83,7 @@ with socket.create_connection((a.host, a.port), timeout=15) as s:
 print("ACK:\n  " + ack.replace("\r", "\n  "))
 if "|AA|" not in ack and "|CA|" not in ack:
     sys.exit("Order not accepted")
-if a.no_image:
+if a.no_image or a.complete_accession:
     sys.exit(0)
 
 time.sleep(5)
