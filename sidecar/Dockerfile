@@ -23,6 +23,7 @@ COPY mwl_manager.py .
 COPY order_poller.py .
 COPY scp_relay.py .
 COPY hl7_bridge.py .
+COPY hl7_orders.py .
 COPY modality_console_web.py .
 COPY main.py .
 COPY favicon.ico .

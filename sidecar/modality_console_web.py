@@ -61,6 +61,7 @@ import dicom_client as dc
 import acquisition_loop as _acq
 import fhir_mwl_poller as fmp
 import hl7_bridge
+import hl7_orders
 
 log = logging.getLogger("console_web")
 
@@ -349,6 +350,8 @@ def _find_sr_id(accession: str) -> str:
 
 def _complete_order(accession: str) -> bool:
     """Set the order (ServiceRequest) to completed in AdvaPACS. Never blocks imaging."""
+    if hl7_orders.get(accession).get("transport") == "hl7":
+        return hl7_orders.complete_order(accession)   # HL7 orders reject FHIR updates
     try:
         sr_id = _find_sr_id(accession)
         if not sr_id:

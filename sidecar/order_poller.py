@@ -32,6 +32,8 @@ from pathlib import Path
 
 import httpx
 import pydicom.uid
+
+import hl7_orders
 import requests
 
 log = logging.getLogger("order_poller")
@@ -46,6 +48,9 @@ _ORDER_TYPE_UUID_ENV = os.getenv("RADIOLOGY_ORDER_TYPE_UUID", "")
 
 ORDER_STATE_FILE = os.getenv("ORDER_STATE_FILE", "/data/order_poller_state.json")
 ORDER_POLL_SEC   = int(os.getenv("ORDER_POLL_SEC", "30"))
+# How orders reach AdvaPACS: "hl7" (gateway Inbound HL7 Service; completed orders
+# land on the Unread board) or "fhir" (ServiceRequest API; completed orders land on Drafts).
+ORDER_TRANSPORT  = os.getenv("ORDER_TRANSPORT", "fhir").lower()
 
 FHIR_BASE_URL    = os.getenv("FHIR_BASE_URL",
                               "https://usa1.api.integration.advapacs.com/fhir/R5")
@@ -263,16 +268,25 @@ def _post_service_request(
 
 def _revoke_service_request(client: httpx.Client, accession: str) -> bool:
     """Set an existing ServiceRequest to 'revoked' (cancelled order)."""
-    r = client.get(f"{FHIR_BASE_URL}/ServiceRequest",
-                   params={"identifier": accession}, timeout=10)
-    if r.status_code != 200:
+    # AdvaPACS rejects ?identifier= searches: scan the open orders for the accession.
+    sr_id = ""
+    for status in ("draft", "active", "on-hold"):
+        r = client.get(f"{FHIR_BASE_URL}/ServiceRequest",
+                       params={"status": status, "_count": "200"}, timeout=15)
+        if r.status_code != 200:
+            continue
+        for e in r.json().get("entry", []):
+            res = e.get("resource", {})
+            if any(i.get("value") == accession and any(
+                    c.get("code") == "ACSN" for c in (i.get("type") or {}).get("coding", []))
+                   for i in res.get("identifier", [])):
+                sr_id = res.get("id", "")
+                break
+        if sr_id:
+            break
+    if not sr_id:
+        log.debug(f"No open ServiceRequest found to revoke for accession={accession}")
         return False
-    entries = r.json().get("entry", [])
-    if not entries:
-        log.debug(f"No ServiceRequest found to revoke for accession={accession}")
-        return False
-
-    sr_id = entries[0]["resource"]["id"]
     patch = [{"op": "replace", "path": "/status", "value": "revoked"}]
     r2 = client.patch(
         f"{FHIR_BASE_URL}/ServiceRequest/{sr_id}",
@@ -407,12 +421,17 @@ def _process_order(
         log.warning("Order has no accessionNumber — skipping")
         return True
 
+    sent = hl7_orders.get(accession)   # our record of orders already sent to AdvaPACS
+
     if action == "DISCONTINUE":
-        _revoke_service_request(fhir_client, accession)
+        if sent.get("transport") == "hl7":
+            hl7_orders.cancel_order(accession)        # HL7 orders can't be changed via FHIR
+        else:
+            _revoke_service_request(fhir_client, accession)
         return True
 
-    if _service_request_exists(fhir_client, accession):
-        log.debug(f"ServiceRequest already exists for accession={accession} — skipping")
+    if sent:
+        log.debug(f"Order {accession} already sent to AdvaPACS ({sent.get('transport')}) — skipping")
         return True
 
     patient = order.get("patient") or {}
@@ -425,6 +444,11 @@ def _process_order(
     study_uid      = pydicom.uid.generate_uid()
     occurrence     = order.get("dateActivated", "")
 
+    if ORDER_TRANSPORT == "hl7":
+        return hl7_orders.create_order(
+            accession, patient_id, patient_name, dob, sex, procedure_desc, modality, study_uid,
+            code=concept_uuid, scheduled=_hl7_time(occurrence))
+
     patient_uuid = _find_or_create_patient(
         fhir_client, patient_id, patient_name, dob, sex, patient_cache
     )
@@ -435,12 +459,26 @@ def _process_order(
     ae_title    = _MODALITY_AET.get(modality, "")
     device_uuid = _find_device_uuid(fhir_client, ae_title) if ae_title else ""
 
-    return _post_service_request(
+    ok = _post_service_request(
         fhir_client, patient_uuid, accession, procedure_desc, modality, study_uid,
         device_uuid=device_uuid,
         concept_uuid=concept_uuid,
         occurrence=occurrence,
     )
+    if ok:
+        hl7_orders.record(accession, "fhir", study_uid=study_uid)
+    return ok
+
+
+def _hl7_time(openmrs_ts: str) -> str:
+    """OpenMRS '2026-07-10T05:35:02.000+0000' -> HL7 '20260710003502-0500' (lab-local, with offset)."""
+    import re
+    from datetime import datetime
+    try:
+        t = datetime.strptime(re.sub(r"\.\d+", "", openmrs_ts or ""), "%Y-%m-%dT%H:%M:%S%z")
+        return t.astimezone().strftime("%Y%m%d%H%M%S%z")
+    except ValueError:
+        return ""
 
 
 def _poll_once(

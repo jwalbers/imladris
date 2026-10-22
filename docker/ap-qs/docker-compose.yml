@@ -306,6 +306,11 @@ services:
       # scp_relay SCP (receives SC from qure-sim, forwards to AdvaPACS)
       SCP_AE: ${LAB_CR_AET:-IML_CR_01}
       SCP_PORT: "4242"
+      # How orders reach AdvaPACS: hl7 (gateway Inbound HL7 Service on HL7_GW_PORT; completed
+      # orders land on the Unread board as Ready to Report) or fhir (ServiceRequest API; completed
+      # orders land on Drafts). See issues/advapacs-fhir-orders-enter-worklist-as-draft.md.
+      ORDER_TRANSPORT: ${ORDER_TRANSPORT:-fhir}
+      HL7_GW_PORT: "2576"
       # Order poller (OpenMRS REST → AdvaPACS ORM^O01)
       OPENMRS_URL: http://host.docker.internal:8080/openmrs
       OPENMRS_USER: ${OPENMRS_SERVICE_USER:-imladris-service}
