@@ -173,6 +173,36 @@ def cached(rtype: str, rid: str) -> dict:
     return res
 
 
+def _parse(iso: str):
+    try:
+        t = datetime.fromisoformat((iso or "").replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)   # our own timestamps are UTC
+
+
+def to_local(iso: str, fmt: str = "%Y-%m-%d %H:%M") -> str:
+    """An ISO time (any offset) shown in lab-local time (container TZ = LAB_TZ)."""
+    t = _parse(iso)
+    return t.astimezone().strftime(fmt) if t else (iso or "")
+
+
+def to_utc_key(iso: str) -> str:
+    """Sortable UTC form, so times from different sites/offsets order correctly."""
+    t = _parse(iso)
+    return t.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S") if t else ""
+
+
+@app.template_filter("local")
+def local_filter(iso, fmt="%Y-%m-%d %H:%M:%S"):
+    return to_local(iso, fmt)
+
+
+@app.context_processor
+def tz_label():
+    return {"tz_label": datetime.now().astimezone().tzname()}
+
+
 def ref_id(ref: str) -> str:
     return (ref or "").rsplit("/", 1)[-1]
 
@@ -455,12 +485,12 @@ def row_for(acc, sr, pat, aet, studies, reports, last_ts) -> dict:
         "station": aet, "site": site_label(aet),
         "order_status": ORDER_STATUS.get(sr.get("status"), sr.get("status")) if sr else "No order",
         "order_raw": sr.get("status") if sr else "",
-        "ordered": when[:16].replace("T", " "),
+        "ordered": to_local(when),
         "series": series,
         "report": report_label(dr) if dr else "",
         "radiologist": person_name("Practitioner", (dr.get("resultsInterpreter") or [{}])[0].get("reference", "")) if dr else "",
-        "last": last_ts[:16].replace("T", " "),
-        "sort": max(when, last_ts),
+        "last": to_local(last_ts),
+        "sort": max(to_utc_key(when), to_utc_key(last_ts)),
         # No station AE: an order AdvaPACS made itself for a study that arrived
         # without one (e.g. Qure laptop pushes). Can't tell the site, so show it here.
         "local": not aet or aet in SITE_AETS,
@@ -523,7 +553,7 @@ def accession_view(acc):
                 break
         report_views.append({
             "id": dr["id"], "label": report_label(full), "status": full.get("status"),
-            "issued": (full.get("issued") or "")[:19].replace("T", " "),
+            "issued": to_local(full.get("issued") or "", "%Y-%m-%d %H:%M:%S"),
             "interpreters": [person_name("Practitioner", p.get("reference", "")) for p in full.get("resultsInterpreter", [])],
             "verifiers": [person_name("Practitioner", r) for r in verifiers(full)],
             "forms": [pf.get("contentType") for pf in full.get("presentedForm", [])],
@@ -532,7 +562,7 @@ def accession_view(acc):
     study_views = [{
         "uid": next((i.get("value", "").removeprefix("urn:oid:") for i in st.get("identifier", [])
                      if i.get("system") == "urn:dicom:uid"), ""),
-        "status": st.get("status"), "started": (st.get("started") or "")[:19].replace("T", " "),
+        "status": st.get("status"), "started": to_local(st.get("started") or "", "%Y-%m-%d %H:%M:%S"),
         "series": series_summary(st), "json": json.dumps(st, indent=2)[:20000]} for st in studies]
     pat = cached("Patient", ref_id(((sr or (studies or [{}])[0]) or {}).get("subject", {}).get("reference", "")))
     n = (pat.get("name") or [{}])[0]

@@ -11,7 +11,7 @@
       <dt>Accession</dt><dd>{{ acc }}</dd>
       <dt>Procedure</dt><dd>{{ procedure or '—' }}</dd>
       <dt>Order</dt><dd><span class="st st-order">{{ order_label }}</span>
-        {% if order %}<span class="muted">FHIR {{ order.status }} · {{ 'authored' if order.authoredOn else 'scheduled' }} {{ (order.authoredOn or order.occurrenceDateTime or '')[:16]|replace('T',' ') }} · {{ ('station ' ~ station) if station else 'no station (order created by AdvaPACS)' }}</span>{% endif %}</dd>
+        {% if order %}<span class="muted">FHIR {{ order.status }} · {{ 'authored' if order.authoredOn else 'scheduled' }} {{ (order.authoredOn or order.occurrenceDateTime or '')|local('%Y-%m-%d %H:%M') }} · {{ ('station ' ~ station) if station else 'no station (order created by AdvaPACS)' }}</span>{% endif %}</dd>
     </dl>
     {% if order_json %}<details><summary>ServiceRequest JSON</summary><pre class="json">{{ order_json }}</pre></details>{% endif %}
   </div>
@@ -19,11 +19,11 @@
   <h3>Timeline</h3>
   {% if events %}
   <table>
-    <thead><tr><th>When (UTC)</th><th>Since previous</th><th>Source</th><th>Event</th><th>Detail</th></tr></thead>
+    <thead><tr><th>When ({{ tz_label }})</th><th>Since previous</th><th>Source</th><th>Event</th><th>Detail</th></tr></thead>
     <tbody>
     {% for e in events %}
       <tr>
-        <td class="muted">{{ e.ts[:19]|replace('T',' ') }}</td>
+        <td class="muted" title="{{ e.ts }} UTC">{{ e.ts|local }}</td>
         <td class="muted">{{ e.delta }}</td>
         <td class="muted">{{ e.source }}</td>
         <td>{{ e.kind }}</td>

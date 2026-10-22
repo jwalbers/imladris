@@ -120,6 +120,7 @@ def run_cycle():
                 ds.InstanceNumber    = str(i)
                 ds.ContentDate       = date_str
                 ds.ContentTime       = time_str
+                ds.TimezoneOffsetFromUTC = now.astimezone().strftime("%z")   # times are lab-local (TZ)
                 ds.Modality          = modality
                 ds.InstitutionName   = INSTITUTION
                 if ISSUER_OF_PATIENT:

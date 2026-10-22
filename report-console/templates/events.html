@@ -43,11 +43,11 @@
 
   <h3>Event log <span class="count">latest {{ events|length }}</span></h3>
   <table>
-    <thead><tr><th>When (UTC)</th><th>Source</th><th>Event</th><th>Resource</th><th>Accession</th><th>Detail</th></tr></thead>
+    <thead><tr><th>When ({{ tz_label }})</th><th>Source</th><th>Event</th><th>Resource</th><th>Accession</th><th>Detail</th></tr></thead>
     <tbody>
     {% for e in events %}
       <tr>
-        <td class="muted">{{ e.ts[:19]|replace('T',' ') }}</td>
+        <td class="muted" title="{{ e.ts }} UTC">{{ e.ts|local }}</td>
         <td class="muted">{{ e.source }}</td>
         <td>{{ e.kind }}</td>
         <td class="muted">{{ e.rtype }}/{{ e.rid[:8] }}</td>

@@ -110,6 +110,7 @@ services:
     volumes:
       - ${SAMPLE_DIR_HOST}:/sample_outputs:ro
     environment:
+      TZ: ${LAB_TZ:-America/Los_Angeles}   # DICOM/worklist times are lab-local, with offset
       SCP_AE:       QUREAI
       SCP_PORT:     "5252"
       ORTHANC_HOST: imladris-sidecar   # scp_relay SCP on the sidecar
@@ -222,6 +223,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
+      TZ: ${LAB_TZ:-America/Los_Angeles}   # DICOM/worklist times are lab-local, with offset
       PORT: "5002"
       PACS_URL: http://localhost:8043
       PACS_USER: admin
@@ -273,6 +275,7 @@ services:
       - sidecar-data:/data        # order poller state (last-polled timestamp)
       - ../../../imladris-bophelong/patients/dicom:/hospital-records:ro
     environment:
+      TZ: ${LAB_TZ:-America/Los_Angeles}   # DICOM/worklist times are lab-local, with offset
       # Modality AE titles — per site (Oregon _01, Wisconsin _02); set in .env
       MODALITY_AET: ${LAB_CR_AET:-IML_CR_01}
       CR_AET: ${LAB_CR_AET:-IML_CR_01}

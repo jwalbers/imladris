@@ -78,7 +78,7 @@
     </div>
     <div class="meta">
       {% if signed_in %}<div>{{ signed_in }}</div>{% endif %}
-      {% if stats %}last sync {{ (stats.last_sync or '—')[11:19] }} UTC · last webhook {{ (stats.last_webhook or '—')[11:19] }}{% endif %}
+      {% if stats %}last sync {{ stats.last_sync|local('%H:%M:%S') if stats.last_sync else '—' }} · last webhook {{ stats.last_webhook|local('%H:%M:%S') if stats.last_webhook else '—' }} {{ tz_label }}{% endif %}
     </div>
   </header>
   <nav>{% block nav %}{% endblock %}</nav>

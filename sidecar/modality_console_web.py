@@ -204,6 +204,10 @@ def _get_worklist(modality_filter: str | None = None) -> list[dict]:
         status = state.get("status", "unknown")
         status_label, status_color = _STATUS_META.get(status, ("Unknown", "#4a5570"))
         created = state.get("created_at", state.get("updated_at", ""))
+        try:   # stored in UTC; show lab-local time (container TZ = LAB_TZ)
+            created = datetime.fromisoformat(created.replace("Z", "+00:00")).astimezone().strftime("%Y-%m-%dT%H:%M")
+        except ValueError:
+            pass
         sort_key = created[:16].replace("-", "").replace("T", "").replace(":", "")
         # Format created_at as display date/time
         scheduled_display = created[:10] if len(created) >= 10 else ""
@@ -278,6 +282,7 @@ def _acquire_and_send(entry: dict) -> dict:
         ds.InstanceNumber       = str(i)
         ds.ContentDate          = date_str
         ds.ContentTime          = time_str
+        ds.TimezoneOffsetFromUTC = now.astimezone().strftime("%z")   # e.g. -0500; times above are lab-local
         ds.Modality             = modality
         ds.InstitutionName      = INSTITUTION
 

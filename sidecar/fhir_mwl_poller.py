@@ -28,6 +28,7 @@ are kept.
 """
 
 import logging
+from datetime import datetime
 import os
 import time
 
@@ -261,10 +262,16 @@ def _poll_once(
         scheduled_date = scheduled_time = None
         occurrence = sr.get("occurrenceDateTime", "") or sr.get("authoredOn", "")
         if occurrence:
-            clean = (occurrence.replace("-", "").replace(":", "")
-                               .replace("T", "").split("+")[0].split("Z")[0])
-            scheduled_date = clean[:8]  if len(clean) >= 8  else None
-            scheduled_time = clean[8:14] if len(clean) >= 14 else None
+            # FHIR times carry an offset; the worklist (DICOM DA/TM) is in lab-local
+            # time, i.e. the container's TZ (LAB_TZ).
+            try:
+                when = datetime.fromisoformat(occurrence.replace("Z", "+00:00"))
+                if when.tzinfo:
+                    when = when.astimezone()
+                scheduled_date = when.strftime("%Y%m%d")
+                scheduled_time = when.strftime("%H%M%S") if "T" in occurrence else None
+            except ValueError:
+                log.debug(f"Unparseable occurrence {occurrence!r} for {accession}")
 
         log.info(f"MWL ← FHIR: {accession}  {modality}  station={station_aet}  "
                  f"patient={patient_id}  {proc_desc}")

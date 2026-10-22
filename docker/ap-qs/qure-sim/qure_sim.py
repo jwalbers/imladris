@@ -93,7 +93,7 @@ PATIENT_TAGS = [
     "PatientAge", "PatientWeight",
 ]
 STUDY_TAGS = [
-    "StudyInstanceUID", "StudyDate", "StudyTime", "StudyID",
+    "StudyInstanceUID", "StudyDate", "StudyTime", "StudyID", "TimezoneOffsetFromUTC",
     "AccessionNumber", "StudyDescription", "ReferringPhysicianName",
 ]
 
