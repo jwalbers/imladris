@@ -46,21 +46,37 @@ consumes the second).
 
 ## Mapping to the standards
 
-| AdvaPACS label | HL7 v2 result status (table 0123, OBR-25) | FHIR `DiagnosticReport.status` | Notes |
+| AdvaPACS label | HL7 v2 result status (table 0123, OBR-25) | FHIR `DiagnosticReport.status` | Board (board state), observed | Notes |
+|---|---|---|---|---|
+| No Result | `O`: order received, specimen not yet received | `registered` | (not seen) | order exists, nothing reported yet |
+| In Lab - Results Pending | `I`: in lab, results pending | `registered` | (not seen) | |
+| Partial Results | `S`: partial | `partial` | Drafts (Draft): report saved | |
+| Results Entered - Not Verified | `R`: results stored, not yet verified | `partial` (closest) | (not seen) | AdvaPACS-side "draft" report? to confirm |
+| Preliminary | `P` | `preliminary` | Prelims (Preliminary) | |
+| Modified | | `modified` (R5) | (not seen) | |
+| Final | `F` | `final` | Verified (Verified); also Completed (Verified) | AdvaPACS shows "Verified" when a verifier (performer function `VRF`) is present |
+| Amended | | `amended` | (not seen) | |
+| Corrected | `C` | `corrected` | (not seen) | |
+| Appended | | `appended` | (not seen) | |
+| Cancelled | `X`: cannot obtain / cancelled | `cancelled` | Cancelled (Cancelled) | set by the report editor's **Cancel** button ([issue](../../issues/advapacs-report-dialog-cancel-cancels-report.md)) |
+| Entered In Error | | `entered-in-error` | (not seen) | |
+| Unknown | | `unknown` | Ready to Report after a reset from Cancelled; Drafts just after a report is opened | |
+
+### By board
+
+| Board | Board state (worklist state) | FHIR `DiagnosticReport.status` seen | Notes |
 |---|---|---|---|
-| No Result | `O`: order received, specimen not yet received | `registered` | order exists, nothing reported yet |
-| In Lab - Results Pending | `I`: in lab, results pending | `registered` | |
-| Partial Results | `S`: partial | `partial` | |
-| Results Entered - Not Verified | `R`: results stored, not yet verified | `partial` (closest) | AdvaPACS-side "draft" report? to confirm |
-| Preliminary | `P` | `preliminary` | |
-| Modified | | `modified` (R5) | |
-| Final | `F` | `final` | AdvaPACS shows "Verified" when a verifier (performer function `VRF`) is present |
-| Amended | | `amended` | |
-| Corrected | `C` | `corrected` | |
-| Appended | | `appended` | |
-| Cancelled | `X`: cannot obtain / cancelled | `cancelled` | set by the report editor's **Cancel** button ([issue](../../issues/advapacs-report-dialog-cancel-cancels-report.md)) |
-| Entered In Error | | `entered-in-error` | |
-| Unknown | | `unknown` | |
+| Unread | **Ready to Report** | **none**: no DiagnosticReport exists yet | AdvaPACS creates the report when a radiologist opens the study; `unknown` seen once, after a reset from Cancelled |
+| Drafts | **Draft** | `unknown` (just opened) → `partial` (saved) | FHIR-created orders land here on completion with **no** DiagnosticReport: a worklist state, not a report |
+| Prelims | Preliminary | `preliminary` | |
+| Verified | Verified | `final`, verifier = performer function `VRF` | |
+| Completed | Verified | `final` | same state as Verified, different column layout |
+| Cancelled (custom) | Cancelled | `cancelled` | report editor's Cancel button |
+| (none yet) | Archived | | not observed |
+
+So for FHIR consumers, **Ready to Report** has no report status at all, and **Draft** is `partial`
+(or nothing, for FHIR-created orders). The transition test will tell which Report Status each
+transition actually stamps.
 
 The HL7 and FHIR columns are our inference from the labels; AdvaHealth hasn't published the
 mapping. Confirm before the state machine depends on it.
