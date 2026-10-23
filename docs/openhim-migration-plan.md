@@ -4,7 +4,20 @@ Goal: bring the IMLADRIS lab's OpenMRS integration to par with the Kol-CI setup
 ([Mark's write-up](../openhim-migration/Kol-CI%20Test%20Server-%20OpenMRS,%20OpenHIM%20&%20AdvaPACS.md)):
 OpenMRS ↔ AdvaPACS traffic routed and logged through OpenHIM.
 
-Status: plan, 2026-10-22.
+Status: Phase 1 deployed on the lab VM, 2026-10-22 (HAProxy names and the SSO gate still to do).
+
+## Phase 1 status (2026-10-22)
+
+- Deployed from `imladris/docker/openhim/up.sh`: distro-tools fragments at `f1ea9a8`, mediator image
+  `partnersinhealth/openhim-advapacs-mediator@sha256:549c6182c86b976c4b401ed480da0b948b1bb4ab5e7bc3c295a12afac1f8bb83`.
+- Core, console and MongoDB are healthy. The mediator registered (`urn:mediator:openmrs-advapacs-fhir`),
+  created client `openmrs` and both channels, and is idle (`ORDER_INGESTION_MODE=push`); orders stay HL7.
+- Ports: console 9000 and admin API 8081 on the LAN; router on **127.0.0.1:5011** only (the outbound
+  channel is public).
+- Lab autostart starts and stops the stack and health-checks console, API and router.
+- To do: HAProxy `openhim.imladrislab.org` → :9000 and `openhim-api.imladrislab.org` → :8081
+  (HTTPS, `X-Forwarded-Proto`), then switch the console API settings in `.env` to those names and
+  put the console behind the PIH sign-in; MongoDB backup.
 
 ## Decision: HL7 orders for now
 

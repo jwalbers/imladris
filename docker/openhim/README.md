@@ -15,4 +15,4 @@ Plan and status: [../../docs/openhim-migration-plan.md](../../docs/openhim-migra
 |---|---|---|
 | 9000 | openhim-console | admin console (browser) |
 | 8081 | openhim-core :8080 | admin API (the console calls it from the browser) |
-| 5011 | openhim-core :5001 | router: channels (moved off 5001, the modality console) |
+| 127.0.0.1:5011 | openhim-core :5001 | router: channels (moved off 5001, the modality console; localhost only, since the outbound channel is public) |
