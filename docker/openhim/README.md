@@ -1,0 +1,18 @@
+# OpenHIM in the IMLADRIS lab
+
+OpenHIM (core, console, MongoDB) and PIH's `openhim-advapacs-mediator`, deployed from the
+`openmrs-contrib-distro-tools` compose fragments that Kol-CI uses, with lab settings in `.env`.
+Plan and status: [../../docs/openhim-migration-plan.md](../../docs/openhim-migration-plan.md).
+
+- Distro-tools clone: `~/git/PIH/openmrs-contrib-distro-tools`, tracking `main` (note the commit
+  deployed below when updating).
+- `./up.sh` starts or updates; `./up.sh ps`, `./up.sh logs -f openhim-core`, `./up.sh down`.
+- Console: http://192.168.3.66:9000 (LAN), user `root@openhim.org`, password `OPENHIM_PASSWORD`.
+- The mediator runs in `push` mode, so it sends no orders: the lab's orders still go over HL7 from
+  the sidecar until AdvaPACS fixes FHIR order completion.
+
+| Host port | Container | Purpose |
+|---|---|---|
+| 9000 | openhim-console | admin console (browser) |
+| 8081 | openhim-core :8080 | admin API (the console calls it from the browser) |
+| 5011 | openhim-core :5001 | router: channels (moved off 5001, the modality console) |
