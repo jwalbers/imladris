@@ -1,0 +1,25 @@
+# PIH sign-in in front of the OpenHIM console (same gate as ap-qs's report-sso-gate).
+# HAProxy: openhim.imladrislab.org → <lab host>:9001. The console itself is published on
+# 127.0.0.1:9000 only, so the gate is the way in. The admin API (openhim-api, :8081) stays
+# outside the gate: the console's browser code calls it directly, and OpenHIM's own login
+# protects it.
+services:
+  openhim-sso-gate:
+    image: nginx:1.27-alpine
+    container_name: openhim-sso-gate
+    restart: unless-stopped
+    depends_on: [openhim-console]
+    ports:
+      - "9001:80"
+    environment:
+      SSO_UPSTREAM: openhim-console:80
+    volumes:
+      - ${IMLADRIS_DOCKER_DIR?}/ap-qs/sso-gate/sso-gate.conf.template:/etc/nginx/templates/default.conf.template:ro,z
+    networks:
+      - default
+      - imladris   # reaches imladris-saml-sp (ap-qs) for the session check
+
+networks:
+  imladris:
+    external: true
+    name: imladris_imladris
