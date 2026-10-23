@@ -15,8 +15,8 @@ Status: Phase 1 deployed on the lab VM, 2026-10-22 (HAProxy names and the SSO ga
 - Ports: console 9000 and admin API 8081 on the LAN; router on **127.0.0.1:5011** only (the outbound
   channel is public).
 - Lab autostart starts and stops the stack and health-checks console, API and router.
-- To do: HAProxy `openhim.imladrislab.org` → :9000 and `openhim-api.imladrislab.org` → :8081
-  (HTTPS, `X-Forwarded-Proto`), then switch the console API settings in `.env` to those names and
+- Done: HAProxy `openhim.imladrislab.org` → :9000 and `openhim-api.imladrislab.org` → :8081
+  (HTTPS, `X-Forwarded-Proto`); console API settings switched to those names; CORS checked. To do:
   put the console behind the PIH sign-in; MongoDB backup.
 
 ## Decision: HL7 orders for now
